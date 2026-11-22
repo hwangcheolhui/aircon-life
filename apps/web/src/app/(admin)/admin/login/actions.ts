@@ -8,7 +8,7 @@ import { redirect } from 'next/navigation';
 import { type ActionResult, ValidationFailed, handle, parse } from '@/server/action-result';
 import { writeAudit } from '@/server/audit';
 import { getAuth } from '@/server/auth';
-import { getDb } from '@/server/db';
+import { DB_OFFLINE_MESSAGE, getDb, isDbConfigured } from '@/server/db';
 import { getSettingNumber } from '@/server/settings';
 
 const INVALID = 'ID 또는 비밀번호가 올바르지 않습니다.';
@@ -16,6 +16,7 @@ const INVALID = 'ID 또는 비밀번호가 올바르지 않습니다.';
 export async function loginAction(_: unknown, form: FormData): Promise<ActionResult> {
   const result = await handle(async () => {
     const { loginId, password } = parse(loginInput, Object.fromEntries(form));
+    if (!isDbConfigured()) throw new ValidationFailed({ _: DB_OFFLINE_MESSAGE });
     const db = getDb();
     const [admin] = await db.select().from(adminUser).where(eq(adminUser.loginId, loginId));
     if (!admin || admin.deletedAt) throw new ValidationFailed({ _: INVALID });

@@ -15,7 +15,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
-import { getDb } from './db';
+import { getDb, isDbConfigured } from './db';
 
 /** 요청 쿠키에 묶인 인증 어댑터 (서버 컴포넌트에서는 쿠키 쓰기가 무시된다) */
 export async function getAuth() {
@@ -70,7 +70,16 @@ export const getCurrentAdmin = cache(async (): Promise<CurrentAdmin | null> => {
 
 /** 실제 로그인 관리자만 (임시 개발 모드 열람자 제외). 없거나 사용 불가 상태면 null */
 const getLoggedInAdmin = async (): Promise<CurrentAdmin | null> => {
-  const authUserId = await (await getAuth()).getSessionUserId();
+  // DB 미연결이면 로그인 관리자를 확인할 수 없다(임시 개발 모드 열람자만 가능)
+  if (!isDbConfigured()) return null;
+  let authUserId: string | null;
+  try {
+    authUserId = await (await getAuth()).getSessionUserId();
+  } catch (e) {
+    // 인증 환경변수 미설정 등. 임시 개발 모드에서는 비로그인으로 보고, 아니면 오류를 그대로 낸다.
+    if (isAdminAuthBypass()) return null;
+    throw e;
+  }
   if (!authUserId) return null;
   const db = getDb();
   const [row] = await db

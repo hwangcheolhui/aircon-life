@@ -19,18 +19,24 @@ export async function middleware(req: NextRequest) {
   }
 
   let res = NextResponse.next({ request: req });
-  const auth = createAuthAdapter({
-    getAll: () => req.cookies.getAll().map((c) => ({ name: c.name, value: c.value })),
-    setAll: (list) => {
-      for (const c of list) req.cookies.set(c.name, c.value);
-      res = NextResponse.next({ request: req });
-      for (const c of list) res.cookies.set(c.name, c.value, c.options);
-    },
-  });
-  const userId = await auth.getSessionUserId();
   const isLogin = req.nextUrl.pathname === '/admin/login';
   // 임시 개발 모드(ADMIN_AUTH_BYPASS=true): 로그인 없이 읽기 전용 열람 허용. 쓰기는 서버 액션 requirePermission이 막는다.
   const bypass = process.env.ADMIN_AUTH_BYPASS === 'true';
+  let userId: string | null = null;
+  try {
+    const auth = createAuthAdapter({
+      getAll: () => req.cookies.getAll().map((c) => ({ name: c.name, value: c.value })),
+      setAll: (list) => {
+        for (const c of list) req.cookies.set(c.name, c.value);
+        res = NextResponse.next({ request: req });
+        for (const c of list) res.cookies.set(c.name, c.value, c.options);
+      },
+    });
+    userId = await auth.getSessionUserId();
+  } catch (e) {
+    // 인증 환경변수(SESSION_SECRET·SUPABASE_*)가 아직 없을 때: 임시 개발 모드면 비로그인으로 통과
+    if (!bypass) throw e;
+  }
   if (!userId && !isLogin && !bypass) {
     const url = req.nextUrl.clone();
     url.pathname = '/admin/login';
