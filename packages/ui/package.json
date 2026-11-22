@@ -28,7 +28,7 @@
     "@aircon/config": "workspace:*",
     "@types/react": "19.1.17",
     "eslint": "9.39.1",
-    "react": "19.1.1",
+    "react": "19.1.10",
     "vitest": "3.2.4",
     "@types/node": "22.19.1"
   }
