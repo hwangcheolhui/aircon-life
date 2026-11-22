@@ -17,7 +17,7 @@
 | [docs/04_구현계획.md](docs/04_구현계획.md) | 구현 순서(단계 0~11), 단계별 화면·기능·테이블·완료 기준, 단계 종료 점검표(§4) |
 | [docs/05_디자인시스템.md](docs/05_디자인시스템.md) | 색·타이포·간격·컴포넌트·접근성 규칙 |
 | [docs/design-system/](docs/design-system/) | `tokens.css`(값의 단일 출처), `components.css`(`ac-` 컴포넌트), `tokens.json`(상태 코드 → 표시명·클래스 맵) |
-| [docs/06_기술스택_제안.md](docs/06_기술스택_제안.md) | 기술 스택·프로젝트 구조·외부 연동 선택 (초안, 확정 시 이 파일 §3도 갱신) |
+| [docs/06_기술스택_제안.md](docs/06_기술스택_제안.md) | 기술 스택·프로젝트 구조·외부 연동 선택 (v0.2: Next.js 단일 앱 + Vercel + Supabase 확정) |
 
 규칙
 - 문서에 없는 테이블·컬럼·상태·코드값·화면을 임의로 만들지 않습니다. 필요하면 **먼저 해당 문서를 수정**하고 코드에 반영합니다.
@@ -27,7 +27,7 @@
 ## 2. ID 기준으로 작업한다
 
 - **화면 ID**(`C-QUO-010`, `T-WRK-020`, `A-CSL-010`): 페이지·라우트 파일 상단 주석에 화면 ID를 적습니다. 권한의 `permission.menu_code`도 화면 ID와 같게 합니다(03 §0.2-5).
-- **기능 ID**(`F-CUS-QUO-04`): API 핸들러·서비스 함수·배치 잡 주석에 기능 ID를 적습니다.
+- **기능 ID**(`F-CUS-QUO-04`): 서버 액션·라우트 핸들러·서비스 함수·배치 잡 주석에 기능 ID를 적습니다.
 - **업무 규칙**(`BR-012`): 규칙을 구현한 코드와 그 테스트 이름에 BR 번호를 넣습니다. 예: `it('BR-013 야간·휴일 동시 해당 시 높은 할증 1건만 적용')`.
 - 커밋 메시지·PR 설명에도 다룬 단계·화면 ID·기능 ID를 적습니다. 예: `feat(quote): 자동 표준 견적 산출 [단계1][C-QUO-040][F-CUS-QUO-04]`.
 
@@ -36,8 +36,10 @@
 [docs/06_기술스택_제안.md](docs/06_기술스택_제안.md) §2~§3을 따릅니다. 요약:
 
 - TypeScript 모노레포(pnpm workspace + Turborepo)
-- `apps/customer`, `apps/tech`, `apps/admin`: Next.js(App Router) · `apps/api`: NestJS(REST + OpenAPI, 배치는 `jobs` 모듈)
-- PostgreSQL + PostGIS, Drizzle ORM, 잡·큐는 pg-boss
+- `apps/web`: **Next.js(App Router) 앱 하나**. 고객 `/` · 기사 `/tech` · 관리자 `/admin` (경로별 루트 레이아웃이 `data-channel` 지정)
+- 서버 로직은 서버 액션·라우트 핸들러(별도 API 서버 없음). 배치는 Vercel Cron → `/api/jobs/*`
+- **Vercel** 배포, **Supabase**: Auth(로그인) · PostgreSQL + PostGIS · Storage. Drizzle ORM(서버 전용 연결)
+- **관리자 데이터 수정은 서버에서 권한 확인**: 모든 서버 액션 첫 줄에 `requirePermission(화면ID, 행위)`, 페이지는 `requireScreen(화면ID)`. 모든 테이블 RLS 활성화(`has_permission`·`can_access_branch`)
 - `packages/db`(스키마·마이그레이션·시드), `packages/domain`(순수 비즈니스 로직), `packages/contracts`(Zod DTO), `packages/integrations`(외부 연동 어댑터), `packages/ui`(디자인 시스템), `packages/config`
 
 스택을 바꾸거나 새 주요 라이브러리를 들이려면 먼저 사용자에게 확인하고 06 문서를 갱신합니다.
@@ -45,7 +47,7 @@
 ## 4. 작업 방식
 
 1. **한 번에 04 구현계획의 한 단계(또는 하위 단계)만** 진행합니다. 단계 순서를 건너뛰지 않습니다. 단계 5는 5-1(출발~완료)과 5-2(추가요금·미처리)로 나눕니다.
-2. 작업 범위를 지킵니다. 요청이 `apps/admin`이면 다른 앱은 건드리지 않습니다(공용 패키지 변경이 필요하면 이유를 밝힙니다).
+2. 작업 범위를 지킵니다. 요청이 관리자 화면(`apps/web/src/app/(admin)`)이면 고객·기사 경로는 건드리지 않습니다(공용 패키지 변경이 필요하면 이유를 밝힙니다).
 3. **업무 규칙은 테스트 먼저**: BR 규칙마다 정상·예외 케이스 테스트를 `packages/domain`에 먼저 쓰고 구현합니다.
 4. 단계를 마칠 때 04 §4 점검표(흐름 시연·상태 이력·권한·BR·개인정보·알림·문서 동기화)를 확인하고 결과를 보고합니다.
 5. 타입체크·린트·테스트가 통과하지 않은 상태로 완료라고 보고하지 않습니다.
@@ -71,7 +73,7 @@
 
 ## 7. 외부 연동
 
-- 모든 외부 서비스(PG·본인인증·알림톡/SMS·푸시·지도/길찾기·주소·증빙)는 `packages/integrations`의 **인터페이스 + Mock 구현 + Real 구현**으로 만듭니다. 환경변수로 전환합니다.
+- 모든 외부 서비스(인증·파일 저장·PG·본인인증·알림톡/SMS·푸시·지도/길찾기·주소·증빙)는 `packages/integrations`의 **인터페이스 + Mock 구현 + Real 구현**으로 만듭니다. 환경변수로 전환합니다.
 - 새 단계는 Mock으로 흐름 전체가 돌아간 뒤에 실연동합니다(04 §0 원칙 4).
 - 경로 API 실패 시 직선거리 ÷ 25km/h 추정으로 대체합니다(F-TEC-RTE-02). 알림톡 실패 시 SMS로 대체합니다.
 
@@ -105,7 +107,20 @@
 - WCAG AA 대비 4.5:1, `:focus-visible` 포커스 링, 상태는 색 + 텍스트로 함께 표시, `aria-selected`/`aria-pressed`/`aria-invalid`/`role="dialog"` 지정, `prefers-reduced-motion` 존중.
 - 특정 기업의 로고·상표·전용 폰트·고유 아이콘·브랜드 컬러를 쓰지 않습니다(05 §0.2).
 
-## 9. 하지 말 것
+## 9. 개발 명령
+
+```bash
+pnpm install
+docker compose up -d db            # 또는 로컬 PostgreSQL 16
+cp .env.example apps/web/.env.local  # 값 채우기 (AUTH_DRIVER=mock 이면 Supabase 없이 동작)
+pnpm build --filter "./packages/*" # 공용 패키지 빌드
+pnpm db:migrate && pnpm db:seed     # DATABASE_URL, SEED_SUPER_ADMIN_PASSWORD 필요
+pnpm --filter @aircon/web dev       # http://localhost:3000/admin
+pnpm typecheck && pnpm lint && pnpm test   # TEST_DATABASE_URL 이 있으면 RLS 통합 테스트 포함
+pnpm e2e                            # 단계 완료 기준 E2E (E2E_DATABASE_URL)
+```
+
+## 10. 하지 말 것
 
 - 문서 확인 없이 테이블·상태·화면 추가
 - 상태 전이 함수를 거치지 않는 상태 컬럼 직접 UPDATE

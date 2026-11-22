@@ -299,3 +299,27 @@ body {
 .ac-divider { height: 1px; background: var(--color-divider); border: 0; margin: var(--space-6) 0; }
 .ac-divider--thick { height: 8px; background: var(--color-bg-subtle); margin: 0 calc(var(--page-gutter) * -1); }
 .ac-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- 관리자 레이아웃 (GNB / LNB, 03 §4.1) ---------- */
+.ac-admin-shell { display: grid; grid-template-rows: var(--admin-gnb-h) 1fr; min-height: 100vh; background: var(--color-bg); }
+.ac-gnb { position: sticky; top: 0; z-index: var(--z-header); display: flex; align-items: center; gap: var(--space-5); height: var(--admin-gnb-h); padding: 0 var(--space-5); border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
+.ac-gnb__brand { font-weight: 700; font-size: var(--text-title-size); color: var(--color-text); text-decoration: none; white-space: nowrap; }
+.ac-gnb__menu { display: flex; gap: var(--space-5); flex: 1; overflow-x: auto; scrollbar-width: none; }
+.ac-gnb__menu a { font-size: var(--text-body-sm-size); color: var(--color-text-secondary); text-decoration: none; white-space: nowrap; font-weight: 500; }
+.ac-gnb__menu a[aria-current="true"] { color: var(--color-primary); font-weight: 700; }
+.ac-gnb__tools { display: flex; align-items: center; gap: var(--space-3); white-space: nowrap; }
+.ac-admin-body { display: grid; grid-template-columns: var(--admin-lnb-w) 1fr; min-height: 0; }
+.ac-lnb { border-right: 1px solid var(--color-border); padding: var(--space-4) var(--space-3); background: var(--color-bg-subtle); }
+.ac-lnb a { display: block; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); font-size: var(--text-body-sm-size); color: var(--color-text-secondary); text-decoration: none; }
+.ac-lnb a[aria-current="page"] { background: var(--color-primary-subtle); color: var(--color-primary); font-weight: 600; }
+.ac-lnb__section { display: block; padding: var(--space-3) var(--space-3) var(--space-1); font-size: var(--text-micro-size); font-weight: 700; color: var(--color-text-tertiary); }
+.ac-admin-main { padding: var(--space-6); min-width: 0; max-width: var(--container-admin); }
+.ac-breadcrumb { margin: 0 0 var(--space-2); font-size: var(--text-caption-size); color: var(--color-text-tertiary); }
+@media (max-width: 1023px) { .ac-admin-body { grid-template-columns: 1fr; } .ac-lnb { display: none; } }
+
+/* 토스트 표시 위치 (하단 중앙, 3초 후 사라짐 05 §6.6) */
+.ac-toast-region { position: fixed; left: 50%; bottom: var(--space-8); transform: translateX(-50%); z-index: var(--z-toast); display: flex; flex-direction: column; align-items: center; gap: var(--space-2); pointer-events: none; }
+/* 입력 폼을 담는 모달 (관리자 등록·수정) */
+.ac-modal--form { max-width: 640px; max-height: calc(100vh - var(--space-12)); overflow: auto; text-align: left; }
+.ac-modal__actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-6); }
+

@@ -1,0 +1,37 @@
+{
+  "name": "@aircon/db",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Drizzle 스키마(01_ERD §2 그대로)·마이그레이션·RLS·시드",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src scripts",
+    "generate": "drizzle-kit generate",
+    "migrate": "tsx scripts/migrate.ts",
+    "seed": "tsx scripts/seed.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aircon/domain": "workspace:*",
+    "drizzle-orm": "0.44.7",
+    "postgres": "3.4.7"
+  },
+  "devDependencies": {
+    "@aircon/config": "workspace:*",
+    "@types/node": "22.19.1",
+    "drizzle-kit": "0.31.6",
+    "eslint": "9.39.1",
+    "tsx": "4.20.6",
+    "vitest": "3.2.4",
+    "@aircon/integrations": "workspace:*"
+  }
+}

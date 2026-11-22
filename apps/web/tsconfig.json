@@ -1,0 +1,10 @@
+{
+  "extends": "@aircon/config/tsconfig.next.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": { "@/*": ["src/*"] },
+    "types": ["node"]
+  },
+  "include": ["next-env.d.ts", "src", ".next/types/**/*.ts", "next.config.ts"],
+  "exclude": ["node_modules"]
+}

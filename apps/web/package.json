@@ -1,0 +1,35 @@
+{
+  "name": "@aircon/web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "고객(/)·기사(/tech)·관리자(/admin) 웹 — Next.js App Router 단일 앱, Vercel 배포",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@aircon/contracts": "workspace:*",
+    "@aircon/db": "workspace:*",
+    "@aircon/domain": "workspace:*",
+    "@aircon/integrations": "workspace:*",
+    "@aircon/ui": "workspace:*",
+    "drizzle-orm": "0.44.7",
+    "lucide-react": "0.553.0",
+    "next": "15.5.29",
+    "react": "19.1.10",
+    "react-dom": "19.1.10",
+    "server-only": "0.0.1"
+  },
+  "devDependencies": {
+    "@aircon/config": "workspace:*",
+    "@types/node": "22.19.1",
+    "@types/react": "19.1.17",
+    "@types/react-dom": "19.1.11",
+    "eslint": "9.39.1",
+    "vitest": "3.2.4"
+  }
+}
