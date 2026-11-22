@@ -1,5 +1,5 @@
 'use client';
-import { Masked, Tag } from '@aircon/ui';
+import { Masked, Tag, useToast } from '@aircon/ui';
 import { CrudScreen, type FormValues, type Option, labelOf } from '@/admin/crud-screen';
 import { deleteAccount, getAccountDetail, saveAccount } from './actions';
 
@@ -28,6 +28,7 @@ export function AccountsScreen(p: {
   canDelete: boolean;
 }) {
   const status = p.codes.ADMIN_STATUS;
+  const toast = useToast();
   return (
     <CrudScreen<AccountRow>
       title="관리자 계정"
@@ -72,6 +73,7 @@ export function AccountsScreen(p: {
       toForm={() => ({})}
       loadDetail={async (r) => {
         const res = await getAccountDetail(String(r.id));
+        if (!res.ok) toast(res.message ?? '권한이 없습니다.');
         return res.ok ? (res.data as FormValues) : null;
       }}
       fields={[

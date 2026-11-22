@@ -1,7 +1,7 @@
 'use client';
 // 관리자 GNB/LNB 셸 (.ac-gnb / .ac-lnb, 05 §6.4)
-import { Button } from '@aircon/ui';
-import { KeyRound, LogOut } from 'lucide-react';
+import { Alert, Button } from '@aircon/ui';
+import { KeyRound, LogIn, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
@@ -20,11 +20,14 @@ export function AdminShell({
   menu,
   user,
   branchSelector,
+  previewMode = false,
   children,
 }: {
   menu: ShellMenuGroup[];
   user: { name: string; roleName: string };
   branchSelector: BranchSelector;
+  /** 임시 개발 모드(로그인 없이 읽기 전용 열람) */
+  previewMode?: boolean;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -70,14 +73,23 @@ export function AdminShell({
           <span className="ac-body-sm">
             {user.name} · {user.roleName}
           </span>
-          <Link href="/admin/password" className="ac-btn ac-btn--ghost ac-btn--sm ac-btn--icon" aria-label="비밀번호 변경">
-            <KeyRound aria-hidden size={16} />
-          </Link>
-          <form action={logoutAction}>
-            <Button type="submit" variant="ghost" size="sm" icon aria-label="로그아웃">
-              <LogOut aria-hidden size={16} />
-            </Button>
-          </form>
+          {previewMode ? (
+            <Link href="/admin/login" className="ac-btn ac-btn--outline ac-btn--sm">
+              <LogIn aria-hidden size={16} />
+              로그인
+            </Link>
+          ) : (
+            <>
+              <Link href="/admin/password" className="ac-btn ac-btn--ghost ac-btn--sm ac-btn--icon" aria-label="비밀번호 변경">
+                <KeyRound aria-hidden size={16} />
+              </Link>
+              <form action={logoutAction}>
+                <Button type="submit" variant="ghost" size="sm" icon aria-label="로그아웃">
+                  <LogOut aria-hidden size={16} />
+                </Button>
+              </form>
+            </>
+          )}
         </div>
       </header>
       <div className="ac-admin-body">
@@ -97,6 +109,11 @@ export function AdminShell({
           })}
         </nav>
         <main className="ac-admin-main">
+          {previewMode ? (
+            <Alert tone="warning">
+              <strong>임시 개발 모드</strong> · 로그인 없이 읽기 전용으로 보고 있습니다. 저장·수정·삭제와 개인정보 원문 열람은 로그인해야 합니다.
+            </Alert>
+          ) : null}
           {current && currentScreen ? (
             <p className="ac-breadcrumb">
               {current.name} &gt; {currentScreen.name}

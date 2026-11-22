@@ -1,6 +1,15 @@
 import 'server-only';
 import { adminUser, branch, permission, role, rolePermission } from '@aircon/db';
-import { type AdminPrincipal, type DataScope, type PermissionAction, type PermissionKey, hasPermission, permissionKey } from '@aircon/domain';
+import {
+  type AdminPrincipal,
+  type DataScope,
+  type PermissionAction,
+  type PermissionKey,
+  PREVIEW_ROLE_CODE,
+  hasPermission,
+  permissionKey,
+  previewPermissions,
+} from '@aircon/domain';
 import { createAuthAdapter } from '@aircon/integrations';
 import { and, eq, isNull } from 'drizzle-orm';
 import { cookies } from 'next/headers';
@@ -29,10 +38,38 @@ export interface CurrentAdmin extends AdminPrincipal {
   roleName: string;
   branchName: string | null;
   permissions: ReadonlySet<PermissionKey>;
+  /** 임시 개발 모드(로그인 없이 읽기 전용 열람) 주체 여부 */
+  preview: boolean;
 }
 
-/** 현재 로그인 관리자 (요청당 1회 조회). 없거나 사용 불가 상태면 null */
+/**
+ * 임시 개발 모드: ADMIN_AUTH_BYPASS=true 이면 로그인 없이 관리자 화면을 읽기 전용으로 본다(구현 기간 한정, 02 §7).
+ * 끄려면 환경변수를 지우거나 false 로 두고 다시 배포한다.
+ */
+export const isAdminAuthBypass = () => process.env.ADMIN_AUTH_BYPASS === 'true';
+
+const PREVIEW_ADMIN: CurrentAdmin = {
+  adminId: 0,
+  loginId: 'preview',
+  name: '임시 열람자',
+  roleCode: PREVIEW_ROLE_CODE,
+  roleName: '읽기 전용',
+  dataScope: 'ALL',
+  branchId: null,
+  branchName: null,
+  permissions: new Set(previewPermissions()),
+  preview: true,
+};
+
+/** 현재 관리자 (요청당 1회 조회). 로그인 관리자가 우선이고, 없으면 임시 개발 모드일 때만 읽기 전용 열람자, 아니면 null */
 export const getCurrentAdmin = cache(async (): Promise<CurrentAdmin | null> => {
+  const admin = await getLoggedInAdmin();
+  if (admin) return admin;
+  return isAdminAuthBypass() ? PREVIEW_ADMIN : null;
+});
+
+/** 실제 로그인 관리자만 (임시 개발 모드 열람자 제외). 없거나 사용 불가 상태면 null */
+const getLoggedInAdmin = async (): Promise<CurrentAdmin | null> => {
   const authUserId = await (await getAuth()).getSessionUserId();
   if (!authUserId) return null;
   const db = getDb();
@@ -58,8 +95,9 @@ export const getCurrentAdmin = cache(async (): Promise<CurrentAdmin | null> => {
     branchId: row.a.branchId,
     branchName: row.branchName,
     permissions: new Set(perms.map((p) => permissionKey(p.menuCode, p.action as PermissionAction))),
+    preview: false,
   };
-});
+};
 
 /** 관리자 페이지(서버 컴포넌트) 진입 가드: 비로그인 → 로그인 화면 */
 export async function requireAdmin(): Promise<CurrentAdmin> {
@@ -87,6 +125,17 @@ export class ForbiddenError extends Error {
 export async function requirePermission(menuCode: string, action: PermissionAction): Promise<CurrentAdmin> {
   const admin = await getCurrentAdmin();
   if (!admin) throw new ForbiddenError('로그인이 필요합니다.');
+  // 임시 개발 모드 열람자는 조회만 한다. 등록·수정·삭제·다운로드는 로그인해야 한다.
+  if (admin.preview && action !== 'READ') throw new ForbiddenError(PREVIEW_WRITE_DENIED);
   if (!hasPermission(admin, menuCode, action)) throw new ForbiddenError();
+  return admin;
+}
+
+export const PREVIEW_WRITE_DENIED = '임시 개발 모드에서는 조회만 할 수 있습니다. 저장하려면 로그인해 주세요.';
+
+/** 로그인한 실제 관리자 본인만 (비밀번호 변경 등). 임시 개발 모드 열람자는 로그인 화면으로 */
+export async function requireLoggedInAdmin(): Promise<CurrentAdmin> {
+  const admin = await getCurrentAdmin();
+  if (!admin || admin.preview) redirect('/admin/login');
   return admin;
 }

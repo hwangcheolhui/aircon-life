@@ -13,7 +13,7 @@ import { getSettingNumber } from '@/server/settings';
 export async function changePasswordAction(_: unknown, form: FormData): Promise<ActionResult> {
   return handle(async () => {
     const me = await getCurrentAdmin();
-    if (!me) throw new ForbiddenError('로그인이 필요합니다.');
+    if (!me || me.preview) throw new ForbiddenError('로그인이 필요합니다.');
     const data = parse(passwordChangeInput, Object.fromEntries(form));
     const err = validatePasswordRule(data.newPassword, await getSettingNumber(SETTING_KEYS.ADMIN_PASSWORD_MIN_LENGTH));
     if (err) throw new ValidationFailed({ newPassword: err });
