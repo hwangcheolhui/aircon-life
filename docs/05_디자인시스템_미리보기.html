@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="ko" data-channel="customer">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>에어컨 플랫폼 디자인 시스템 미리보기 v1.0</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+/* =====================================================================
+ * 에어컨 플랫폼 공통 디자인 토큰 (v1.0 · 2026-11-22)
+ * 문서: ../05_디자인시스템.md
+ * - 고객 앱(C) · 기사 앱(T) · 관리자 웹(A) 3채널 공통
+ * - 채널별 밀도는 <html data-channel="customer|tech|admin"> 로 전환
+ * - 폰트: Pretendard (SIL OFL, 무료). HTML <head> 에 아래 링크를 추가하세요.
+ *   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+ * ===================================================================== */
+
+:root {
+  /* ---------- 1. 원시 색상 (Primitive) ---------- */
+  /* Blue: 브랜드 포인트. 절제해서 CTA·선택·링크에만 사용 */
+  --blue-50:  #F3F7FF;
+  --blue-100: #EAF1FF;
+  --blue-200: #CFDFFF;
+  --blue-300: #A6C2FA;
+  --blue-400: #6F98F0;
+  --blue-500: #3D72E4;
+  --blue-600: #1F5BD6; /* primary */
+  --blue-700: #1A4CB5; /* hover */
+  --blue-800: #163E92; /* pressed */
+  --blue-900: #122F6C;
+
+  /* Gray: 화이트 기반 UI의 중심. 살짝 푸른 기가 도는 쿨 그레이 */
+  --gray-0:   #FFFFFF;
+  --gray-25:  #FAFBFC;
+  --gray-50:  #F5F6F8;
+  --gray-100: #EDEFF2;
+  --gray-200: #E1E4E9;
+  --gray-300: #CBD0D7;
+  --gray-400: #99A0AB;
+  --gray-500: #7A818D;
+  --gray-600: #646B78;
+  --gray-700: #4A515C;
+  --gray-800: #2E333B;
+  --gray-900: #1A1D23;
+
+  --red-50:  #FDECEC; --red-600: #C02626; --red-700: #A51C1C;
+  --orange-50: #FFF1E6; --orange-600: #B54708;
+  --amber-50: #FFF4E0; --amber-600: #A35A00;
+  --yellow-50: #FFF6CC;
+  --green-50: #E8F6EC; --green-600: #1E7A3C;
+  --lime-50: #EDF7E2; --lime-700: #3F7313;
+  --teal-50: #E2F5F4; --teal-700: #0A7470;
+  --indigo-50: #E9ECF8; --indigo-700: #2B3A8F;
+  --violet-50: #F2EDFD; --violet-600: #6A3DC2;
+
+  /* ---------- 2. 의미 색상 (Semantic) ---------- */
+  --color-primary:          var(--blue-600);
+  --color-primary-hover:    var(--blue-700);
+  --color-primary-pressed:  var(--blue-800);
+  --color-primary-subtle:   var(--blue-100);
+  --color-primary-faint:    var(--blue-50);
+  --color-on-primary:       #FFFFFF;
+
+  --color-bg:               var(--gray-0);    /* 기본 배경 = 화이트 */
+  --color-bg-subtle:        var(--gray-50);   /* 섹션 구분 배경 */
+  --color-bg-muted:         var(--gray-100);
+  --color-bg-inverse:       var(--gray-900);
+  --color-surface:          var(--gray-0);    /* 카드·모달 */
+  --color-surface-raised:   var(--gray-0);
+  --color-overlay:          rgba(18, 22, 28, 0.48);
+
+  --color-text:             var(--gray-900);  /* 본문·제목 16.9:1 */
+  --color-text-secondary:   var(--gray-700);  /* 보조 8.0:1 */
+  --color-text-tertiary:    var(--gray-600);  /* 캡션·메타 5.4:1 */
+  --color-text-placeholder: var(--gray-400);  /* 플레이스홀더 전용 */
+  --color-text-disabled:    var(--gray-400);
+  --color-text-inverse:     #FFFFFF;
+  --color-text-link:        var(--blue-600);
+
+  --color-border:           var(--gray-200);
+  --color-border-strong:    var(--gray-300);
+  --color-border-focus:     var(--blue-600);
+  --color-divider:          var(--gray-100);
+
+  --color-success:          var(--green-600);
+  --color-success-bg:       var(--green-50);
+  --color-warning:          var(--amber-600);
+  --color-warning-bg:       var(--amber-50);
+  --color-danger:           var(--red-600);
+  --color-danger-hover:     var(--red-700);
+  --color-danger-bg:        var(--red-50);
+  --color-info:             var(--blue-600);
+  --color-info-bg:          var(--blue-100);
+  --color-highlight-bg:     var(--yellow-50); /* 그리드 강조 행(완료 노란 배경 옵션) */
+
+  --focus-ring: 0 0 0 3px rgba(31, 91, 214, 0.28);
+
+  /* ---------- 3. 주문 상태 배지 (03_IA §6.1) ---------- */
+  --status-received-fg:    var(--blue-600);   --status-received-bg:    var(--blue-100);
+  --status-assign-wait-fg: var(--orange-600); --status-assign-wait-bg: var(--orange-50);
+  --status-assigned-fg:    var(--indigo-700); --status-assigned-bg:    var(--indigo-50);
+  --status-on-the-way-fg:  var(--violet-600); --status-on-the-way-bg:  var(--violet-50);
+  --status-in-progress-fg: var(--teal-700);   --status-in-progress-bg: var(--teal-50);
+  --status-pending-fg:     var(--red-600);    --status-pending-bg:     var(--red-50);
+  --status-pending-overdue-fg: #FFFFFF;       --status-pending-overdue-bg: var(--red-700); /* 48h 경과 */
+  --status-work-done-fg:   var(--lime-700);   --status-work-done-bg:   var(--lime-50);
+  --status-completed-fg:   var(--gray-700);   --status-completed-bg:   var(--gray-100);
+  --status-canceled-fg:    var(--gray-600);   --status-canceled-bg:    var(--gray-50);
+
+  /* ---------- 4. 타이포그래피 ---------- */
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+               system-ui, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+               "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* 크기/행간 (모바일 기준, md 이상에서 display·heading 확대) */
+  --text-display-size: 32px;   --text-display-lh: 1.3;
+  --text-h1-size: 26px;        --text-h1-lh: 1.35;
+  --text-h2-size: 22px;        --text-h2-lh: 1.4;
+  --text-h3-size: 19px;        --text-h3-lh: 1.45;
+  --text-title-size: 17px;     --text-title-lh: 1.5;
+  --text-body-lg-size: 17px;   --text-body-lg-lh: 1.6;
+  --text-body-size: 15px;      --text-body-lh: 1.6;
+  --text-body-sm-size: 14px;   --text-body-sm-lh: 1.55;
+  --text-caption-size: 13px;   --text-caption-lh: 1.5;
+  --text-micro-size: 12px;     --text-micro-lh: 1.45;
+  --letter-spacing-tight: -0.02em;  /* 제목 */
+  --letter-spacing-normal: -0.01em; /* 본문 */
+
+  /* ---------- 5. 간격 (4px 그리드) ---------- */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+
+  --page-gutter: 20px;          /* 화면 좌우 여백 */
+  --section-gap: 40px;          /* 섹션 간 간격 */
+  --container-max: 1200px;      /* 고객 웹 콘텐츠 최대폭 */
+  --container-admin: 1440px;    /* 관리자 기준 폭 */
+
+  /* ---------- 6. 반경 ---------- */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 28px;
+  --radius-full: 9999px;        /* 버튼·칩·배지 */
+
+  --radius-button: var(--radius-full);
+  --radius-input: var(--radius-md);
+  --radius-card: var(--radius-xl);
+  --radius-modal: var(--radius-2xl);
+  --radius-sheet: var(--radius-2xl) var(--radius-2xl) 0 0;
+
+  /* ---------- 7. 그림자 (부드럽고 옅게) ---------- */
+  --shadow-xs: 0 1px 2px rgba(20, 28, 40, 0.05);
+  --shadow-sm: 0 2px 8px rgba(20, 28, 40, 0.06);
+  --shadow-md: 0 6px 20px rgba(20, 28, 40, 0.08);
+  --shadow-lg: 0 12px 32px rgba(20, 28, 40, 0.12);
+  --shadow-xl: 0 20px 48px rgba(20, 28, 40, 0.16);
+  --shadow-fixed-bottom: 0 -4px 16px rgba(20, 28, 40, 0.06); /* 하단 고정 바 */
+
+  /* ---------- 8. 컨트롤 크기 ---------- */
+  --control-h-sm: 36px;
+  --control-h-md: 44px;
+  --control-h-lg: 52px;
+  --control-h-xl: 56px;
+  --input-h: 48px;
+  --touch-min: 44px;            /* 최소 터치 영역 */
+  --icon-sm: 16px; --icon-md: 20px; --icon-lg: 24px;
+
+  /* ---------- 9. 레이아웃 고정 요소 ---------- */
+  --header-h: 56px;
+  --bottom-tab-h: 64px;
+  --bottom-bar-h: 76px;         /* 금액 고정 바 */
+  --admin-gnb-h: 60px;
+  --admin-lnb-w: 232px;
+
+  /* ---------- 10. 모션 ---------- */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.3, 0, 0, 1.2);
+
+  /* ---------- 11. 레이어 ---------- */
+  --z-base: 0; --z-sticky: 100; --z-header: 200; --z-dropdown: 300;
+  --z-sheet: 400; --z-modal: 500; --z-toast: 600;
+}
+
+/* ---------- 브레이크포인트 (CSS 변수는 미디어쿼리에 못 쓰므로 값 참고용) ----------
+ * xs  0–359    소형 폰
+ * sm  360–767  모바일 (기본 설계 기준 375)
+ * md  768–1023 태블릿
+ * lg  1024–1279 소형 데스크톱
+ * xl  1280–1439 데스크톱
+ * 2xl 1440+    관리자 기준 폭
+ * ------------------------------------------------------------------- */
+@media (min-width: 768px) {
+  :root {
+    --text-display-size: 40px;
+    --text-h1-size: 30px;
+    --text-h2-size: 24px;
+    --text-h3-size: 20px;
+    --page-gutter: 32px;
+    --section-gap: 56px;
+  }
+}
+@media (min-width: 1280px) {
+  :root {
+    --text-display-size: 48px;
+    --text-h1-size: 34px;
+    --text-h2-size: 26px;
+    --page-gutter: 40px;
+    --section-gap: 72px;
+  }
+}
+
+/* ---------- 채널별 밀도 ---------- */
+/* 기사 앱: 현장·장갑 착용 고려, 최소 48dp, 글자 한 단계 크게 */
+[data-channel="tech"] {
+  --touch-min: 48px;
+  --control-h-sm: 44px;
+  --control-h-md: 52px;
+  --control-h-lg: 56px;
+  --control-h-xl: 64px;
+  --input-h: 52px;
+  --text-body-size: 16px;
+  --text-body-sm-size: 15px;
+  --text-caption-size: 14px;
+}
+/* 관리자 웹: 정보 밀도 우선, 컨트롤 낮게 */
+[data-channel="admin"] {
+  --control-h-sm: 28px;
+  --control-h-md: 36px;
+  --control-h-lg: 40px;
+  --control-h-xl: 44px;
+  --input-h: 36px;
+  --radius-input: var(--radius-sm);
+  --radius-card: var(--radius-md);
+  --text-body-size: 14px;
+  --text-body-sm-size: 13px;
+  --text-caption-size: 12px;
+  --text-h1-size: 22px;
+  --text-h2-size: 18px;
+  --text-h3-size: 16px;
+  --page-gutter: 24px;
+  --section-gap: 24px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --duration-fast: 0ms; --duration-base: 0ms; --duration-slow: 0ms; }
+}
+
+/* =====================================================================
+ * 공통 컴포넌트 스타일 (tokens.css 다음에 로드)
+ * 접두사 ac- (aircon). 프레임워크 무관하게 클래스만으로 사용 가능.
+ * ===================================================================== */
+
+/* ---------- Base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-lh);
+  letter-spacing: var(--letter-spacing-normal);
+  color: var(--color-text);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  word-break: keep-all;          /* 한글 단어 단위 줄바꿈 */
+  overflow-wrap: break-word;    /* anywhere는 표·그리드 최소폭을 무너뜨리므로 사용 금지 */
+}
+:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.ac-num { font-variant-numeric: tabular-nums; } /* 금액·시간·건수 */
+
+/* ---------- Typography ---------- */
+.ac-display { font-size: var(--text-display-size); line-height: var(--text-display-lh); font-weight: 700; letter-spacing: var(--letter-spacing-tight); }
+.ac-h1 { font-size: var(--text-h1-size); line-height: var(--text-h1-lh); font-weight: 700; letter-spacing: var(--letter-spacing-tight); }
+.ac-h2 { font-size: var(--text-h2-size); line-height: var(--text-h2-lh); font-weight: 700; letter-spacing: var(--letter-spacing-tight); }
+.ac-h3 { font-size: var(--text-h3-size); line-height: var(--text-h3-lh); font-weight: 600; letter-spacing: var(--letter-spacing-tight); }
+.ac-title { font-size: var(--text-title-size); line-height: var(--text-title-lh); font-weight: 600; }
+.ac-body-lg { font-size: var(--text-body-lg-size); line-height: var(--text-body-lg-lh); }
+.ac-body { font-size: var(--text-body-size); line-height: var(--text-body-lh); }
+.ac-body-sm { font-size: var(--text-body-sm-size); line-height: var(--text-body-sm-lh); }
+.ac-caption { font-size: var(--text-caption-size); line-height: var(--text-caption-lh); color: var(--color-text-tertiary); }
+.ac-micro { font-size: var(--text-micro-size); line-height: var(--text-micro-lh); color: var(--color-text-tertiary); }
+.ac-display, .ac-h1, .ac-h2, .ac-h3, .ac-title { margin: 0; color: var(--color-text); }
+
+/* ---------- Button ---------- */
+.ac-btn {
+  --_h: var(--control-h-md);
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  height: var(--_h); min-width: var(--_h); padding: 0 calc(var(--_h) * 0.5);
+  border: 1px solid transparent; border-radius: var(--radius-button);
+  font: inherit; font-size: var(--text-body-size); font-weight: 600; letter-spacing: -0.01em;
+  white-space: nowrap; cursor: pointer; text-decoration: none;
+  transition: background-color var(--duration-fast) var(--ease-standard),
+              border-color var(--duration-fast) var(--ease-standard),
+              color var(--duration-fast) var(--ease-standard),
+              transform var(--duration-fast) var(--ease-standard);
+}
+.ac-btn:active:not(:disabled) { transform: scale(0.98); }
+.ac-btn--sm { --_h: var(--control-h-sm); font-size: var(--text-body-sm-size); }
+.ac-btn--lg { --_h: var(--control-h-lg); font-size: var(--text-body-lg-size); }
+.ac-btn--xl { --_h: var(--control-h-xl); font-size: var(--text-body-lg-size); font-weight: 700; }
+.ac-btn--block { display: flex; width: 100%; }
+
+.ac-btn--primary { background: var(--color-primary); color: var(--color-on-primary); }
+.ac-btn--primary:hover { background: var(--color-primary-hover); }
+.ac-btn--primary:active { background: var(--color-primary-pressed); }
+
+.ac-btn--secondary { background: var(--color-primary-subtle); color: var(--color-primary); }
+.ac-btn--secondary:hover { background: var(--blue-200); }
+
+.ac-btn--outline { background: var(--color-surface); color: var(--color-text); border-color: var(--color-border-strong); }
+.ac-btn--outline:hover { background: var(--color-bg-subtle); border-color: var(--gray-400); }
+
+.ac-btn--ghost { background: transparent; color: var(--color-text-secondary); }
+.ac-btn--ghost:hover { background: var(--color-bg-subtle); color: var(--color-text); }
+
+.ac-btn--dark { background: var(--gray-900); color: #fff; }
+.ac-btn--dark:hover { background: var(--gray-800); }
+
+.ac-btn--danger { background: var(--color-danger); color: #fff; }
+.ac-btn--danger:hover { background: var(--color-danger-hover); }
+
+.ac-btn--text { height: auto; min-width: 0; padding: var(--space-1) 0; background: none; color: var(--color-text-link); border-radius: var(--radius-xs); }
+.ac-btn--text:hover { text-decoration: underline; }
+
+.ac-btn:disabled, .ac-btn[aria-disabled="true"] {
+  background: var(--color-bg-muted); color: var(--color-text-disabled); border-color: transparent; cursor: not-allowed;
+}
+.ac-btn--icon { padding: 0; width: var(--_h); }
+.ac-btn .ac-spinner { width: 1em; height: 1em; }
+
+.ac-btn-group { display: flex; gap: var(--space-2); }
+.ac-btn-group > .ac-btn { flex: 1; }
+
+/* ---------- Form ---------- */
+.ac-field { display: flex; flex-direction: column; gap: var(--space-2); }
+.ac-label { font-size: var(--text-body-sm-size); font-weight: 600; color: var(--color-text); }
+.ac-label .ac-req { color: var(--color-danger); margin-left: 2px; }
+.ac-input, .ac-select, .ac-textarea {
+  width: 100%; height: var(--input-h); padding: 0 var(--space-4);
+  font: inherit; font-size: var(--text-body-size); color: var(--color-text);
+  background: var(--color-surface); border: 1px solid var(--color-border-strong); border-radius: var(--radius-input);
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+.ac-textarea { height: auto; min-height: 112px; padding: var(--space-3) var(--space-4); resize: vertical; }
+.ac-input::placeholder, .ac-textarea::placeholder { color: var(--color-text-placeholder); }
+.ac-input:hover, .ac-select:hover, .ac-textarea:hover { border-color: var(--gray-400); }
+.ac-input:focus, .ac-select:focus, .ac-textarea:focus { outline: none; border-color: var(--color-border-focus); box-shadow: var(--focus-ring); }
+.ac-input:disabled, .ac-select:disabled, .ac-textarea:disabled { background: var(--color-bg-subtle); color: var(--color-text-disabled); cursor: not-allowed; }
+.ac-input[readonly] { background: var(--color-bg-subtle); }
+.ac-field--error .ac-input, .ac-field--error .ac-select, .ac-field--error .ac-textarea, .ac-input[aria-invalid="true"] { border-color: var(--color-danger); }
+.ac-field--error .ac-input:focus { box-shadow: 0 0 0 3px rgba(192, 38, 38, 0.2); }
+.ac-help { font-size: var(--text-caption-size); color: var(--color-text-tertiary); }
+.ac-field--error .ac-help { color: var(--color-danger); }
+.ac-select {
+  appearance: none; padding-right: 44px; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='none' stroke='%234A515C' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 8l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center;
+}
+.ac-input-group { position: relative; display: flex; gap: var(--space-2); }
+.ac-input-group > .ac-input { flex: 1; }
+
+/* Checkbox / Radio */
+.ac-check { display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--touch-min); cursor: pointer; font-size: var(--text-body-size); }
+.ac-check input { appearance: none; margin: 0; width: 22px; height: 22px; flex: none; border: 1.5px solid var(--color-border-strong); background: var(--color-surface); cursor: pointer; transition: all var(--duration-fast); }
+.ac-check input[type="checkbox"] { border-radius: 6px; }
+.ac-check input[type="radio"] { border-radius: 50%; }
+.ac-check input:checked { background-color: var(--color-primary); border-color: var(--color-primary); }
+.ac-check input[type="checkbox"]:checked {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 10.5l3.2 3L15 7'/%3E%3C/svg%3E");
+  background-size: 100%;
+}
+.ac-check input[type="radio"]:checked { box-shadow: inset 0 0 0 4px var(--color-surface); }
+.ac-check input:disabled { background: var(--color-bg-muted); border-color: var(--color-border); cursor: not-allowed; }
+
+/* Toggle switch */
+.ac-switch { position: relative; display: inline-flex; align-items: center; gap: var(--space-3); cursor: pointer; min-height: var(--touch-min); }
+.ac-switch input { appearance: none; margin: 0; width: 48px; height: 28px; border-radius: var(--radius-full); background: var(--gray-300); cursor: pointer; transition: background var(--duration-base) var(--ease-standard); position: relative; flex: none; }
+.ac-switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: var(--shadow-sm); transition: transform var(--duration-base) var(--ease-standard); }
+.ac-switch input:checked { background: var(--color-primary); }
+.ac-switch input:checked::after { transform: translateX(20px); }
+
+/* Stepper (수량) */
+.ac-stepper { display: inline-flex; align-items: center; border: 1px solid var(--color-border-strong); border-radius: var(--radius-full); height: var(--control-h-md); }
+.ac-stepper button { width: var(--control-h-md); height: 100%; border: 0; background: none; font-size: 20px; color: var(--color-text-secondary); cursor: pointer; border-radius: var(--radius-full); }
+.ac-stepper button:hover { background: var(--color-bg-subtle); }
+.ac-stepper button:disabled { color: var(--color-text-disabled); cursor: not-allowed; }
+.ac-stepper output { min-width: 32px; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ---------- Card ---------- */
+.ac-card { background: var(--color-surface); border-radius: var(--radius-card); padding: var(--space-5); border: 1px solid var(--color-border); }
+.ac-card--elevated { border-color: transparent; box-shadow: var(--shadow-md); }
+.ac-card--subtle { background: var(--color-bg-subtle); border-color: transparent; }
+.ac-card--interactive { cursor: pointer; transition: box-shadow var(--duration-base), border-color var(--duration-base), transform var(--duration-base); }
+.ac-card--interactive:hover { box-shadow: var(--shadow-md); border-color: transparent; }
+.ac-card--selected { border: 2px solid var(--color-primary); background: var(--color-primary-faint); }
+.ac-card__header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-3); }
+.ac-card__footer { display: flex; gap: var(--space-2); margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--color-divider); }
+@media (min-width: 768px) { .ac-card { padding: var(--space-6); } }
+[data-channel="admin"] .ac-card { padding: var(--space-4) var(--space-5); }
+
+/* ---------- Badge (주문 상태) ---------- */
+.ac-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 26px; padding: 0 10px; border-radius: var(--radius-full);
+  font-size: var(--text-micro-size); font-weight: 600; line-height: 1; white-space: nowrap;
+  background: var(--color-bg-muted); color: var(--color-text-secondary);
+}
+.ac-badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+.ac-badge--no-dot::before { display: none; }
+.ac-badge--lg { height: 32px; padding: 0 14px; font-size: var(--text-body-sm-size); }
+[data-channel="admin"] .ac-badge { height: 22px; padding: 0 8px; }
+
+.ac-badge--received     { color: var(--status-received-fg);     background: var(--status-received-bg); }
+.ac-badge--assign-wait  { color: var(--status-assign-wait-fg);  background: var(--status-assign-wait-bg); }
+.ac-badge--assigned     { color: var(--status-assigned-fg);     background: var(--status-assigned-bg); }
+.ac-badge--on-the-way   { color: var(--status-on-the-way-fg);   background: var(--status-on-the-way-bg); }
+.ac-badge--in-progress  { color: var(--status-in-progress-fg);  background: var(--status-in-progress-bg); }
+.ac-badge--pending      { color: var(--status-pending-fg);      background: var(--status-pending-bg); }
+.ac-badge--pending-overdue { color: var(--status-pending-overdue-fg); background: var(--status-pending-overdue-bg); }
+.ac-badge--work-done    { color: var(--status-work-done-fg);    background: var(--status-work-done-bg); }
+.ac-badge--completed    { color: var(--status-completed-fg);    background: var(--status-completed-bg); }
+.ac-badge--canceled     { color: var(--status-canceled-fg);     background: var(--status-canceled-bg); box-shadow: inset 0 0 0 1px var(--color-border); }
+.ac-badge--in-progress::before, .ac-badge--on-the-way::before { animation: ac-pulse 1.6s ease-in-out infinite; }
+@keyframes ac-pulse { 50% { opacity: 0.35; } }
+
+/* 보조 태그(마감·할증·필수 등) */
+.ac-tag { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: var(--radius-xs); font-size: var(--text-micro-size); font-weight: 600; background: var(--color-bg-muted); color: var(--color-text-secondary); }
+.ac-tag--primary { background: var(--color-primary-subtle); color: var(--color-primary); }
+.ac-tag--danger { background: var(--color-danger-bg); color: var(--color-danger); }
+.ac-tag--warning { background: var(--color-warning-bg); color: var(--color-warning); }
+.ac-tag--success { background: var(--color-success-bg); color: var(--color-success); }
+
+/* 숫자 카운트 배지(알림) */
+.ac-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--radius-full); background: var(--color-danger); color: #fff; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ---------- Chip / Filter ---------- */
+.ac-chip { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 16px; border-radius: var(--radius-full); border: 1px solid var(--color-border-strong); background: var(--color-surface); color: var(--color-text-secondary); font: inherit; font-size: var(--text-body-sm-size); font-weight: 500; white-space: nowrap; flex: none; cursor: pointer; transition: all var(--duration-fast); }
+.ac-chip:hover { border-color: var(--gray-400); }
+.ac-chip[aria-pressed="true"], .ac-chip--active { background: var(--gray-900); border-color: var(--gray-900); color: #fff; }
+.ac-chip-row { display: flex; gap: var(--space-2); overflow-x: auto; scrollbar-width: none; }
+
+/* ---------- Tabs ---------- */
+.ac-tabs { display: flex; gap: var(--space-6); border-bottom: 1px solid var(--color-border); overflow-x: auto; scrollbar-width: none; }
+.ac-tab { position: relative; padding: var(--space-3) 0; border: 0; background: none; font: inherit; font-size: var(--text-body-size); font-weight: 500; color: var(--color-text-tertiary); cursor: pointer; white-space: nowrap; min-height: var(--touch-min); }
+.ac-tab[aria-selected="true"] { color: var(--color-text); font-weight: 700; }
+.ac-tab[aria-selected="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--color-text); border-radius: 2px; }
+
+/* Segmented (목록 ⇄ 지도, 근무 ⇄ 메모) */
+.ac-segmented { display: inline-flex; padding: 4px; gap: 4px; background: var(--color-bg-muted); border-radius: var(--radius-full); }
+.ac-segmented button { height: calc(var(--control-h-sm) - 4px); padding: 0 18px; border: 0; border-radius: var(--radius-full); background: transparent; font: inherit; font-size: var(--text-body-sm-size); font-weight: 600; color: var(--color-text-tertiary); cursor: pointer; }
+.ac-segmented button[aria-pressed="true"] { background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow-sm); }
+
+/* ---------- Step progress (고객 스텝 플로우 상단 진행바) ---------- */
+.ac-progress { height: 4px; background: var(--color-bg-muted); border-radius: var(--radius-full); overflow: hidden; }
+.ac-progress > span { display: block; height: 100%; background: var(--color-primary); border-radius: inherit; transition: width var(--duration-slow) var(--ease-standard); }
+.ac-steps { display: flex; justify-content: space-between; margin-top: var(--space-2); font-size: var(--text-caption-size); color: var(--color-text-tertiary); }
+.ac-steps .is-current { color: var(--color-primary); font-weight: 600; }
+
+/* ---------- Timeline (예약 상세 상태 타임라인) ---------- */
+.ac-timeline { list-style: none; margin: 0; padding: 0; }
+.ac-timeline li { position: relative; padding: 0 0 var(--space-5) var(--space-8); }
+.ac-timeline li::before { content: ""; position: absolute; left: 7px; top: 18px; bottom: 0; width: 2px; background: var(--color-border); }
+.ac-timeline li:last-child::before { display: none; }
+.ac-timeline li::after { content: ""; position: absolute; left: 0; top: 4px; width: 16px; height: 16px; border-radius: 50%; background: var(--color-surface); border: 2px solid var(--color-border-strong); }
+.ac-timeline li.is-done::after { background: var(--color-primary); border-color: var(--color-primary); }
+.ac-timeline li.is-done::before { background: var(--color-primary); }
+.ac-timeline li.is-current::after { border-color: var(--color-primary); box-shadow: 0 0 0 4px var(--color-primary-subtle); }
+.ac-timeline strong { display: block; font-weight: 600; }
+
+/* ---------- List row ---------- */
+.ac-list { list-style: none; margin: 0; padding: 0; }
+.ac-list-item { display: flex; align-items: center; gap: var(--space-3); min-height: 56px; padding: var(--space-3) 0; border-bottom: 1px solid var(--color-divider); }
+.ac-list-item:last-child { border-bottom: 0; }
+.ac-list-item__body { flex: 1; min-width: 0; }
+
+/* ---------- Banner / Alert ---------- */
+.ac-alert { display: flex; gap: var(--space-3); padding: var(--space-4); border-radius: var(--radius-md); background: var(--color-info-bg); color: var(--color-text); font-size: var(--text-body-sm-size); }
+.ac-alert__icon { flex: none; width: 20px; height: 20px; color: var(--color-info); }
+.ac-alert--success { background: var(--color-success-bg); } .ac-alert--success .ac-alert__icon { color: var(--color-success); }
+.ac-alert--warning { background: var(--color-warning-bg); } .ac-alert--warning .ac-alert__icon { color: var(--color-warning); }
+.ac-alert--danger  { background: var(--color-danger-bg); }  .ac-alert--danger  .ac-alert__icon { color: var(--color-danger); }
+
+/* 기사 앱 "진행 중 작업" 고정 배너 */
+.ac-live-banner { position: sticky; top: 0; z-index: var(--z-sticky); display: flex; align-items: center; gap: var(--space-3); min-height: 52px; padding: var(--space-2) var(--page-gutter); background: var(--gray-900); color: #fff; font-size: var(--text-body-sm-size); }
+.ac-live-banner .ac-btn { margin-left: auto; }
+.ac-offline { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-caption-size); color: var(--color-warning); font-weight: 600; }
+
+/* ---------- 하단 고정 바 (금액·CTA) ---------- */
+.ac-bottom-bar { position: sticky; bottom: 0; z-index: var(--z-sticky); display: flex; align-items: center; gap: var(--space-4); min-height: var(--bottom-bar-h); padding: var(--space-3) var(--page-gutter) calc(var(--space-3) + env(safe-area-inset-bottom)); background: var(--color-surface); box-shadow: var(--shadow-fixed-bottom); }
+.ac-bottom-bar__price { flex: 1; min-width: 0; }
+.ac-bottom-bar__price strong { display: block; white-space: nowrap; font-size: var(--text-h3-size); font-weight: 700; font-variant-numeric: tabular-nums; }
+.ac-bottom-bar .ac-btn { flex: 0 0 auto; min-width: 128px; }
+
+/* ---------- 하단 탭바 ---------- */
+.ac-tabbar { display: flex; height: calc(var(--bottom-tab-h) + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); background: rgba(255,255,255,0.96); backdrop-filter: blur(12px); border-top: 1px solid var(--color-divider); }
+.ac-tabbar a { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 500; color: var(--color-text-tertiary); text-decoration: none; }
+.ac-tabbar a svg { width: 24px; height: 24px; }
+.ac-tabbar a[aria-current="page"] { color: var(--color-text); font-weight: 700; }
+
+/* ---------- Modal / Sheet / Toast ---------- */
+.ac-overlay { position: fixed; inset: 0; z-index: var(--z-modal); display: grid; place-items: center; padding: var(--space-6); background: var(--color-overlay); }
+.ac-modal { width: 100%; max-width: 400px; background: var(--color-surface); border-radius: var(--radius-modal); padding: var(--space-8) var(--space-6) var(--space-6); box-shadow: var(--shadow-xl); text-align: center; }
+.ac-modal__title { margin: 0 0 var(--space-2); font-size: var(--text-title-size); font-weight: 700; }
+.ac-modal__desc { margin: 0 0 var(--space-6); color: var(--color-text-secondary); font-size: var(--text-body-size); }
+.ac-sheet { width: 100%; background: var(--color-surface); border-radius: var(--radius-sheet); padding: var(--space-3) var(--page-gutter) var(--space-6); box-shadow: var(--shadow-xl); }
+.ac-sheet__handle { width: 40px; height: 4px; margin: 0 auto var(--space-5); border-radius: var(--radius-full); background: var(--gray-300); }
+.ac-toast { display: inline-flex; align-items: center; gap: var(--space-3); min-height: 48px; padding: var(--space-3) var(--space-5); border-radius: var(--radius-full); background: var(--gray-900); color: #fff; font-size: var(--text-body-sm-size); box-shadow: var(--shadow-lg); }
+.ac-toast svg { width: 20px; height: 20px; color: #6EE7A0; flex: none; }
+
+/* ---------- Data table (관리자) ---------- */
+.ac-table-wrap { overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.ac-table { width: 100%; border-collapse: collapse; font-size: var(--text-body-sm-size); white-space: nowrap; }
+.ac-table th { position: sticky; top: 0; height: 40px; padding: 0 var(--space-3); background: var(--color-bg-subtle); color: var(--color-text-secondary); font-weight: 600; text-align: left; border-bottom: 1px solid var(--color-border); }
+.ac-table td { height: 44px; padding: 0 var(--space-3); border-bottom: 1px solid var(--color-divider); }
+.ac-table tbody tr { cursor: default; }
+.ac-table tbody tr:hover { background: var(--color-primary-faint); }
+.ac-table tbody tr.is-selected { background: var(--color-primary-subtle); }
+.ac-table tbody tr.is-highlight { background: var(--color-highlight-bg); }
+.ac-table tbody tr.is-muted td { color: var(--color-text-tertiary); }
+.ac-table .is-num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* 검색 영역 (관리자) */
+.ac-search-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-3) var(--space-4); padding: var(--space-4) var(--space-5); background: var(--color-bg-subtle); border-radius: var(--radius-md); }
+.ac-search-panel__actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: var(--space-2); }
+
+/* ---------- 개인정보 마스킹 ---------- */
+.ac-masked { display: inline-flex; align-items: center; gap: var(--space-2); font-variant-numeric: tabular-nums; }
+.ac-masked button { height: 24px; padding: 0 8px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-full); background: var(--color-surface); font: inherit; font-size: var(--text-micro-size); color: var(--color-text-secondary); cursor: pointer; }
+
+/* ---------- Empty / Skeleton / Spinner ---------- */
+.ac-empty { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); padding: var(--space-12) var(--space-6); text-align: center; color: var(--color-text-tertiary); }
+.ac-empty svg { width: 48px; height: 48px; color: var(--gray-300); }
+.ac-skeleton { background: linear-gradient(90deg, var(--gray-100) 25%, var(--gray-50) 50%, var(--gray-100) 75%); background-size: 200% 100%; animation: ac-shimmer 1.4s infinite; border-radius: var(--radius-sm); }
+@keyframes ac-shimmer { to { background-position: -200% 0; } }
+.ac-spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: ac-spin 0.7s linear infinite; }
+@keyframes ac-spin { to { transform: rotate(360deg); } }
+
+/* ---------- Layout helpers ---------- */
+.ac-container { width: 100%; max-width: var(--container-max); margin: 0 auto; padding: 0 var(--page-gutter); }
+.ac-stack { display: flex; flex-direction: column; gap: var(--space-4); }
+.ac-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.ac-grid { display: grid; gap: var(--space-4); grid-template-columns: 1fr; }
+.ac-grid--4 { grid-template-columns: repeat(2, 1fr); }
+@media (min-width: 768px) { .ac-grid--2 { grid-template-columns: repeat(2, 1fr); } .ac-grid--3 { grid-template-columns: repeat(2, 1fr); } .ac-grid { gap: var(--space-5); } }
+@media (min-width: 1024px) { .ac-grid--3 { grid-template-columns: repeat(3, 1fr); } .ac-grid--4 { grid-template-columns: repeat(4, 1fr); } }
+.ac-divider { height: 1px; background: var(--color-divider); border: 0; margin: var(--space-6) 0; }
+.ac-divider--thick { height: 8px; background: var(--color-bg-subtle); margin: 0 calc(var(--page-gutter) * -1); }
+.ac-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---- 미리보기 페이지 전용 ---- */
+body { background: var(--color-bg); }
+.pv-top { position: sticky; top: 0; z-index: var(--z-header); background: rgba(255,255,255,.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--color-divider); }
+.pv-top .ac-container { display: flex; align-items: center; gap: var(--space-6); height: 60px; }
+.pv-logo { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 17px; letter-spacing: -0.03em; color: var(--color-text); text-decoration: none; }
+.pv-logo i { width: 26px; height: 26px; border-radius: 8px; background: var(--color-primary); display: grid; place-items: center; }
+.pv-nav { display: flex; gap: var(--space-5); overflow-x: auto; scrollbar-width: none; flex: 1; }
+.pv-nav a { font-size: 14px; color: var(--color-text-tertiary); text-decoration: none; white-space: nowrap; font-weight: 500; }
+.pv-nav a:hover { color: var(--color-text); }
+.pv-hero { padding: var(--space-16) 0 var(--space-12); background: linear-gradient(180deg, var(--blue-50), #fff); }
+.pv-hero p { max-width: 640px; color: var(--color-text-secondary); margin: var(--space-4) 0 0; }
+.pv-section { padding: var(--section-gap) 0; border-top: 1px solid var(--color-divider); }
+.pv-section > .ac-container > header { margin-bottom: var(--space-8); }
+.pv-section > .ac-container > header p { margin: var(--space-2) 0 0; color: var(--color-text-tertiary); }
+.pv-eyebrow { font-size: 13px; font-weight: 700; color: var(--color-primary); letter-spacing: 0.02em; margin-bottom: var(--space-2); display: block; }
+.pv-sub { font-size: 15px; font-weight: 700; margin: var(--space-10) 0 var(--space-4); color: var(--color-text); }
+.pv-sub:first-of-type { margin-top: 0; }
+.pv-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--space-2); }
+.pv-sw { border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--color-border); font-size: 12px; }
+.pv-sw i { display: block; height: 56px; }
+.pv-sw span { display: block; padding: 6px 8px; line-height: 1.35; }
+.pv-sw b { display: block; font-weight: 600; }
+.pv-sw small { color: var(--color-text-tertiary); font-family: var(--font-mono); font-size: 11px; }
+.pv-sem { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-3); }
+.pv-sem div { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 13px; }
+.pv-sem i { width: 36px; height: 36px; border-radius: 10px; flex: none; border: 1px solid rgba(0,0,0,.06); }
+.pv-sem code { display: block; font-size: 11px; color: var(--color-text-tertiary); }
+.pv-type-row { display: grid; grid-template-columns: 140px 1fr; gap: var(--space-4); align-items: baseline; padding: var(--space-4) 0; border-bottom: 1px solid var(--color-divider); }
+.pv-type-row code { font-size: 12px; color: var(--color-text-tertiary); }
+@media (max-width: 767px) { .pv-type-row { grid-template-columns: 1fr; gap: 4px; } }
+.pv-scale { display: flex; flex-direction: column; gap: 8px; }
+.pv-scale div { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--color-text-tertiary); font-family: var(--font-mono); }
+.pv-scale i { height: 12px; background: var(--blue-300); border-radius: 3px; }
+.pv-radius, .pv-shadow { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--space-4); }
+.pv-radius div, .pv-shadow div { aspect-ratio: 1.3; display: grid; place-items: center; font-size: 12px; color: var(--color-text-secondary); text-align: center; }
+.pv-radius div { background: var(--blue-100); color: var(--blue-800); }
+.pv-shadow div { background: #fff; border-radius: var(--radius-lg); }
+.pv-shadow-wrap { background: var(--color-bg-subtle); padding: var(--space-8); border-radius: var(--radius-xl); }
+.pv-demo { padding: var(--space-6); border: 1px solid var(--color-border); border-radius: var(--radius-xl); }
+.pv-demo + .pv-demo { margin-top: var(--space-4); }
+.ac-grid > .pv-demo + .pv-demo { margin-top: 0; }
+#nav .ac-grid { align-items: start; }
+.pv-demo-label { font-size: 12px; font-weight: 600; color: var(--color-text-tertiary); margin-bottom: var(--space-3); display: block; }
+.pv-status-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+#status-table { min-width: 680px; white-space: nowrap; }
+.pv-status-table th, .pv-status-table td { padding: 12px; border-bottom: 1px solid var(--color-divider); text-align: left; vertical-align: middle; }
+.pv-status-table th { font-size: 13px; color: var(--color-text-tertiary); font-weight: 600; background: var(--color-bg-subtle); }
+.pv-status-table code { font-size: 12px; color: var(--color-text-secondary); }
+.pv-phones { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-8); justify-items: center; }
+.pv-phone { width: 100%; max-width: 375px; height: 720px; border-radius: 40px; border: 10px solid var(--gray-900); overflow: hidden; position: relative; background: #fff; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
+.pv-phone { --page-gutter: 20px; --text-display-size: 32px; --text-h1-size: 26px; --text-h2-size: 22px; --text-h3-size: 19px; }
+.pv-phone__scroll { flex: 1; overflow-y: auto; scrollbar-width: none; }
+.pv-phone__cap { text-align: center; font-size: 13px; font-weight: 600; color: var(--color-text-secondary); margin-top: var(--space-3); }
+.pv-appbar { display: flex; align-items: center; justify-content: space-between; height: var(--header-h); padding: 0 var(--page-gutter); }
+.pv-appbar h4 { margin: 0; font-size: 17px; font-weight: 700; }
+.pv-ill { height: 120px; border-radius: var(--radius-lg); background: linear-gradient(135deg, var(--blue-100), var(--blue-50)); display: grid; place-items: center; color: var(--blue-500); }
+.pv-admin { border: 1px solid var(--color-border); border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--shadow-md); background: #fff; }
+.pv-admin__gnb { display: flex; align-items: center; gap: var(--space-5); height: var(--admin-gnb-h); padding: 0 var(--space-5); border-bottom: 1px solid var(--color-border); overflow-x: auto; scrollbar-width: none; }
+.pv-admin__gnb a { font-size: 14px; color: var(--color-text-secondary); text-decoration: none; white-space: nowrap; font-weight: 500; }
+.pv-admin__gnb a.on { color: var(--color-primary); font-weight: 700; }
+.pv-admin__body { display: grid; grid-template-columns: var(--admin-lnb-w) 1fr; min-height: 460px; }
+.pv-admin__lnb { border-right: 1px solid var(--color-border); padding: var(--space-4) var(--space-3); background: var(--gray-25); }
+.pv-admin__lnb a { display: block; padding: 8px 12px; border-radius: var(--radius-sm); font-size: 13px; color: var(--color-text-secondary); text-decoration: none; }
+.pv-admin__lnb a.on { background: var(--color-primary-subtle); color: var(--color-primary); font-weight: 600; }
+.pv-admin__lnb small { display: block; padding: 12px 12px 6px; font-size: 11px; font-weight: 700; color: var(--color-text-tertiary); }
+.pv-admin__main { padding: var(--space-5) var(--space-6); min-width: 0; }
+@media (max-width: 1023px) { .pv-admin__body { grid-template-columns: 1fr; } .pv-admin__lnb { display: none; } }
+.pv-modal-stage { position: relative; height: 280px; border-radius: var(--radius-xl); overflow: hidden; background: var(--gray-100); }
+.pv-modal-stage .ac-overlay { position: absolute; }
+.pv-sheet-stage { position: relative; height: 280px; border-radius: var(--radius-xl); overflow: hidden; background: var(--color-overlay); display: flex; align-items: flex-end; }
+.pv-foot { padding: var(--space-12) 0; color: var(--color-text-tertiary); font-size: 13px; border-top: 1px solid var(--color-divider); }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="5.5" width="16" height="14" rx="2.5"/><path d="M8 3.5v4M16 3.5v4M4 10h16"/></symbol>
+  <symbol id="i-ac" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="8" rx="2.5"/><path d="M7 10h10M8 16.5c0 1.5-1 2-1 3M12 16.5v3M16 16.5c0 1.5 1 2 1 3"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20c1.2-3.6 4-5.3 7.5-5.3s6.3 1.7 7.5 5.3"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15zM10 20.5h4"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5v.5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.8 2.7L16 9.5"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 2.8 19.5h18.4zM12 10v4.5M12 17v.3"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h3.5l1.5 4-2 1.5a11 11 0 0 0 6.5 6.5l1.5-2 4 1.5V19a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8 12 3.5 20.5 8v8L12 20.5 3.5 16zM3.5 8 12 12.5 20.5 8M12 12.5v8"/></symbol>
+  <symbol id="i-wrench" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5a4 4 0 0 0 5 5L12 19a2.1 2.1 0 0 1-3-3l7.5-7.5zM14.5 6.5l3-3a4 4 0 0 0-3 3z"/></symbol>
+  <symbol id="i-won" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l3.5 12L12 8l4.5 10L20 6M3 11h18"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></symbol>
+</svg>
+
+<header class="pv-top">
+  <div class="ac-container">
+    <a class="pv-logo" href="#"><i><svg width="16" height="16" style="color:#fff"><use href="#i-ac"/></svg></i>Design System</a>
+    <nav class="pv-nav">
+      <a href="#color">색상</a><a href="#type">타이포</a><a href="#layout">간격·반경·그림자</a>
+      <a href="#button">버튼</a><a href="#form">입력</a><a href="#card">카드</a><a href="#status">상태 배지</a>
+      <a href="#nav">내비게이션</a><a href="#feedback">피드백</a><a href="#channels">채널 예시</a>
+    </nav>
+  </div>
+</header>
+
+<section class="pv-hero">
+  <div class="ac-container">
+    <span class="pv-eyebrow">v1.0 · 2026-11-22</span>
+    <h1 class="ac-display">에어컨 플랫폼<br>공통 디자인 시스템</h1>
+    <p class="ac-body-lg">고객 앱 · 기사 앱 · 관리자 웹이 함께 쓰는 토큰과 컴포넌트입니다. 화이트를 바탕으로 블루는 꼭 필요한 곳에만, 둥근 버튼과 넉넉한 여백으로 깔끔하고 믿음직한 인상을 만듭니다. 창 크기를 바꿔 반응형 동작을 확인해 보세요.</p>
+    <div class="ac-row" style="margin-top:var(--space-6)">
+      <a class="ac-btn ac-btn--primary ac-btn--lg" href="#status">상태 배지 보기</a>
+      <a class="ac-btn ac-btn--outline ac-btn--lg" href="#channels">채널 예시 보기</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 색상 ============ -->
+<section class="pv-section" id="color">
+  <div class="ac-container">
+    <header><span class="pv-eyebrow">01</span><h2 class="ac-h2">색상</h2><p>원시 색상(Primitive) 위에 의미 색상(Semantic)을 얹습니다. 화면 코드에서는 의미 색상만 쓰세요.</p></header>
+    <h3 class="pv-sub">Blue · 브랜드 포인트</h3>
+    <div class="pv-swatches" id="sw-blue"></div>
+    <h3 class="pv-sub">Gray · 중립</h3>
+    <div class="pv-swatches" id="sw-gray"></div>
+    <h3 class="pv-sub">의미 색상</h3>
+    <div class="pv-sem" id="sem"></div>
+  </div>
+</section>
+
+<!-- ============ 타이포 ============ -->
+<section class="pv-section" id="type">
+  <div class="ac-container">
+    <header><span class="pv-eyebrow">02</span><h2 class="ac-h2">타이포그래피</h2><p>Pretendard (SIL OFL 무료 폰트). 제목은 자간 -2%, 본문은 -1%. 금액·시간에는 고정폭 숫자(tabular-nums)를 씁니다.</p></header>
+    <div class="pv-type-row"><code>display · 32/40/48 · 700</code><div class="ac-display">깨끗한 바람, 정직한 가격</div></div>
+    <div class="pv-type-row"><code>h1 · 26/30/34 · 700</code><div class="ac-h1">우리 집 에어컨 청소 견적</div></div>
+    <div class="pv-type-row"><code>h2 · 22/24/26 · 700</code><div class="ac-h2">예약 상세</div></div>
+    <div class="pv-type-row"><code>h3 · 19/20 · 600</code><div class="ac-h3">방문 일정</div></div>
+    <div class="pv-type-row"><code>title · 17 · 600</code><div class="ac-title">벽걸이형 1대 · 일반 청소</div></div>
+    <div class="pv-type-row"><code>body-lg · 17 · 400</code><div class="ac-body-lg">분해 세척 후 항균 코팅까지 진행합니다.</div></div>
+    <div class="pv-type-row"><code>body · 15 · 400</code><div class="ac-body">기사님이 도착 30분 전에 알림을 보내드려요. 주차가 어려우면 요청사항에 적어주세요.</div></div>
+    <div class="pv-type-row"><code>body-sm · 14 · 400</code><div class="ac-body-sm">추가요금이 생기면 작업 전에 먼저 동의를 받습니다.</div></div>
+    <div class="pv-type-row"><code>caption · 13 · 400</code><div class="ac-caption">접수번호 2026112200123 · 11월 22일 10:24</div></div>
+    <div class="pv-type-row"><code>micro · 12 · 400</code><div class="ac-micro">VAT 포함</div></div>
+    <div class="pv-type-row"><code>숫자 · tabular-nums</code><div class="ac-h2 ac-num">89,000원 · 14:30</div></div>
+  </div>
+</section>
+
+<!-- ============ 간격·반경·그림자 ============ -->
+<section class="pv-section" id="layout">
+  <div class="ac-container">
+    <header><span class="pv-eyebrow">03</span><h2 class="ac-h2">간격 · 반경 · 그림자 · 브레이크포인트</h2><p>4px 그리드. 여백은 아끼지 않고, 그림자는 옅게.</p></header>
+    <div class="ac-grid ac-grid--2">
+      <div>
+        <h3 class="pv-sub">간격</h3>
+        <div class="pv-scale" id="spaces"></div>
+      </div>
+      <div>
+        <h3 class="pv-sub">브레이크포인트</h3>
+        <table class="pv-status-table">
+          <thead><tr><th>이름</th><th>범위</th><th>용도</th></tr></thead>
+          <tbody>
+            <tr><td><code>sm</code></td><td>360–767</td><td>모바일 (설계 기준 375)</td></tr>
+            <tr><td><code>md</code></td><td>768–1023</td><td>태블릿, 2열 그리드</td></tr>
+            <tr><td><code>lg</code></td><td>1024–1279</td><td>소형 데스크톱, 3열·LNB 노출</td></tr>
+            <tr><td><code>xl</code></td><td>1280–1439</td><td>데스크톱</td></tr>
+            <tr><td><code>2xl</code></td><td>1440+</td><td>관리자 웹 기준 폭</td></tr>
+          </tbody>
+        </table>
+        <p class="ac-caption" style="margin-top:var(--space-3)">지금 창 너비: <b id="vw" class="ac-num"></b></p>
+      </div>
+    </div>
+    <h3 class="pv-sub">반경</h3>
+    <div class="pv-radius">
+      <div style="border-radius:var(--radius-xs)">xs 4<br>태그</div>
+      <div style="border-radius:var(--radius-sm)">sm 8<br>관리자 입력</div>
+      <div style="border-radius:var(--radius-md)">md 12<br>입력·알림</div>
+      <div style="border-radius:var(--radius-lg)">lg 16</div>
+      <div style="border-radius:var(--radius-xl)">xl 20<br>카드</div>
+      <div style="border-radius:var(--radius-2xl)">2xl 28<br>모달·시트</div>
+      <div style="border-radius:var(--radius-full);aspect-ratio:2.4">full<br>버튼·칩·배지</div>
+    </div>
+    <h3 class="pv-sub">그림자</h3>
+    <div class="pv-shadow-wrap"><div class="pv-shadow">
+      <div style="box-shadow:var(--shadow-xs)">xs</div>
+      <div style="box-shadow:var(--shadow-sm)">sm<br>세그먼트</div>
+      <div style="box-shadow:var(--shadow-md)">md<br>카드 hover</div>
+      <div style="box-shadow:var(--shadow-lg)">lg<br>토스트</div>
+      <div style="box-shadow:var(--shadow-xl)">xl<br>모달</div>
+    </div></div>
+  </div>
+</section>
+
+<!-- ============ 버튼 ============ -->
+<section class="pv-section" id="button">
+  <div class="ac-container">
+    <header><span class="pv-eyebrow">04</span><h2 class="ac-h2">버튼</h2><p>모든 버튼은 알약형(radius full). 한 화면에 Primary는 하나만 둡니다.</p></header>
+    <div class="pv-demo"><span class="pv-demo-label">종류</span>
+      <div class="ac-row">
+        <button class="ac-btn ac-btn--primary">견적 받기</button>
+        <button class="ac-btn ac-btn--secondary">저장·공유</button>
+        <button class="ac-btn ac-btn--outline">일정 변경</button>
+        <button class="ac-btn ac-btn--ghost">취소</button>
+        <button class="ac-btn ac-btn--dark">출발하기</button>
+        <button class="ac-btn ac-btn--danger">예약 취소</button>
+        <button class="ac-btn ac-btn--text">약관 보기</button>
+      </div>
+    </div>
+    <div class="pv-demo"><span class="pv-demo-label">크기 (고객 기준 sm 36 · md 44 · lg 52 · xl 56)</span>
+      <div class="ac-row" style="align-items:center">
+        <button class="ac-btn ac-btn--primary ac-btn--sm">Small</button>
+        <button class="ac-btn ac-btn--primary">Medium</button>
+        <button class="ac-btn ac-btn--primary ac-btn--lg">Large</button>
+        <button class="ac-btn ac-btn--primary ac-btn--xl">X-Large</button>
+        <button class="ac-btn ac-btn--outline ac-btn--icon" aria-label="전화"><svg width="20" height="20"><use href="#i-phone"/></svg></button>
+      </div>
+    </div>
+    <div class="pv-demo"><span class="pv-demo-label">상태</span>
+      <div class="ac-row">
+        <button class="ac-btn ac-btn--primary">기본</button>
+        <button class="ac-btn ac-btn--primary" style="background:var(--color-primary-hover)">Hover</button>
+        <button class="ac-btn ac-btn--primary" style="box-shadow:var(--focus-ring)">Focus</button>
+        <button class="ac-btn ac-btn--primary"><span class="ac-spinner"></span>결제 중</button>
+        <button class="ac-btn ac-btn--primary" disabled>비활성</button>
+      </div>
+    </div>
+    <div class="pv-demo" style="max-width:420px"><span class="pv-demo-label">모바일 하단 버튼 조합 (보조 : 주 = 1 : 2)</span>
+      <div class="ac-btn-group"><button class="ac-btn ac-btn--outline ac-btn--lg" style="flex:1">거절</button><button class="ac-btn ac-btn--primary ac-btn--lg" style="flex:2">동의하고 진행</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 입력 ============ -->
+<section class="pv-section" id="form">
+  <div class="ac-container">
+    <header><span class="pv-eyebrow">05</span><h2 class="ac-h2">입력</h2><p>라벨은 항상 위, 도움말·오류는 아래. 오류 문구는 "○○은(는) 필수 입력값입니다." 형식.</p></header>
+    <div class="ac-grid ac-grid--2">
+      <div class="ac-stack">
+        <div class="ac-field"><label class="ac-label" for="f1">휴대폰 번호<span class="ac-req">*</span></label>
+          <div class="ac-input-group"><input class="ac-input" id="f1" placeholder="010-0000-0000" inputmode="tel"><button class="ac-btn ac-btn--outline" style="height:var(--input-h)">인증요청</button></div>
+          <span class="ac-help">인증번호는 3분간 유효해요.</span></div>
+        <div class="ac-field ac-field--error"><label class="ac-label" for="f2">상세주소<span class="ac-req">*</span></label>
+          <input class="ac-input" id="f2" aria-invalid="true" placeholder="동·호수를 입력해 주세요">
+          <span class="ac-help">상세주소은(는) 필수 입력값입니다.</span></div>
+        <div class="ac-field"><label class="ac-label" for="f3">주거 유형</label>
+          <select class="ac-select" id="f3"><option>아파트</option><option>빌라</option><option>단독주택</option><option>상가·사무실</option></select></div>
+        <div class="ac-field"><label class="ac-label" for="f4">요청사항</label>
+          <textarea class="ac-textarea" id="f4" placeholder="주차, 반려동물 등 기사님이 알아야 할 내용을 적어주세요"></textarea></div>
+        <div class="ac-field"><label class="ac-label">접수번호 (읽기 전용)</label><input class="ac-input ac-num" value="2026112200123" readonly></div>
+      </div>
+      <div class="ac-stack">
+        <div class="pv-demo"><span class="pv-demo-label">체크박스 · 라디오</span>
+          <div class="ac-stack" style="gap:0">
+            <label class="ac-check"><input type="checkbox" checked> <b>전체 동의</b></label>
+            <label class="ac-check"><input type="checkbox" checked> [필수] 서비스 이용약관</label>
+            <label class="ac-check"><input type="checkbox"> [선택] 마케팅 정보 수신</label>
+            <label class="ac-check"><input type="checkbox" disabled> 비활성</label>
+          </div>
+          <hr class="ac-divider" style="margin:var(--space-3) 0">
+          <div class="ac-row" style="gap:var(--space-5)">
+            <label class="ac-check"><input type="radio" name="r" checked> 선결제</label>
+            <label class="ac-check"><input type="radio" name="r"> 현장 결제</label>
+          </div>
+        </div>
+        <div class="pv-demo"><span class="pv-demo-label">토글 스위치</span>
+          <label class="ac-switch" style="justify-content:space-between;width:100%"><span>푸시 알림</span><input type="checkbox" checked></label>
+          <label class="ac-switch" style="justify-content:space-between;width:100%"><span>위치 정보 이용</span><input type="checkbox"></label>
+        </div>
+        <div class="pv-demo"><span class="pv-demo-label">수량 스테퍼</span>
+          <div class="ac-row" style="justify-content:space-between"><span class="ac-title">벽걸이형</span>
+            <div class="ac-stepper"><button aria-label="빼기" disabled>−</button><output>1</output><button aria-label="더하기">+</button></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 카드 ============ -->
+<section class="pv-section" id="card">
+  <div class="ac-container">
+    <header><span class="pv-eyebrow">06</span><h2 class="ac-h2">카드</h2><p>기본은 얇은 테두리, 강조할 때만 그림자. 선택형 카드는 블루 2px 테두리.</p></header>
+    <div class="ac-grid ac-grid--3">
+      <article class="ac-card">
+        <div class="ac-card__header"><span class="ac-badge ac-badge--assigned">기사 배정 완료</span><span class="ac-caption">11/25(화)</span></div>
+        <h3 class="ac-title">벽걸이형 1대 · 스탠드형 1대</h3>
+        <p class="ac-body-sm" style="color:var(--color-text-secondary);margin:4px 0 0">서울 강서구 화곡동 · 오후 2–4시</p>
+        <div class="ac-card__footer"><button class="ac-btn ac-btn--outline ac-btn--sm" style="flex:1">변경·취소</button><button class="ac-btn ac-btn--secondary ac-btn--sm" style="flex:1">상세 보기</button></div>
+      </article>
+      <article class="ac-card ac-card--elevated">
+        <span class="ac-caption">이번 주 정산 예정</span>
+        <div class="ac-h1 ac-num" style="margin:4px 0 12px">1,284,000원</div>
+        <div class="ac-row"><span class="ac-tag ac-tag--success">완료 18건</span><span class="ac-tag">진행 3건</span></div>
+      </article>
+      <article class="ac-card ac-card--subtle">
+        <div class="ac-row" style="gap:12px;flex-wrap:nowrap"><svg width="28" height="28" style="color:var(--color-primary);flex:none"><use href="#i-ac"/></svg>
+          <div><h3 class="ac-title">거실 스탠드형</h3><p class="ac-caption" style="margin:2px 0 0">다음 청소 권장일 2027.05.20</p></div></div>
+        <button class="ac-btn ac-btn--text" style="margin-top:12px">다시 예약 ›</button>
+      </article>
+    </div>
+    <h3 class="pv-sub">선택형 카드 (기기 형태 선택)</h3>
+    <div class="ac-grid ac-grid--4" id="pick"></div>
+  </div>
+</section>
+
+<!-- ============ 상태 배지 ============ -->
+<section class="pv-section" id="status">
+  <div class="ac-container">
+    <header><span class="pv-eyebrow">07</span><h2 class="ac-h2">주문 상태 배지 (03_IA §6.1)</h2><p>같은 상태 코드, 같은 색. 고객에게는 친절한 문장형, 기사·관리자에게는 짧은 업무형 이름을 보여줍니다. 색만으로 구분하지 않도록 항상 텍스트를 함께 씁니다.</p></header>
+    <div class="ac-table-wrap" style="border-radius:var(--radius-lg)">
+      <table class="pv-status-table" id="status-table">
+        <thead><tr><th>상태 코드</th><th>고객 표시</th><th>기사·관리자 표시</th><th>색</th><th>클래스 / 토큰</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <h3 class="pv-sub">크기</h3>
+    <div class="ac-row"><span class="ac-badge ac-badge--in-progress">작업 중</span><span class="ac-badge ac-badge--lg ac-badge--in-progress">작업 중 (lg · 상세 화면)</span><span class="ac-badge ac-badge--no-dot ac-badge--received">점 없음</span></div>
+    <h3 class="pv-sub">보조 태그 · 카운트</h3>
+    <div class="ac-row"><span class="ac-tag ac-tag--danger">마감</span><span class="ac-tag ac-tag--warning">할증</span><span class="ac-tag ac-tag--primary">추천</span><span class="ac-tag ac-tag--success">보증</span><span class="ac-tag">필수</span>
+      <span class="ac-row" style="gap:4px;margin-left:12px"><svg width="22" height="22"><use href="#i-bell"/></svg><span class="ac-count">3</span></span></div>
+  </div>
+</section>
+
+<!-- ============ 내비게이션 ============ -->
+<section class="pv-section" id="nav">
+  <div class="ac-container">
+    <header><span class="pv-eyebrow">08</span><h2 class="ac-h2">내비게이션</h2></header>
+    <div class="ac-grid ac-grid--2">
+      <div class="pv-demo"><span class="pv-demo-label">탭 (예약 목록 상태 탭)</span>
+        <div class="ac-tabs" role="tablist"><button class="ac-tab" role="tab" aria-selected="true">진행 중</button><button class="ac-tab" role="tab" aria-selected="false">완료</button><button class="ac-tab" role="tab" aria-selected="false">취소</button></div></div>
+      <div class="pv-demo"><span class="pv-demo-label">세그먼트 (기사 작업 탭 목록 ⇄ 지도)</span>
+        <div class="ac-segmented" data-seg><button aria-pressed="true">목록</button><button aria-pressed="false">지도</button></div></div>
+      <div class="pv-demo"><span class="pv-demo-label">필터 칩</span>
+        <div class="ac-chip-row" data-chips><button class="ac-chip" aria-pressed="true">전체</button><button class="ac-chip" aria-pressed="false">오늘</button><button class="ac-chip" aria-pressed="false">이번 주</button><button class="ac-chip" aria-pressed="false">미처리</button><button class="ac-chip" aria-pressed="false">긴급</button></div></div>
+      <div class="pv-demo"><span class="pv-demo-label">스텝 진행바 (견적 3단계)</span>
+        <div class="ac-progress"><span style="width:66%"></span></div>
+        <div class="ac-steps"><span>위치</span><span class="is-current">기기</span><span>대수</span></div></div>
+      <div class="pv-demo"><span class="pv-demo-label">상태 타임라인 (예약 상세)</span>
+        <ol class="ac-timeline">
+          <li class="is-done"><strong>예약 접수</strong><span class="ac-caption">11/22 10:24</span></li>
+          <li class="is-done"><strong>기사 배정 완료</strong><span class="ac-caption">11/22 13:02 · 김OO 기사님</span></li>
+          <li class="is-current"><strong>기사님 이동 중</strong><span class="ac-caption">도착 예정 14:20</span></li>
+          <li><strong>작업 중</strong></li>
+        </ol></div>
+      <div class="pv-demo" style="padding:0;overflow:hidden"><span class="pv-demo-label" style="padding:16px 24px 0">하단 탭바 (고객 4탭)</span>
+        <nav class="ac-tabbar" style="height:64px;margin-top:12px">
+          <a href="#" aria-current="page"><svg><use href="#i-home"/></svg>홈</a><a href="#"><svg><use href="#i-cal"/></svg>내 예약</a><a href="#"><svg><use href="#i-ac"/></svg>내 기기</a><a href="#"><svg><use href="#i-user"/></svg>마이</a>
+        </nav></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 피드백 ============ -->
+<section class="pv-section" id="feedback">
+  <div class="ac-container">
+    <header><span class="pv-eyebrow">09</span><h2 class="ac-h2">피드백</h2><p>Confirm → 저장 → Notification 순서 (03_IA §6.2).</p></header>
+    <div class="ac-grid ac-grid--2">
+      <div class="ac-stack">
+        <div class="ac-alert"><svg class="ac-alert__icon"><use href="#i-info"/></svg><div>배관 상태에 따라 추가요금이 생길 수 있어요. 작업 전에 꼭 먼저 여쭤볼게요.</div></div>
+        <div class="ac-alert ac-alert--success"><svg class="ac-alert__icon"><use href="#i-check"/></svg><div>결제가 완료되었습니다.</div></div>
+        <div class="ac-alert ac-alert--warning"><svg class="ac-alert__icon"><use href="#i-warn"/></svg><div>오프라인 상태입니다. 입력 내용은 기기에 임시 저장돼요.</div></div>
+        <div class="ac-alert ac-alert--danger"><svg class="ac-alert__icon"><use href="#i-warn"/></svg><div>필수 사진 3장 중 1장이 누락되었습니다.</div></div>
+        <div><div class="ac-toast"><svg><use href="#i-check"/></svg>저장에 성공하였습니다.</div></div>
+        <div class="ac-card"><div class="ac-empty"><svg><use href="#i-box"/></svg><div class="ac-body">조회 결과가 없습니다.</div></div></div>
+        <div class="ac-card ac-stack" style="gap:10px"><div class="ac-skeleton" style="height:20px;width:40%"></div><div class="ac-skeleton" style="height:16px"></div><div class="ac-skeleton" style="height:16px;width:70%"></div></div>
+      </div>
+      <div class="ac-stack">
+        <div class="pv-modal-stage"><div class="ac-overlay"><div class="ac-modal" role="dialog" aria-modal="true">
+          <p class="ac-modal__title">저장하시겠습니까?</p><p class="ac-modal__desc">변경한 배정 정보가 기사 앱에 바로 반영됩니다.</p>
+          <div class="ac-btn-group"><button class="ac-btn ac-btn--outline ac-btn--lg">취소</button><button class="ac-btn ac-btn--primary ac-btn--lg">저장</button></div>
+        </div></div></div>
+        <div class="pv-sheet-stage"><div class="ac-sheet"><div class="ac-sheet__handle"></div>
+          <h3 class="ac-title" style="margin-bottom:12px">예약을 변경할까요?</h3>
+          <p class="ac-body-sm" style="color:var(--color-text-secondary);margin:0 0 20px">방문 24시간 전까지는 수수료 없이 변경할 수 있어요.</p>
+          <button class="ac-btn ac-btn--primary ac-btn--lg ac-btn--block">새 일정 선택</button></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 채널 예시 ============ -->
+<section class="pv-section" id="channels">
+  <div class="ac-container">
+    <header><span class="pv-eyebrow">10</span><h2 class="ac-h2">채널별 적용 예시</h2><p>같은 토큰, 다른 밀도. <code>data-channel</code> 속성 하나로 컨트롤 높이·글자 크기가 바뀝니다.</p></header>
+    <div class="pv-phones">
+      <!-- 고객 홈 -->
+      <div><div class="pv-phone" data-channel="customer">
+        <div class="pv-phone__scroll">
+          <div class="pv-appbar"><h4>우리동네 에어컨</h4><span class="ac-row" style="gap:2px"><svg width="24" height="24"><use href="#i-bell"/></svg><span class="ac-count">2</span></span></div>
+          <div style="padding:8px var(--page-gutter) 24px" class="ac-stack">
+            <div><h2 class="ac-h2">에어컨 청소,<br>가격부터 확인하세요</h2><p class="ac-body-sm" style="color:var(--color-text-tertiary);margin:6px 0 0">3단계면 표준 견적이 나와요</p></div>
+            <div class="pv-ill"><svg width="56" height="56"><use href="#i-ac"/></svg></div>
+            <button class="ac-btn ac-btn--primary ac-btn--xl ac-btn--block">견적 받기</button>
+            <hr class="ac-divider ac-divider--thick" style="margin:8px calc(var(--page-gutter) * -1)">
+            <div class="ac-row" style="justify-content:space-between"><h3 class="ac-title">진행 중인 예약</h3><button class="ac-btn ac-btn--text ac-body-sm">전체</button></div>
+            <article class="ac-card">
+              <div class="ac-card__header" style="margin-bottom:8px"><span class="ac-badge ac-badge--on-the-way">기사님 이동 중</span><span class="ac-caption ac-num">도착 14:20</span></div>
+              <div class="ac-title">벽걸이형 1대 · 일반 청소</div>
+              <div class="ac-caption">11월 22일(일) 오후 2–4시</div>
+              <div class="ac-card__footer"><button class="ac-btn ac-btn--outline ac-btn--sm" style="flex:1"><svg width="16" height="16"><use href="#i-phone"/></svg>기사님 전화</button><button class="ac-btn ac-btn--secondary ac-btn--sm" style="flex:1">상세</button></div>
+            </article>
+          </div>
+        </div>
+        <nav class="ac-tabbar"><a href="#" aria-current="page"><svg><use href="#i-home"/></svg>홈</a><a href="#"><svg><use href="#i-cal"/></svg>내 예약</a><a href="#"><svg><use href="#i-ac"/></svg>내 기기</a><a href="#"><svg><use href="#i-user"/></svg>마이</a></nav>
+      </div><p class="pv-phone__cap">고객 · C-HOM-010 홈</p></div>
+
+      <!-- 고객 견적 결과 -->
+      <div><div class="pv-phone" data-channel="customer">
+        <div class="pv-appbar" style="justify-content:flex-start;gap:8px"><svg width="24" height="24"><use href="#i-back"/></svg><h4>견적 결과</h4></div>
+        <div style="padding:0 var(--page-gutter)"><div class="ac-progress"><span style="width:100%"></span></div></div>
+        <div class="pv-phone__scroll"><div style="padding:20px var(--page-gutter)" class="ac-stack">
+          <h2 class="ac-h3">표준 견적이에요</h2>
+          <ul class="ac-list">
+            <li class="ac-list-item"><div class="ac-list-item__body">벽걸이형 × 1<div class="ac-caption">일반 청소</div></div><span class="ac-num">89,000원</span></li>
+            <li class="ac-list-item"><div class="ac-list-item__body">스탠드형 × 1<div class="ac-caption">완전 분해</div></div><span class="ac-num">149,000원</span></li>
+            <li class="ac-list-item"><div class="ac-list-item__body">첫 이용 할인</div><span class="ac-num" style="color:var(--color-danger)">−20,000원</span></li>
+          </ul>
+          <div class="ac-alert"><svg class="ac-alert__icon"><use href="#i-info"/></svg><div><b>추가요금이 생길 수 있는 경우</b><br>실외기 고소 작업, 배관 막힘 등은 현장에서 사진과 함께 먼저 동의를 받아요.</div></div>
+          <div class="ac-row"><span class="ac-tag">소요 약 2시간</span><span class="ac-tag ac-tag--success">30일 AS 보증</span></div>
+        </div></div>
+        <div class="ac-bottom-bar"><div class="ac-bottom-bar__price"><span class="ac-caption">총 결제 예정</span><strong>218,000원</strong></div><button class="ac-btn ac-btn--primary ac-btn--lg">예약하기</button></div>
+      </div><p class="pv-phone__cap">고객 · C-QUO-040 견적 결과 (하단 금액 고정 바)</p></div>
+
+      <!-- 기사 홈 -->
+      <div><div class="pv-phone" data-channel="tech">
+        <div class="ac-live-banner"><span class="ac-badge ac-badge--in-progress" style="background:rgba(255,255,255,.12);color:#7FE3DC">작업중</span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">화곡동 · 사진 단계</span><button class="ac-btn ac-btn--sm" style="background:#fff;color:var(--gray-900);height:36px">이어하기</button></div>
+        <div class="pv-phone__scroll"><div style="padding:16px var(--page-gutter)" class="ac-stack">
+          <div class="ac-row" style="justify-content:space-between"><h2 class="ac-h3">오늘 할 일 <span class="ac-num" style="color:var(--color-primary)">4</span></h2><span class="ac-offline">● 오프라인 저장됨</span></div>
+          <div class="ac-segmented" style="align-self:flex-start" data-seg><button aria-pressed="true">목록</button><button aria-pressed="false">지도</button></div>
+          <article class="ac-card">
+            <div class="ac-card__header"><span class="ac-badge ac-badge--assigned">배정완료</span><span class="ac-title ac-num">14:00</span></div>
+            <div class="ac-title">벽걸이 1 · 스탠드 1</div>
+            <div class="ac-body-sm ac-row" style="color:var(--color-text-secondary);gap:4px"><svg width="16" height="16"><use href="#i-pin"/></svg>강서구 화곡로 OO, 102동</div>
+            <div class="ac-btn-group" style="margin-top:16px"><button class="ac-btn ac-btn--outline" aria-label="전화" style="flex:0 0 auto;width:var(--control-h-md);padding:0"><svg width="22" height="22"><use href="#i-phone"/></svg></button><button class="ac-btn ac-btn--dark">출발하기</button></div>
+          </article>
+          <article class="ac-card">
+            <div class="ac-card__header"><span class="ac-badge ac-badge--pending-overdue">미처리 48h+</span><span class="ac-title ac-num">16:30</span></div>
+            <div class="ac-title">시스템 4way 1</div>
+            <div class="ac-body-sm" style="color:var(--color-text-secondary)">양천구 목동 · 일정 재조율 필요</div>
+          </article>
+        </div></div>
+        <nav class="ac-tabbar"><a href="#" aria-current="page"><svg><use href="#i-home"/></svg>홈</a><a href="#"><svg><use href="#i-wrench"/></svg>작업</a><a href="#"><svg><use href="#i-cal"/></svg>캘린더</a><a href="#"><svg><use href="#i-won"/></svg>정산</a><a href="#"><svg><use href="#i-more"/></svg>더보기</a></nav>
+      </div><p class="pv-phone__cap">기사 · T-HOM-010 홈 (최소 48dp, 진행 중 작업 배너)</p></div>
+    </div>
+
+  </div>
+  <div class="ac-container" style="max-width:var(--container-admin)">
+    <h3 class="pv-sub" style="margin-top:var(--space-12)">관리자 웹 · 접수·주문 목록 (1440 기준, 1024 미만에서 LNB 숨김)</h3>
+    <div class="pv-admin" data-channel="admin">
+      <div class="pv-admin__gnb">
+        <a class="pv-logo" href="#" style="font-size:15px"><i><svg width="16" height="16" style="color:#fff"><use href="#i-ac"/></svg></i>Admin</a>
+        <a href="#">대시보드</a><a href="#">상담</a><a href="#" class="on">접수·주문</a><a href="#">배정·일정</a><a href="#">처리</a><a href="#">고객</a><a href="#">기사</a><a href="#">결제</a><a href="#">정산</a><a href="#">CRM·VOC</a>
+        <span style="margin-left:auto" class="ac-row"><select class="ac-select" style="width:140px;height:32px;font-size:13px"><option>강서 거점</option></select><span class="ac-row" style="gap:2px"><svg width="22" height="22"><use href="#i-bell"/></svg><span class="ac-count">5</span></span></span>
+      </div>
+      <div class="pv-admin__body">
+        <aside class="pv-admin__lnb"><small>접수·주문</small><a href="#" class="on">주문 목록</a><a href="#">전화 접수</a><a href="#">B2B 견적</a><a href="#">변경·취소 요청</a><small>★ 즐겨찾기</small><a href="#">배정 보드</a><a href="#">상담 콘솔</a></aside>
+        <main class="pv-admin__main ac-stack">
+          <div class="ac-caption">접수·주문 &gt; 주문 목록</div>
+          <h2 class="ac-h1">주문 목록</h2>
+          <form class="ac-search-panel" onsubmit="return false">
+            <div class="ac-field" style="gap:4px"><label class="ac-label">기간</label><input class="ac-input ac-num" value="2026-11-16 ~ 2026-11-22"></div>
+            <div class="ac-field" style="gap:4px"><label class="ac-label">상태</label><select class="ac-select"><option>전체</option><option>미지정(긴급)</option><option>미처리</option></select></div>
+            <div class="ac-field" style="gap:4px"><label class="ac-label">고객명/연락처</label><input class="ac-input" placeholder="Enter = 조회"></div>
+            <div class="ac-search-panel__actions"><button class="ac-btn ac-btn--ghost">초기화</button><button class="ac-btn ac-btn--primary"><svg width="16" height="16"><use href="#i-search"/></svg>조회</button></div>
+          </form>
+          <div class="ac-row" style="justify-content:space-between"><span class="ac-body-sm">총 <b class="ac-num">128</b>건</span><div class="ac-row"><button class="ac-btn ac-btn--outline ac-btn--sm">엑셀 다운로드</button><button class="ac-btn ac-btn--secondary ac-btn--sm">전화 접수</button></div></div>
+          <div class="ac-table-wrap">
+            <table class="ac-table">
+              <thead><tr><th>접수번호</th><th>상태</th><th>고객</th><th>연락처</th><th>방문일</th><th>품목</th><th>담당 기사</th><th class="is-num">금액</th></tr></thead>
+              <tbody id="admin-rows"></tbody>
+            </table>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="pv-foot"><div class="ac-container">에어컨 플랫폼 디자인 시스템 v1.0 · 폰트 Pretendard (SIL Open Font License) · 아이콘은 이 문서 전용 임시 라인 아이콘입니다. 특정 기업의 로고·상표·전용 폰트·에셋은 사용하지 않았습니다.</div></footer>
+
+<script>
+const css = getComputedStyle(document.documentElement);
+const v = n => css.getPropertyValue(n).trim();
+const sw = (id, name, steps) => document.getElementById(id).innerHTML = steps.map(s =>
+  `<div class="pv-sw"><i style="background:var(--${name}-${s})"></i><span><b>${name}-${s}</b><small>${v(`--${name}-${s}`)}</small></span></div>`).join('');
+sw('sw-blue','blue',[50,100,200,300,400,500,600,700,800,900]);
+sw('sw-gray','gray',[0,25,50,100,200,300,400,500,600,700,800,900]);
+const sem = ['primary','primary-hover','primary-subtle','bg','bg-subtle','surface','text','text-secondary','text-tertiary','text-placeholder','border','border-strong','divider','success','success-bg','warning','warning-bg','danger','danger-bg','info-bg','highlight-bg'];
+document.getElementById('sem').innerHTML = sem.map(s => `<div><i style="background:var(--color-${s})"></i><span>${s}<code>--color-${s} · ${v('--color-'+s)}</code></span></div>`).join('');
+document.getElementById('spaces').innerHTML = [1,2,3,4,5,6,8,10,12,16,20,24].map(n => `<div><span style="width:72px">space-${n}</span><i style="width:var(--space-${n})"></i>${v('--space-'+n)}</div>`).join('');
+const vw = () => { const w = innerWidth; const bp = w>=1440?'2xl':w>=1280?'xl':w>=1024?'lg':w>=768?'md':w>=360?'sm':'xs'; document.getElementById('vw').textContent = `${w}px (${bp})`; };
+vw(); addEventListener('resize', vw);
+
+const STATUS = [
+  ['RECEIVED','예약 접수','접수','파랑','received'],
+  ['ASSIGN_WAIT','기사 배정 중','미지정(긴급)','주황','assign-wait'],
+  ['ASSIGNED','기사 배정 완료','배정완료','남색','assigned'],
+  ['ON_THE_WAY','기사님 이동 중','이동중','보라','on-the-way'],
+  ['IN_PROGRESS','작업 중','작업중','청록','in-progress'],
+  ['PENDING','일정 조율 중','미처리','빨강','pending'],
+  ['PENDING (48h+)','일정 조율 중','미처리','진한 빨강(채움)','pending-overdue'],
+  ['WORK_DONE','작업 완료(결제 대기)','작업완료','연두','work-done'],
+  ['COMPLETED','완료','완료','회색','completed'],
+  ['CANCELED','취소','취소','연회색(테두리)','canceled'],
+];
+document.querySelector('#status-table tbody').innerHTML = STATUS.map(([c,cu,st,col,s]) =>
+  `<tr><td><code>${c}</code></td><td><span class="ac-badge ac-badge--${s}">${cu}</span></td><td><span class="ac-badge ac-badge--${s}">${st}</span></td><td>${col}</td><td><code>.ac-badge--${s}</code><br><code style="color:var(--color-text-tertiary)">--status-${s}-fg/bg</code></td></tr>`).join('');
+
+const ROWS = [
+  ['2026112200131','assign-wait','미지정(긴급)','박O민','010-****-1234','11/22 16:00','벽걸이 2','-','178,000'],
+  ['2026112200128','pending-overdue','미처리','이O수','010-****-8812','11/20 10:00','스탠드 1','최OO','149,000'],
+  ['2026112200123','on-the-way','이동중','정O아','010-****-4471','11/22 14:00','벽걸이 1·스탠드 1','김OO','218,000'],
+  ['2026112200117','in-progress','작업중','한O우','010-****-0093','11/22 10:00','시스템 4way 2','김OO','260,000'],
+  ['2026112100098','work-done','작업완료','오O진','010-****-5520','11/21 15:00','벽걸이 1','최OO','89,000'],
+  ['2026112100091','completed','완료','서O현','010-****-7781','11/21 11:00','스탠드 1','김OO','149,000','is-highlight'],
+  ['2026112000077','canceled','취소','윤O호','010-****-3304','11/23 09:00','벽걸이 1','-','0','is-muted'],
+];
+document.getElementById('admin-rows').innerHTML = ROWS.map(r =>
+  `<tr class="${r[9]||''}"><td class="ac-num">${r[0]}</td><td><span class="ac-badge ac-badge--${r[1]}">${r[2]}</span></td><td>${r[3]}</td><td><span class="ac-masked">${r[4]}<button type="button">보기</button></span></td><td class="ac-num">${r[5]}</td><td>${r[6]}</td><td>${r[7]}</td><td class="is-num">${r[8]}</td></tr>`).join('');
+
+const PICK = [['벽걸이형',true],['스탠드형',false],['2in1',false],['시스템(천장형)',true]];
+document.getElementById('pick').innerHTML = PICK.map(([n,on]) =>
+  `<button type="button" class="ac-card ac-card--interactive ${on?'ac-card--selected':''}" aria-pressed="${on}" style="text-align:center;font:inherit;color:inherit;display:flex;flex-direction:column;align-items:center;gap:8px"><svg width="40" height="40" style="color:${on?'var(--color-primary)':'var(--gray-500)'}"><use href="#i-ac"/></svg><span class="ac-title">${n}</span></button>`).join('');
+document.getElementById('pick').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; const on = b.getAttribute('aria-pressed')!=='true'; b.setAttribute('aria-pressed', on); b.classList.toggle('ac-card--selected', on); b.querySelector('svg').style.color = on?'var(--color-primary)':'var(--gray-500)'; });
+document.querySelectorAll('[data-seg],[data-chips]').forEach(g => g.addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; g.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x===b)); }));
+document.querySelectorAll('.ac-tabs').forEach(g => g.addEventListener('click', e => { const b = e.target.closest('.ac-tab'); if(!b) return; g.querySelectorAll('.ac-tab').forEach(x => x.setAttribute('aria-selected', x===b)); }));
+document.querySelectorAll('.ac-stepper').forEach(s => { const o = s.querySelector('output'), [m,p] = s.querySelectorAll('button'); const set = n => { o.textContent = n; m.disabled = n<=1; }; m.onclick = () => set(+o.textContent-1); p.onclick = () => set(+o.textContent+1); });
+</script>
+</body>
+</html>
