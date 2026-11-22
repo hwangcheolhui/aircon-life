@@ -1,0 +1,14 @@
+{
+  "extends": "@aircon/config/tsconfig.next.json",
+  "compilerOptions": {
+    "incremental": false,
+    "plugins": [],
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "src",
+    "vitest.config.ts"
+  ]
+}

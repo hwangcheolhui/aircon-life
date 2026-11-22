@@ -1,0 +1,260 @@
+/* =====================================================================
+ * 에어컨 플랫폼 공통 디자인 토큰 (v1.0 · 2026-11-22)
+ * 문서: ../05_디자인시스템.md
+ * - 고객 앱(C) · 기사 앱(T) · 관리자 웹(A) 3채널 공통
+ * - 채널별 밀도는 <html data-channel="customer|tech|admin"> 로 전환
+ * - 폰트: Pretendard (SIL OFL, 무료). HTML <head> 에 아래 링크를 추가하세요.
+ *   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+ * ===================================================================== */
+
+:root {
+  /* ---------- 1. 원시 색상 (Primitive) ---------- */
+  /* Blue: 브랜드 포인트. 절제해서 CTA·선택·링크에만 사용 */
+  --blue-50:  #F3F7FF;
+  --blue-100: #EAF1FF;
+  --blue-200: #CFDFFF;
+  --blue-300: #A6C2FA;
+  --blue-400: #6F98F0;
+  --blue-500: #3D72E4;
+  --blue-600: #1F5BD6; /* primary */
+  --blue-700: #1A4CB5; /* hover */
+  --blue-800: #163E92; /* pressed */
+  --blue-900: #122F6C;
+
+  /* Gray: 화이트 기반 UI의 중심. 살짝 푸른 기가 도는 쿨 그레이 */
+  --gray-0:   #FFFFFF;
+  --gray-25:  #FAFBFC;
+  --gray-50:  #F5F6F8;
+  --gray-100: #EDEFF2;
+  --gray-200: #E1E4E9;
+  --gray-300: #CBD0D7;
+  --gray-400: #99A0AB;
+  --gray-500: #7A818D;
+  --gray-600: #646B78;
+  --gray-700: #4A515C;
+  --gray-800: #2E333B;
+  --gray-900: #1A1D23;
+
+  --red-50:  #FDECEC; --red-600: #C02626; --red-700: #A51C1C;
+  --orange-50: #FFF1E6; --orange-600: #B54708;
+  --amber-50: #FFF4E0; --amber-600: #A35A00;
+  --yellow-50: #FFF6CC;
+  --green-50: #E8F6EC; --green-600: #1E7A3C;
+  --lime-50: #EDF7E2; --lime-700: #3F7313;
+  --teal-50: #E2F5F4; --teal-700: #0A7470;
+  --indigo-50: #E9ECF8; --indigo-700: #2B3A8F;
+  --violet-50: #F2EDFD; --violet-600: #6A3DC2;
+
+  /* ---------- 2. 의미 색상 (Semantic) ---------- */
+  --color-primary:          var(--blue-600);
+  --color-primary-hover:    var(--blue-700);
+  --color-primary-pressed:  var(--blue-800);
+  --color-primary-subtle:   var(--blue-100);
+  --color-primary-faint:    var(--blue-50);
+  --color-on-primary:       #FFFFFF;
+
+  --color-bg:               var(--gray-0);    /* 기본 배경 = 화이트 */
+  --color-bg-subtle:        var(--gray-50);   /* 섹션 구분 배경 */
+  --color-bg-muted:         var(--gray-100);
+  --color-bg-inverse:       var(--gray-900);
+  --color-surface:          var(--gray-0);    /* 카드·모달 */
+  --color-surface-raised:   var(--gray-0);
+  --color-overlay:          rgba(18, 22, 28, 0.48);
+
+  --color-text:             var(--gray-900);  /* 본문·제목 16.9:1 */
+  --color-text-secondary:   var(--gray-700);  /* 보조 8.0:1 */
+  --color-text-tertiary:    var(--gray-600);  /* 캡션·메타 5.4:1 */
+  --color-text-placeholder: var(--gray-400);  /* 플레이스홀더 전용 */
+  --color-text-disabled:    var(--gray-400);
+  --color-text-inverse:     #FFFFFF;
+  --color-text-link:        var(--blue-600);
+
+  --color-border:           var(--gray-200);
+  --color-border-strong:    var(--gray-300);
+  --color-border-focus:     var(--blue-600);
+  --color-divider:          var(--gray-100);
+
+  --color-success:          var(--green-600);
+  --color-success-bg:       var(--green-50);
+  --color-warning:          var(--amber-600);
+  --color-warning-bg:       var(--amber-50);
+  --color-danger:           var(--red-600);
+  --color-danger-hover:     var(--red-700);
+  --color-danger-bg:        var(--red-50);
+  --color-info:             var(--blue-600);
+  --color-info-bg:          var(--blue-100);
+  --color-highlight-bg:     var(--yellow-50); /* 그리드 강조 행(완료 노란 배경 옵션) */
+
+  --focus-ring: 0 0 0 3px rgba(31, 91, 214, 0.28);
+
+  /* ---------- 3. 주문 상태 배지 (03_IA §6.1) ---------- */
+  --status-received-fg:    var(--blue-600);   --status-received-bg:    var(--blue-100);
+  --status-assign-wait-fg: var(--orange-600); --status-assign-wait-bg: var(--orange-50);
+  --status-assigned-fg:    var(--indigo-700); --status-assigned-bg:    var(--indigo-50);
+  --status-on-the-way-fg:  var(--violet-600); --status-on-the-way-bg:  var(--violet-50);
+  --status-in-progress-fg: var(--teal-700);   --status-in-progress-bg: var(--teal-50);
+  --status-pending-fg:     var(--red-600);    --status-pending-bg:     var(--red-50);
+  --status-pending-overdue-fg: #FFFFFF;       --status-pending-overdue-bg: var(--red-700); /* 48h 경과 */
+  --status-work-done-fg:   var(--lime-700);   --status-work-done-bg:   var(--lime-50);
+  --status-completed-fg:   var(--gray-700);   --status-completed-bg:   var(--gray-100);
+  --status-canceled-fg:    var(--gray-600);   --status-canceled-bg:    var(--gray-50);
+
+  /* ---------- 4. 타이포그래피 ---------- */
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+               system-ui, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+               "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* 크기/행간 (모바일 기준, md 이상에서 display·heading 확대) */
+  --text-display-size: 32px;   --text-display-lh: 1.3;
+  --text-h1-size: 26px;        --text-h1-lh: 1.35;
+  --text-h2-size: 22px;        --text-h2-lh: 1.4;
+  --text-h3-size: 19px;        --text-h3-lh: 1.45;
+  --text-title-size: 17px;     --text-title-lh: 1.5;
+  --text-body-lg-size: 17px;   --text-body-lg-lh: 1.6;
+  --text-body-size: 15px;      --text-body-lh: 1.6;
+  --text-body-sm-size: 14px;   --text-body-sm-lh: 1.55;
+  --text-caption-size: 13px;   --text-caption-lh: 1.5;
+  --text-micro-size: 12px;     --text-micro-lh: 1.45;
+  --letter-spacing-tight: -0.02em;  /* 제목 */
+  --letter-spacing-normal: -0.01em; /* 본문 */
+
+  /* ---------- 5. 간격 (4px 그리드) ---------- */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+
+  --page-gutter: 20px;          /* 화면 좌우 여백 */
+  --section-gap: 40px;          /* 섹션 간 간격 */
+  --container-max: 1200px;      /* 고객 웹 콘텐츠 최대폭 */
+  --container-admin: 1440px;    /* 관리자 기준 폭 */
+
+  /* ---------- 6. 반경 ---------- */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 28px;
+  --radius-full: 9999px;        /* 버튼·칩·배지 */
+
+  --radius-button: var(--radius-full);
+  --radius-input: var(--radius-md);
+  --radius-card: var(--radius-xl);
+  --radius-modal: var(--radius-2xl);
+  --radius-sheet: var(--radius-2xl) var(--radius-2xl) 0 0;
+
+  /* ---------- 7. 그림자 (부드럽고 옅게) ---------- */
+  --shadow-xs: 0 1px 2px rgba(20, 28, 40, 0.05);
+  --shadow-sm: 0 2px 8px rgba(20, 28, 40, 0.06);
+  --shadow-md: 0 6px 20px rgba(20, 28, 40, 0.08);
+  --shadow-lg: 0 12px 32px rgba(20, 28, 40, 0.12);
+  --shadow-xl: 0 20px 48px rgba(20, 28, 40, 0.16);
+  --shadow-fixed-bottom: 0 -4px 16px rgba(20, 28, 40, 0.06); /* 하단 고정 바 */
+
+  /* ---------- 8. 컨트롤 크기 ---------- */
+  --control-h-sm: 36px;
+  --control-h-md: 44px;
+  --control-h-lg: 52px;
+  --control-h-xl: 56px;
+  --input-h: 48px;
+  --touch-min: 44px;            /* 최소 터치 영역 */
+  --icon-sm: 16px; --icon-md: 20px; --icon-lg: 24px;
+
+  /* ---------- 9. 레이아웃 고정 요소 ---------- */
+  --header-h: 56px;
+  --bottom-tab-h: 64px;
+  --bottom-bar-h: 76px;         /* 금액 고정 바 */
+  --admin-gnb-h: 60px;
+  --admin-lnb-w: 232px;
+
+  /* ---------- 10. 모션 ---------- */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.3, 0, 0, 1.2);
+
+  /* ---------- 11. 레이어 ---------- */
+  --z-base: 0; --z-sticky: 100; --z-header: 200; --z-dropdown: 300;
+  --z-sheet: 400; --z-modal: 500; --z-toast: 600;
+}
+
+/* ---------- 브레이크포인트 (CSS 변수는 미디어쿼리에 못 쓰므로 값 참고용) ----------
+ * xs  0–359    소형 폰
+ * sm  360–767  모바일 (기본 설계 기준 375)
+ * md  768–1023 태블릿
+ * lg  1024–1279 소형 데스크톱
+ * xl  1280–1439 데스크톱
+ * 2xl 1440+    관리자 기준 폭
+ * ------------------------------------------------------------------- */
+@media (min-width: 768px) {
+  :root {
+    --text-display-size: 40px;
+    --text-h1-size: 30px;
+    --text-h2-size: 24px;
+    --text-h3-size: 20px;
+    --page-gutter: 32px;
+    --section-gap: 56px;
+  }
+}
+@media (min-width: 1280px) {
+  :root {
+    --text-display-size: 48px;
+    --text-h1-size: 34px;
+    --text-h2-size: 26px;
+    --page-gutter: 40px;
+    --section-gap: 72px;
+  }
+}
+
+/* ---------- 채널별 밀도 ---------- */
+/* 기사 앱: 현장·장갑 착용 고려, 최소 48dp, 글자 한 단계 크게 */
+[data-channel="tech"] {
+  --touch-min: 48px;
+  --control-h-sm: 44px;
+  --control-h-md: 52px;
+  --control-h-lg: 56px;
+  --control-h-xl: 64px;
+  --input-h: 52px;
+  --text-body-size: 16px;
+  --text-body-sm-size: 15px;
+  --text-caption-size: 14px;
+}
+/* 관리자 웹: 정보 밀도 우선, 컨트롤 낮게 */
+[data-channel="admin"] {
+  --control-h-sm: 28px;
+  --control-h-md: 36px;
+  --control-h-lg: 40px;
+  --control-h-xl: 44px;
+  --input-h: 36px;
+  --radius-input: var(--radius-sm);
+  --radius-card: var(--radius-md);
+  --text-body-size: 14px;
+  --text-body-sm-size: 13px;
+  --text-caption-size: 12px;
+  --text-h1-size: 22px;
+  --text-h2-size: 18px;
+  --text-h3-size: 16px;
+  --page-gutter: 24px;
+  --section-gap: 24px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --duration-fast: 0ms; --duration-base: 0ms; --duration-slow: 0ms; }
+}

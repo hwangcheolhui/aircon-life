@@ -1,0 +1,21 @@
+// 기사 웹앱 루트 레이아웃 (T-*). 채널 밀도: data-channel="tech" (05 §0.3, 터치 48px)
+import type { Metadata } from 'next';
+import type { ReactNode } from 'react';
+import '@aircon/ui/styles/tokens.css';
+import '@aircon/ui/styles/components.css';
+
+export const metadata: Metadata = { title: '기사 앱', robots: { index: false } };
+
+export default function TechLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="ko" data-channel="tech">
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+        />
+      </head>
+      <body>{children}</body>
+    </html>
+  );
+}

@@ -1,7 +1,8 @@
 # 01. ERD (데이터 모델 정의서)
 
 > 에어컨 청소 기반 지역생활서비스 플랫폼 — MVP ~ 2단계 확장 대응 데이터 모델
-> 문서 버전: v1.0 · 작성일: 2026-11-22 · 작성 관점: 프로그램 분석·설계자
+> 문서 버전: v1.1 · 작성일: 2026-11-22 · 작성 관점: 프로그램 분석·설계자
+> v1.1(단계 0 구현 반영): `admin_user` Supabase Auth 연결, 일시 타입 확정, §4 코드 그룹 추가, `system_setting` 키 추가, 가격 정책 동순위 결정 규칙
 > 연계 문서: [02_기능정의서.md](./02_기능정의서.md) · [03_IA.md](./03_IA.md)
 
 ---
@@ -40,7 +41,7 @@
 3. **소프트 삭제**: 고객·기사·주문·상품 등 이력이 중요한 테이블은 `deleted_at` (NULL=유효)로 논리 삭제합니다. 결제·정산·상태이력은 삭제 불가(INSERT ONLY).
 4. **코드값**: 상태·유형 같은 값은 `common_code` 테이블로 관리하고, 컬럼에는 코드 문자열(VARCHAR)을 저장합니다. 본 문서의 "코드값" 열에 초기 값을 명시했습니다.
 5. **금액**: 원 단위 정수(`INT` 또는 `BIGINT`), 부가세 포함 금액 기준. 할인·할증은 별도 행으로 분리해 합계를 재계산 가능하게 합니다.
-6. **일시**: `DATETIME`(KST 저장) 또는 `TIMESTAMP WITH TIME ZONE` 중 하나로 통일. 날짜만 필요한 곳은 `DATE`.
+6. **일시**: `TIMESTAMP WITH TIME ZONE`(PostgreSQL `timestamptz`)으로 통일(단계 0 확정). 표의 `DATETIME`은 이 타입으로 읽습니다. 날짜만 필요한 곳은 `DATE`.
 7. **개인정보**: 연락처·주소 상세는 암호화 저장(🔒 표시), 조회용 마스킹/검색용 해시 컬럼 별도 운영. 동의 철회·보관기간 경과 시 파기 배치 대상.
 8. **거점 단위 데이터 격리**: 운영 데이터(주문·기사·일정·정산)는 `branch_id`를 가지며, 거점장 권한은 자기 거점만 조회합니다.
 9. **상태 변경은 이력 테이블에 남긴다**: 주문·배정·정산의 상태 변경 시 `*_status_history`에 1행 INSERT.
@@ -199,17 +200,19 @@ erDiagram
 | 컬럼 | 타입 | 제약 | 설명 | 코드값/예시 |
 |---|---|---|---|---|
 | id | BIGINT | PK | | |
+| auth_user_id | UUID | UK | 인증 계정(Supabase Auth `auth.users.id`). 비밀번호는 인증 서비스에만 저장 | |
 | login_id | VARCHAR(50) | UK, NN | 로그인 ID | |
-| password_hash | VARCHAR(255) | NN | 비밀번호 해시 | |
 | name | VARCHAR(30) | NN | 이름 | |
 | phone 🔒 | VARCHAR(100) | | 연락처 | |
-| email | VARCHAR(100) | | | |
+| email | VARCHAR(100) | UK, NN | 이메일(인증 계정 로그인 이메일) | |
 | role_id | BIGINT | FK→role, NN | 역할 | |
 | branch_id | BIGINT | FK→branch | 소속 거점(NULL=본사 전체) | |
 | status | VARCHAR(20) | NN | 계정 상태 | `ACTIVE`, `LOCKED`, `RETIRED` |
 | last_login_at | DATETIME | | 최근 로그인 | |
-| login_fail_count | INT | 기본 0 | 5회 초과 시 LOCKED | |
+| login_fail_count | INT | 기본 0 | 실패 횟수가 `ADMIN_LOGIN_MAX_FAIL`(기본 5)에 도달하면 LOCKED, 성공·잠금 해제 시 0 | |
 | 공통컬럼 + deleted_at | | | | |
+
+> 단계 0 변경: 비밀번호를 직접 저장하지 않고 Supabase Auth에 위임하면서 `password_hash`를 없애고 `auth_user_id`를 추가했습니다. 로그인은 `login_id`로 계정을 찾은 뒤 `email`로 인증합니다. 로컬 개발·테스트는 Mock 인증(`packages/integrations`)을 씁니다. `auth_user_id`는 Mock과 함께 쓰기 위해 DB 외래키를 걸지 않습니다.
 
 #### 2.1.4 `role` / 2.1.5 `permission` / 2.1.6 `role_permission` — 역할·권한(RBAC)
 
@@ -416,7 +419,7 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 | unit_price | INT | NN | 1대 단가(부가세 포함) | 90000 |
 | multi_unit_discount_json | JSON | | 대수 할인 규칙 | `[{"min":2,"rate":5},{"min":3,"rate":10}]` |
 | valid_from / valid_to | DATE | NN / | 적용 기간(성수기·비수기 차등 가능) | |
-| priority | INT | 기본 0 | 중복 시 우선순위 | |
+| priority | INT | 기본 0 | 중복 시 우선순위. 같으면 ① 거점 지정 > 전 거점 공통 ② 고객유형 지정 > 공통 ③ `valid_from` 최신 ④ `id` 큰 것 순(단계 0 확정, `packages/domain` `selectPricePolicy`) | |
 | 공통컬럼 | | | | |
 
 #### 2.3.4 `surcharge_rule` — 할증·추가요금 규칙
@@ -1199,10 +1202,10 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 `id`, `storage_key`(S3 등 object key), `original_name`, `mime_type`, `size_bytes`, `ref_type`(`WORK_PHOTO`/`EXTRA_CHARGE`/`SAFETY`/`DEVICE`/`REVIEW`/`NOTICE`/`DOC`), `ref_id`, `uploaded_by_type`, `uploaded_by_id`, `created_at`, `deleted_at`
 
 #### 2.13.7 `audit_log` — 감사 로그 (개인정보 조회·다운로드·권한 변경 추적)
-`id`, `actor_type`, `actor_id`, `action`(`VIEW_PII`/`EXPORT`/`UPDATE`/`DELETE`/`LOGIN`/`PERMISSION_CHANGE`), `target_table`, `target_id`, `ip_address`, `user_agent`, `detail_json`, `created_at`
+`id`, `actor_type`, `actor_id`, `action`(`VIEW_PII`/`EXPORT`/`UPDATE`/`DELETE`/`LOGIN`/`PERMISSION_CHANGE`), `target_table`, `target_id`(VARCHAR(50): 문자열 PK 테이블 대응), `ip_address`, `user_agent`, `detail_json`, `created_at`. **INSERT ONLY**: DB 트리거로 UPDATE·DELETE를 막습니다.
 
 #### 2.13.8 `system_setting` — 시스템 설정(키-값)
-`setting_key`(PK, 예: `QUOTE_EXPIRE_DAYS`=7, `REVISIT_MONTHS`=11, `PURGE_YEARS`=…, `SETTLEMENT_WEEKDAY`=`WED`, `POPUP_DEFAULT_TIME`=08:30, `DUPLICATE_CHECK_DAYS`=30, `ROUTE_CONFIRM_DEADLINE`=전날 18:00, `ROUTE_TRAVEL_BUFFER_MIN`=10, `ARRIVAL_WINDOW_HOURS`=2, `LOCATION_INTERVAL_SEC`=60, `LOCATION_RETENTION_DAYS`=90, `SELF_ASSIGN_ENABLED`=거점별 Y/N, `SELF_ASSIGN_NEEDS_APPROVAL`=Y), `setting_value`, `description`, `updated_at`, `updated_by`
+`setting_key`(PK, 예: `QUOTE_EXPIRE_DAYS`=7, `REVISIT_MONTHS`=11, `PURGE_YEARS`=…, `SETTLEMENT_WEEKDAY`=`WED`, `POPUP_DEFAULT_TIME`=08:30, `DUPLICATE_CHECK_DAYS`=30, `ROUTE_CONFIRM_DEADLINE`=전날 18:00, `ROUTE_TRAVEL_BUFFER_MIN`=10, `ARRIVAL_WINDOW_HOURS`=2, `LOCATION_INTERVAL_SEC`=60, `LOCATION_RETENTION_DAYS`=90, `SELF_ASSIGN_ENABLED`=거점별 Y/N, `SELF_ASSIGN_NEEDS_APPROVAL`=Y, `ADMIN_LOGIN_MAX_FAIL`=5, `ADMIN_PASSWORD_MIN_LENGTH`=8), `setting_value`, `description`, `updated_at`, `updated_by`
 
 ---
 
@@ -1276,6 +1279,26 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 | `SCHEDULE_TYPE` | WORK / OFF / HALF_AM / HALF_PM / ANNUAL / ON_CALL / TRAINING |
 | `PAYMENT_METHOD` | CARD / EASY_PAY / BANK_TRANSFER / VIRTUAL_ACCOUNT / CASH / ONSITE_CARD |
 
+표시명이 위 표에 없던 그룹(BRAND, HOUSING_TYPE, ORDER_CHANNEL, CANCEL_REASON, CONSULT_TYPE, DAMAGE_TYPE, SCHEDULE_TYPE, PAYMENT_METHOD)의 한글 표시명은 `packages/db/src/seed-data.ts`에 넣었고 A-SYS-040에서 바꿀 수 있습니다.
+
+**단계 0에서 추가한 그룹** (§2 테이블의 코드값 열을 코드 그룹으로 등록)
+
+| group_code | 코드 목록 | 사용 컬럼 |
+|---|---|---|
+| `BRANCH_STATUS` | PREPARING 준비중 / ACTIVE 운영중 / PAUSED 일시중지 / CLOSED 폐점 | branch.status |
+| `ADMIN_STATUS` | ACTIVE 사용 / LOCKED 잠김 / RETIRED 퇴사 | admin_user.status |
+| `DATA_SCOPE` | ALL 전체 / BRANCH 소속 거점 / SELF 본인 | role.data_scope |
+| `PERMISSION_ACTION` | READ 조회 / CREATE 등록 / UPDATE 수정 / DELETE 삭제 / EXPORT 다운로드 / APPROVE 승인 | permission.action |
+| `SERVICE_PHASE` | 1 MVP / 2 가전확장 / 3 잡일 | service_category.phase |
+| `CLEAN_LEVEL` | BASIC 일반 / FULL 완전분해 / OUTDOOR 실외기 | service_product.clean_level |
+| `CUSTOMER_TYPE` | PERSONAL 개인 / BUSINESS 법인 | price_policy.customer_type |
+| `SURCHARGE_RULE` | NIGHT 야간 방문 할증 / HOLIDAY 휴일 방문 할증 / HIGH_PLACE 고소작업 / HEAVY_DIRT 오염 심함 / OUTER_AREA 권역 외 / URGENT 당일긴급 / NO_PARKING 주차 불가 | surcharge_rule.rule_code |
+| `SURCHARGE_APPLY_TYPE` | AUTO_QUOTE 견적 자동 / ON_SITE 현장 추가(고객 동의) | surcharge_rule.apply_type |
+| `AMOUNT_TYPE` | FIXED 정액 / RATE 정률(%) | surcharge_rule.amount_type |
+| `MATERIAL_UNIT` | EA 개 / L 리터 / BOX 박스 | material.unit |
+| `ATTACHMENT_REF_TYPE` | WORK_PHOTO / EXTRA_CHARGE / SAFETY / DEVICE / REVIEW / NOTICE / DOC | attachment.ref_type |
+| `AUDIT_ACTION` | VIEW_PII / EXPORT / UPDATE / DELETE / LOGIN / PERMISSION_CHANGE | audit_log.action |
+
 ---
 
 ## 5. KPI 산출 기준 (전략 문서 5.5 → 데이터 매핑)
@@ -1297,7 +1320,8 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 
 | 항목 | 규칙 |
 |---|---|
-| 암호화 컬럼 | 🔒 표시 컬럼은 AES-256 등 양방향 암호화, 검색은 `*_hash`(SHA-256) 사용 |
+| 암호화 컬럼 | 🔒 표시 컬럼은 AES-256-GCM 앱 레벨 양방향 암호화(키는 환경변수 `PII_ENCRYPTION_KEY`), 검색은 `*_hash`(SHA-256 + 페퍼) 사용 |
+| 행 수준 보안 | Supabase의 브라우저 키(anon/authenticated)로 직접 접근하는 경우를 막기 위해 모든 테이블에 RLS를 켭니다. 권한 판정은 `has_permission(menu, action)`·`can_access_branch(branch_id)` 함수(§2.1.4~6, BR-102). 서버 코드는 서버 전용 연결로 접근하고 화면 권한을 코드에서 먼저 확인합니다 |
 | 마스킹 | 목록 화면: 이름 `김*빈`, 전화 `010-****-7789`, 상세주소 비표시. 상세 열람 시 `audit_log(VIEW_PII)` 기록 |
 | 동의 | 앱 가입 시 필수/선택 동의 → `consent_history`. 전화 접수 시 상담원이 구두 동의(동의/미동의/질의못함) 기록 |
 | 철회 | 동의 철회 시 마케팅 발송 즉시 중단, 필수 동의 철회 = 탈퇴 처리 |
