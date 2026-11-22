@@ -4,6 +4,7 @@ import { effectiveScope } from '@aircon/domain';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { getCurrentAdmin } from '@/server/auth';
+// 거점 선택은 화면 필터용 쿠키만 바꾸므로 임시 개발 모드 열람자도 쓸 수 있다.
 import { BRANCH_COOKIE } from '@/server/branch-selection';
 
 export async function selectBranchAction(branchId: string) {

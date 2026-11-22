@@ -1,4 +1,4 @@
-// 관리자 공통 레이아웃 (03 §4.1): GNB / LNB / 거점 선택. 로그인한 관리자만 진입(requireAdmin).
+// 관리자 공통 레이아웃 (03 §4.1): GNB / LNB / 거점 선택. 로그인한 관리자만 진입(requireAdmin). 임시 개발 모드면 읽기 전용 열람자.
 import { branch } from '@aircon/db';
 import { effectiveScope, visibleAdminMenu } from '@aircon/domain';
 import { asc, isNull } from 'drizzle-orm';
@@ -27,6 +27,7 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
     <AdminShell
       menu={menu}
       user={{ name: admin.name, roleName: admin.roleName }}
+      previewMode={admin.preview}
       branchSelector={scope.kind === 'ALL' ? { branches, selected } : { fixed: admin.branchName ?? '소속 거점 없음' }}
     >
       {children}

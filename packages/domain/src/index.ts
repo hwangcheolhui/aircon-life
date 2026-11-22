@@ -2,6 +2,7 @@
 export * from './rbac/admin-menus';
 export * from './rbac/permission-matrix';
 export * from './rbac/access';
+export * from './rbac/preview';
 export * from './auth/login-policy';
 export * from './pii/mask';
 export * from './pricing/price-policy';
