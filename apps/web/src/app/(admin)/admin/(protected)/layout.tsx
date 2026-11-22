@@ -8,7 +8,7 @@ import { AdminShell } from '@/admin/admin-shell';
 import { ADMIN_ROUTES } from '@/admin/routes';
 import { requireAdmin } from '@/server/auth';
 import { BRANCH_COOKIE } from '@/server/branch-selection';
-import { getDb } from '@/server/db';
+import { getDb, isDbConfigured } from '@/server/db';
 
 export default async function ProtectedLayout({ children }: { children: ReactNode }) {
   const admin = await requireAdmin();
@@ -28,6 +28,7 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
       menu={menu}
       user={{ name: admin.name, roleName: admin.roleName }}
       previewMode={admin.preview}
+      dbOffline={!isDbConfigured()}
       branchSelector={scope.kind === 'ALL' ? { branches, selected } : { fixed: admin.branchName ?? '소속 거점 없음' }}
     >
       {children}

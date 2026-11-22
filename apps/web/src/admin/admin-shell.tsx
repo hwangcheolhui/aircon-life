@@ -21,6 +21,7 @@ export function AdminShell({
   user,
   branchSelector,
   previewMode = false,
+  dbOffline = false,
   children,
 }: {
   menu: ShellMenuGroup[];
@@ -28,6 +29,8 @@ export function AdminShell({
   branchSelector: BranchSelector;
   /** 임시 개발 모드(로그인 없이 읽기 전용 열람) */
   previewMode?: boolean;
+  /** DATABASE_URL 미설정: 데이터 없이 화면 틀만 보여 준다 */
+  dbOffline?: boolean;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -109,10 +112,19 @@ export function AdminShell({
           })}
         </nav>
         <main className="ac-admin-main">
-          {previewMode ? (
-            <Alert tone="warning">
-              <strong>임시 개발 모드</strong> · 로그인 없이 읽기 전용으로 보고 있습니다. 저장·수정·삭제와 개인정보 원문 열람은 로그인해야 합니다.
-            </Alert>
+          {previewMode || dbOffline ? (
+            <div className="ac-stack">
+              {previewMode ? (
+                <Alert tone="warning">
+                  <strong>임시 개발 모드</strong> · 로그인 없이 읽기 전용으로 보고 있습니다. 저장·수정·삭제와 개인정보 원문 열람은 로그인해야 합니다.
+                </Alert>
+              ) : null}
+              {dbOffline ? (
+                <Alert tone="warning">
+                  <strong>DB 미연결</strong> · 데이터베이스가 아직 연결되지 않아 목록이 비어 있습니다. 코드 표시명·기준값은 기본 시드를 보여 줍니다.
+                </Alert>
+              ) : null}
+            </div>
           ) : null}
           {current && currentScreen ? (
             <p className="ac-breadcrumb">
