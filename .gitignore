@@ -7,7 +7,9 @@ coverage/
 .env
 .env.*
 !.env.example
-storage/
+/storage/
+apps/*/storage/
+packages/db/storage/
 test-results/
 playwright-report/
 next-env.d.ts
