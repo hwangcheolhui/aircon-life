@@ -7,7 +7,7 @@ import 'server-only';
  * DB 미연결 체험 모드: 인증만 흉내 내고 저장 없이 체험 고객(ID 0)으로 로그인한다.
  */
 import { type ConsentState, validateSignupConsents } from '@aircon/domain';
-import { createIdentityVerifier, generateMockCode, resolveIdentityDriver } from '@aircon/integrations';
+import { createIdentityVerifier, generateMockCode, isIdentityAutoVerify, resolveIdentityDriver } from '@aircon/integrations';
 import { UserError } from './action-result';
 import {
   DEMO_CUSTOMER_ID,
@@ -46,6 +46,8 @@ interface Signup {
 }
 
 export const identityDriver = () => resolveIdentityDriver(process.env.IDENTITY_DRIVER);
+/** 임시 테스트 모드: [인증번호 받기]만으로 인증 완료 (IDENTITY_MOCK_AUTO_VERIFY=true, mock 한정) */
+export const identityAutoVerify = () => isIdentityAutoVerify({ IDENTITY_DRIVER: process.env.IDENTITY_DRIVER, IDENTITY_MOCK_AUTO_VERIFY: process.env.IDENTITY_MOCK_AUTO_VERIFY });
 
 /** 진행 중인 소셜 가입 (C-AUTH-030 안내 문구용) */
 export async function pendingSocial(): Promise<string | null> {
@@ -53,9 +55,13 @@ export async function pendingSocial(): Promise<string | null> {
   return s && !s.p && s.ap !== 'PHONE' ? s.ap : null;
 }
 
-/** 모의 본인인증: 6자리 인증번호를 만들어 서명 쿠키에 두고 화면에 보여 준다 */
-export async function beginMockPhone(name: string, phone: string) {
+/**
+ * 모의 본인인증: 6자리 인증번호를 만들어 서명 쿠키에 두고 화면에 보여 준다.
+ * 임시 테스트 모드면 인증번호 없이 바로 인증 완료로 처리한다.
+ */
+export async function beginMockPhone(name: string, phone: string): Promise<{ mockCode: string } | { verified: AuthStep }> {
   if (identityDriver() !== 'mock') throw new UserError('본인인증 창에서 인증해 주세요.');
+  if (identityAutoVerify()) return { verified: await afterPhoneVerified(phone, name) };
   const code = generateMockCode();
   await setSealedCookie(PHONE_CHALLENGE_COOKIE, { p: seal(phone), n: seal(name), c: code, t: 0 }, CHALLENGE_TTL);
   return { mockCode: code };

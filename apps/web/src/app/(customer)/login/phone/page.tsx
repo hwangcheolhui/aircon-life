@@ -1,7 +1,7 @@
 // C-AUTH-030 휴대폰 인증 · F-CUS-AUTH-02(비회원 → 예약 단계 인증 후 회원 생성) · F-CUS-AUTH-04(기존 전화고객 연동)
 import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
-import { identityDriver, pendingSocial } from '@/server/customer-auth';
+import { identityAutoVerify, identityDriver, pendingSocial } from '@/server/customer-auth';
 import { safeNext } from '@/server/customer-session';
 import { loadCodes } from '@/server/codes';
 import { PhoneForm } from './phone-form';
@@ -30,6 +30,7 @@ export default async function PhonePage({ searchParams }: { searchParams: Promis
       <PhoneForm
         next={next}
         driver={driver}
+        autoVerify={identityAutoVerify()}
         portone={
           driver === 'portone'
             ? { storeId: process.env.PORTONE_STORE_ID ?? '', channelKey: process.env.PORTONE_IDENTITY_CHANNEL_KEY ?? '' }
