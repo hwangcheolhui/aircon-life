@@ -257,3 +257,48 @@ export function fieldErrors(err: z.ZodError): Record<string, string> {
 }
 
 export { z };
+
+/* ---------- 단계 1 견적 (F-CUS-QUO-01~04 · F-ADM-PRD-05) ---------- */
+export const legalDongCodeInput = z.preprocess(
+  (v) => (v == null ? '' : trimmed(v)),
+  z
+    .string()
+    .min(1, MSG.required('주소'))
+    .regex(/^\d{10}$/, '법정동 코드는 숫자 10자리입니다.'),
+);
+const qty = (label: string) =>
+  z.coerce
+    .number({ invalid_type_error: `${label}은(는) 숫자여야 합니다.` })
+    .int()
+    .min(1, `${label}은(는) 1 이상이어야 합니다.`)
+    .max(99, `${label}은(는) 99 이하로 입력하세요.`);
+export const quoteLineInput = z.object({
+  deviceType: code('기기 형태', 20),
+  cleanLevel: code('작업 범위', 20),
+  quantity: qty('대수'),
+});
+export const quoteOptionInput = z.object({
+  optionId: z.coerce.number().int().min(1),
+  quantity: qty('옵션 수량'),
+});
+/** 고객 견적 요청 (C-QUO-030 → C-QUO-040). 비회원·개인 고객 기준, 방문 일시는 예약 단계(단계 2)에서 받는다 */
+export const customerQuoteInput = z.object({
+  legalDongCode: legalDongCodeInput,
+  lines: z.array(quoteLineInput).min(1, MSG.required('기기')).max(20),
+  options: z.array(quoteOptionInput).max(20).default([]),
+});
+/** 관리자 견적 시뮬레이터 (A-PRD-050): 고객 견적과 같은 입력 + 고객유형·희망 방문 일시 */
+export const quoteSimulationInput = customerQuoteInput
+  .extend({
+    customerType: z.enum(['PERSONAL', 'BUSINESS'], {
+      errorMap: () => ({ message: MSG.required('고객 유형') }),
+    }),
+    visitDate: optDate(),
+    visitTime: optTime(),
+  })
+  .refine((v) => (v.visitDate === null) === (v.visitTime === null), {
+    path: ['visitTime'],
+    message: '희망 방문 일시는 날짜와 시각을 함께 입력하세요.',
+  });
+export type CustomerQuoteInput = z.output<typeof customerQuoteInput>;
+export type QuoteSimulationInput = z.output<typeof quoteSimulationInput>;

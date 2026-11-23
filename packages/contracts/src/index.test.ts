@@ -31,3 +31,25 @@ describe('입력 스키마', () => {
     expect(r.success).toBe(false);
   });
 });
+
+describe('견적 입력 (F-CUS-QUO-04 · F-ADM-PRD-05)', () => {
+  it('F-CUS-QUO-04 기기가 없으면 필수 입력 문구', async () => {
+    const { customerQuoteInput } = await import('./index');
+    const r = customerQuoteInput.safeParse({ legalDongCode: '1138010400', lines: [] });
+    expect(r.success).toBe(false);
+    expect(r.error?.issues[0]?.message).toBe('기기는 필수 입력값입니다.');
+  });
+  it('F-ADM-PRD-05 희망 방문 일시는 날짜·시각을 함께 입력해야 한다', async () => {
+    const { quoteSimulationInput } = await import('./index');
+    const base = {
+      legalDongCode: '1138010400',
+      lines: [{ deviceType: 'WALL', cleanLevel: 'FULL', quantity: '2' }],
+      customerType: 'PERSONAL',
+    };
+    expect(quoteSimulationInput.safeParse({ ...base, visitDate: '2027-03-02', visitTime: '' }).success).toBe(
+      false,
+    );
+    const ok = quoteSimulationInput.safeParse({ ...base, visitDate: '2027-03-02', visitTime: '19:00' });
+    expect(ok.success && ok.data.lines[0]?.quantity).toBe(2);
+  });
+});

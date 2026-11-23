@@ -1,0 +1,118 @@
+/* 고객 화면 배치 보조 (토큰만 사용). 컴포넌트 모양은 components.css 의 ac- 클래스를 쓴다. */
+.cus-flow {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+.cus-flow__body {
+  flex: 1;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--page-gutter) var(--space-10);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.cus-flow .ac-bottom-bar {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+}
+.cus-step-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.cus-step-head .ac-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.cus-device-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.cus-device-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 120px;
+  justify-content: center;
+  text-align: center;
+  font: inherit;
+  color: var(--color-text);
+  width: 100%;
+}
+.cus-device-card svg {
+  width: var(--icon-lg);
+  height: var(--icon-lg);
+  color: var(--color-text-secondary);
+}
+.cus-line-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.cus-amount-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+.cus-amount-row--total {
+  border-top: 1px solid var(--color-divider);
+  padding-top: var(--space-3);
+  font-weight: 700;
+}
+.cus-amount-row .is-minus {
+  color: var(--color-text-secondary);
+}
+.cus-home-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-12) 0;
+}
+.cus-plain-list {
+  margin: 0;
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.cus-address-results {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  text-align: left;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.cus-address-results button {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--color-divider);
+  padding: var(--space-3) 0;
+  font: inherit;
+  color: var(--color-text);
+  cursor: pointer;
+  min-height: var(--touch-min);
+}
+.cus-address-results button:hover {
+  color: var(--color-primary);
+}
+.cus-postcode {
+  width: 100%;
+  height: 440px;
+  margin-top: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}

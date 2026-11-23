@@ -15,6 +15,13 @@
       "when": 1795346241083,
       "tag": "0001_rls_and_guards",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795401209345,
+      "tag": "0002_quote",
+      "breakpoints": true
     }
   ]
 }
