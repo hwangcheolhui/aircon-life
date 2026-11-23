@@ -13,6 +13,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { getDb, isDbConfigured } from './db';
+import { ConfigError } from './action-result';
 
 export const CUSTOMER_COOKIE = 'ac_customer';
 export const SIGNUP_COOKIE = 'ac_signup';
@@ -27,7 +28,7 @@ function secret(): string {
   if (s && s.length >= 16) return s;
   // 체험 모드는 저장하는 데이터가 없으므로 고정 키로 동작한다(DB를 연결하면 반드시 비밀키 필요)
   if (!isDbConfigured()) return 'demo-only-customer-session-key';
-  throw new Error('CUSTOMER_SESSION_SECRET(16자 이상)이 필요합니다.');
+  throw new ConfigError('CUSTOMER_SESSION_SECRET(16자 이상)이 설정되지 않았습니다.');
 }
 
 const sign = (payload: string) => createHmac('sha256', secret()).update(payload).digest('base64url');
