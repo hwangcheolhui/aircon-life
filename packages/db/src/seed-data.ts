@@ -224,6 +224,19 @@ export const COMMON_CODE_SEED = [
     ['LOGIN', '로그인'],
     ['PERMISSION_CHANGE', '권한 변경'],
   ]),
+  // ── 단계 1에서 추가한 그룹 (ERD §4 하단 표) ──
+  ...g('QUOTE_STATUS', [
+    ['DRAFT', '작성중'],
+    ['ISSUED', '발행'],
+    ['CONVERTED', '주문전환'],
+    ['EXPIRED', '만료'],
+  ]),
+  ...g('QUOTE_ITEM_TYPE', [
+    ['PRODUCT', '상품'],
+    ['OPTION', '옵션'],
+    ['SURCHARGE', '할증'],
+    ['DISCOUNT', '할인'],
+  ]),
 ];
 
 /** ERD §0.2 역할. 거점장만 BRANCH 범위이고, 나머지는 소속 거점이 지정되면 BR-102에 따라 그 거점으로 제한된다. */

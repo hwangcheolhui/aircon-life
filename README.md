@@ -25,5 +25,5 @@ pnpm --filter @aircon/web dev                # http://localhost:3000/admin
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test     # TEST_DATABASE_URL 이 있으면 RLS 통합 테스트 포함
-pnpm e2e                                      # 04 단계 0 완료 기준 시나리오
+pnpm e2e                                      # 04 단계 0·1 완료 기준 시나리오
 ```

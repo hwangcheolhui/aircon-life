@@ -93,4 +93,25 @@ d('RLS (BR-102, F-ADM-SYS-02)', () => {
     const [r] = await sql`SELECT count(*)::int AS c FROM common_code WHERE group_code = 'DEVICE_TYPE'`;
     expect(r?.c).toBe(7);
   });
+  it('F-CUS-QUO-04 견적은 서버만 접근한다: 브라우저 키(anon·관리자)로는 읽기·쓰기 불가', async () => {
+    await sql`INSERT INTO quote (quote_no, channel, legal_dong_code, is_serviceable, subtotal_amount, total_amount, status)
+      VALUES ('Q2703020001', 'APP', '1138010400', true, 90000, 90000, 'ISSUED')`;
+    expect(await as(null, (tx) => tx`SELECT * FROM quote`)).toHaveLength(0);
+    expect(await as(ids.super, (tx) => tx`SELECT * FROM quote`)).toHaveLength(0);
+    await expect(
+      as(
+        null,
+        (
+          tx,
+        ) => tx`INSERT INTO quote (quote_no, channel, legal_dong_code, is_serviceable, subtotal_amount, total_amount, status)
+        VALUES ('Q2703020002', 'APP', '1138010400', true, 1, 1, 'ISSUED')`,
+      ),
+    ).rejects.toThrow(/row-level security/);
+  });
+
+  it('F-CUS-QUO-04 현장 확인 견적 기준값이 시스템 설정에 있다', async () => {
+    const [r] =
+      await sql`SELECT setting_value FROM system_setting WHERE setting_key = 'QUOTE_SITE_SURVEY_MIN_UNITS'`;
+    expect(r?.setting_value).toBe('4');
+  });
 });

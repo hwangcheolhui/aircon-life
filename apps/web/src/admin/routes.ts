@@ -8,6 +8,7 @@ export const ADMIN_ROUTES: Record<string, string> = {
   'A-PRD-020': '/admin/prd/prices',
   'A-PRD-030': '/admin/prd/surcharges',
   'A-PRD-040': '/admin/prd/options',
+  'A-PRD-050': '/admin/prd/simulator',
   'A-SYS-010': '/admin/sys/accounts',
   'A-SYS-020': '/admin/sys/roles',
   'A-SYS-030': '/admin/sys/branches',

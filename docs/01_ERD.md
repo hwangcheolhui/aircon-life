@@ -458,7 +458,7 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 | quote_no | VARCHAR(20) | UK, NN | 견적 번호 | `Q2611220001` |
 | customer_id | BIGINT | FK→customer | NULL 허용(비회원 견적) | |
 | guest_phone_hash | CHAR(64) | | 비회원 연락처 해시 | |
-| channel | VARCHAR(20) | NN | 견적 채널 | `APP`, `PHONE`, `B2B` |
+| channel | VARCHAR(20) | NN | 견적 채널(`ORDER_CHANNEL` 코드 중) | `APP`, `PHONE`, `B2B` |
 | address_id | BIGINT | FK→customer_address | | |
 | legal_dong_code | VARCHAR(10) | NN | 견적 지역 | |
 | branch_id | BIGINT | FK→branch | 매핑 거점(NULL=서비스 불가 지역) | |
@@ -468,10 +468,12 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 | surcharge_amount | INT | 기본 0 | 자동 할증 합계 | |
 | total_amount | INT | NN | 최종 견적가 | |
 | estimated_duration_min | INT | | 예상 소요 시간 | |
-| status | VARCHAR(20) | NN | 상태 | `DRAFT`, `ISSUED`, `CONVERTED`(주문전환), `EXPIRED` |
-| expires_at | DATETIME | | 유효기한(발행 후 7일) | |
-| price_snapshot_json | JSON | | 견적 시점 단가·규칙 스냅샷 | |
+| status | VARCHAR(20) | NN | 상태(§3.8, `QUOTE_STATUS`) | `DRAFT`, `ISSUED`, `CONVERTED`(주문전환), `EXPIRED` |
+| expires_at | DATETIME | | 유효기한(발행 후 `QUOTE_EXPIRE_DAYS`일, BR-015) | |
+| price_snapshot_json | JSON | | 견적 시점 단가·규칙 스냅샷(BR-014). 항목별 표시명·단가·적용 가격 정책 ID·대수 할인 구간·할증 규칙, 포함/불포함 항목, 현장 추가요금 조건(ON_SITE)을 담고 결과 화면(C-QUO-040)은 이 값으로 그린다 | |
 | 공통컬럼 | | | | |
+
+단계 1 구현 메모: 고객 앱 견적은 비회원 견적이라 `customer_id`·`address_id`가 비어 있고, 주소는 저장하지 않고 `legal_dong_code`만 남깁니다. `customer_id`·`address_id`(그리고 `quote_item.customer_device_id`)의 FK 제약은 해당 테이블이 생기는 단계(2·9)의 마이그레이션에서 겁니다. 견적은 서버만 읽고 쓰며 RLS는 켜 두고 정책은 두지 않습니다(관리자 조회 정책은 견적을 보여 주는 관리자 화면이 생길 때 추가).
 
 #### 2.4.2 `quote_item` — 견적 상세
 
@@ -479,12 +481,12 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 |---|---|---|---|
 | id | BIGINT | PK | |
 | quote_id | BIGINT | FK→quote, NN | |
-| item_type | VARCHAR(20) | NN | `PRODUCT`, `OPTION`, `SURCHARGE`, `DISCOUNT` |
+| item_type | VARCHAR(20) | NN | `QUOTE_ITEM_TYPE`: `PRODUCT`, `OPTION`, `SURCHARGE`, `DISCOUNT` |
 | product_id / option_id / surcharge_rule_id | BIGINT | FK | 유형별 참조 |
 | customer_device_id | BIGINT | FK→customer_device | 대상 기기(있으면) |
 | quantity | INT | NN | 대수 |
 | unit_price | INT | NN | 단가 |
-| amount | INT | NN | 금액(할인은 음수) |
+| amount | INT | NN | 금액(할인은 음수). 항목 합계 = `quote.total_amount` |
 
 #### 2.4.3 `device_image` — 기기 이미지 인식 (SHOULD, 2차)
 
@@ -552,7 +554,7 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 |---|---|---|---|
 | id | BIGINT | PK | |
 | order_id | BIGINT | FK→service_order, NN | |
-| item_type | VARCHAR(20) | NN | `PRODUCT`, `OPTION`, `SURCHARGE`, `DISCOUNT` |
+| item_type | VARCHAR(20) | NN | `QUOTE_ITEM_TYPE`: `PRODUCT`, `OPTION`, `SURCHARGE`, `DISCOUNT` |
 | product_id / option_id / surcharge_rule_id | BIGINT | FK | |
 | customer_device_id | BIGINT | FK→customer_device | 대상 기기 |
 | quantity | INT | NN | |
@@ -1205,7 +1207,7 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 `id`, `actor_type`, `actor_id`, `action`(`VIEW_PII`/`EXPORT`/`UPDATE`/`DELETE`/`LOGIN`/`PERMISSION_CHANGE`), `target_table`, `target_id`(VARCHAR(50): 문자열 PK 테이블 대응), `ip_address`, `user_agent`, `detail_json`, `created_at`. **INSERT ONLY**: DB 트리거로 UPDATE·DELETE를 막습니다.
 
 #### 2.13.8 `system_setting` — 시스템 설정(키-값)
-`setting_key`(PK, 예: `QUOTE_EXPIRE_DAYS`=7, `REVISIT_MONTHS`=11, `PURGE_YEARS`=…, `SETTLEMENT_WEEKDAY`=`WED`, `POPUP_DEFAULT_TIME`=08:30, `DUPLICATE_CHECK_DAYS`=30, `ROUTE_CONFIRM_DEADLINE`=전날 18:00, `ROUTE_TRAVEL_BUFFER_MIN`=10, `ARRIVAL_WINDOW_HOURS`=2, `LOCATION_INTERVAL_SEC`=60, `LOCATION_RETENTION_DAYS`=90, `SELF_ASSIGN_ENABLED`=거점별 Y/N, `SELF_ASSIGN_NEEDS_APPROVAL`=Y, `ADMIN_LOGIN_MAX_FAIL`=5, `ADMIN_PASSWORD_MIN_LENGTH`=8), `setting_value`, `description`, `updated_at`, `updated_by`
+`setting_key`(PK, 예: `QUOTE_EXPIRE_DAYS`=7, `REVISIT_MONTHS`=11, `PURGE_YEARS`=…, `SETTLEMENT_WEEKDAY`=`WED`, `POPUP_DEFAULT_TIME`=08:30, `DUPLICATE_CHECK_DAYS`=30, `ROUTE_CONFIRM_DEADLINE`=전날 18:00, `ROUTE_TRAVEL_BUFFER_MIN`=10, `ARRIVAL_WINDOW_HOURS`=2, `LOCATION_INTERVAL_SEC`=60, `LOCATION_RETENTION_DAYS`=90, `SELF_ASSIGN_ENABLED`=거점별 Y/N, `SELF_ASSIGN_NEEDS_APPROVAL`=Y, `ADMIN_LOGIN_MAX_FAIL`=5, `ADMIN_PASSWORD_MIN_LENGTH`=8, `QUOTE_SITE_SURVEY_MIN_UNITS`=4(시스템·천장형 합계가 이 대수 이상이면 "현장 확인 견적" 안내, 단계 1)), `setting_value`, `description`, `updated_at`, `updated_by`
 
 ---
 
@@ -1254,6 +1256,18 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 ### 3.7 자가 배정 `assignment.status = REQUESTED`
 기사가 관할 지도에서 미배정 주문을 일정에 넣으면 `REQUESTED` → 운영자 승인 시 `ACCEPTED`(거점 설정이 승인 불필요면 즉시 `ACCEPTED`) / 반려 시 `REJECTED`.
 
+### 3.8 견적 상태 `quote.status` (단계 1)
+
+| 코드 | 명칭 | 의미 | 다음 가능 상태 | 변경 주체 |
+|---|---|---|---|---|
+| `DRAFT` | 작성중 | 저장만 하고 고객에게 발행 전(상담 콘솔 작성 중 등) | ISSUED, EXPIRED | 상담원 |
+| `ISSUED` | 발행 | 견적 결과를 고객에게 보여 줌. 유효기한 `expires_at` 설정 | CONVERTED, EXPIRED | 고객 앱/상담원 |
+| `CONVERTED` | 주문전환 | 이 견적으로 주문 생성(단계 2·3) | (종료) | 시스템 |
+| `EXPIRED` | 만료 | 유효기한 경과(F-SYS-02 매일 01:00) | (종료) | 시스템 |
+
+- 전이표는 `packages/domain` `QUOTE_TRANSITIONS`가 단일 출처입니다. 견적에는 상태 이력 테이블이 없어 상태 컬럼만 바꿉니다.
+- 고객 앱 견적은 계산 즉시 `ISSUED`로 저장합니다. 배치 전이라도 유효기한이 지난 `ISSUED` 견적은 화면에서 만료로 보여 줍니다.
+
 ---
 
 ## 4. 주요 코드 그룹 (common_code 초기 데이터)
@@ -1298,6 +1312,13 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 | `MATERIAL_UNIT` | EA 개 / L 리터 / BOX 박스 | material.unit |
 | `ATTACHMENT_REF_TYPE` | WORK_PHOTO / EXTRA_CHARGE / SAFETY / DEVICE / REVIEW / NOTICE / DOC | attachment.ref_type |
 | `AUDIT_ACTION` | VIEW_PII / EXPORT / UPDATE / DELETE / LOGIN / PERMISSION_CHANGE | audit_log.action |
+
+**단계 1에서 추가한 그룹**
+
+| group_code | 코드 목록 | 사용 컬럼 |
+|---|---|---|
+| `QUOTE_STATUS` | DRAFT 작성중 / ISSUED 발행 / CONVERTED 주문전환 / EXPIRED 만료 | quote.status (§3.8) |
+| `QUOTE_ITEM_TYPE` | PRODUCT 상품 / OPTION 옵션 / SURCHARGE 할증 / DISCOUNT 할인 | quote_item.item_type |
 
 ---
 

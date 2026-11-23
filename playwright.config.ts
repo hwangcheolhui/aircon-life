@@ -17,6 +17,8 @@ export const E2E_ENV = {
   STORAGE_LOCAL_DIR: `${__dirname}/test-results/.e2e/files`,
   SEED_SUPER_ADMIN_LOGIN_ID: 'superadmin',
   SEED_SUPER_ADMIN_PASSWORD: 'E2e-super-1',
+  NEXT_PUBLIC_ADDRESS_DRIVER: 'mock',
+  CRON_SECRET: 'e2e-cron-secret',
 };
 
 export default defineConfig({

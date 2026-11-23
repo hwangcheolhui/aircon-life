@@ -17,7 +17,8 @@
         "AUTH_DRIVER",
         "ADMIN_AUTH_BYPASS",
         "SUPABASE_URL",
-        "STORAGE_DRIVER"
+        "STORAGE_DRIVER",
+        "NEXT_PUBLIC_ADDRESS_DRIVER"
       ]
     },
     "typecheck": {
