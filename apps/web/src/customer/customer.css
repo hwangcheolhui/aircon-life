@@ -140,3 +140,117 @@
 }
 
 /* ── 화면별 스타일은 이 아래에 cus- 이름으로 추가합니다 ── */
+
+/* ── 하단 탭 화면 틀 (홈·내 예약·마이·알림함·고객센터, 03 §2.1) ── */
+.cus-shell {
+  min-height: 100vh;
+  background: var(--color-bg);
+  padding-bottom: calc(var(--bottom-tab-h) + env(safe-area-inset-bottom));
+}
+.cus-shell__nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-sticky);
+}
+.cus-shell__nav .ac-tabbar {
+  max-width: 600px;
+  margin: 0 auto;
+}
+.cus-page-body {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--page-gutter) var(--space-10);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.cus-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--touch-min);
+}
+.cus-topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ── 정보 행 (예약 요약·상세) ── */
+.cus-kv {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+}
+.cus-kv dt {
+  color: var(--color-text-secondary);
+}
+.cus-kv dd {
+  margin: 0;
+  word-break: keep-all;
+}
+
+/* ── 일정 선택 (C-RSV-010) ── */
+.cus-time-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.cus-time-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: var(--touch-min);
+  padding: var(--space-2);
+}
+
+/* ── 예약 카드 (C-HOM-010·C-ORD-010) ── */
+.cus-order-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  color: inherit;
+  text-decoration: none;
+}
+.cus-order-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+/* ── 로그인 (C-AUTH-010) ── */
+.cus-auth {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-8);
+}
+.cus-consent-all {
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-divider);
+}
+.cus-consent-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+/* ── 모의 결제창·모의 인증번호 (개발용 Mock 안내) ── */
+.cus-mock-box {
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  background: var(--color-bg-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}

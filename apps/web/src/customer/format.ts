@@ -6,3 +6,32 @@ export function formatDuration(min: number) {
   const m = min % 60;
   return h && m ? `${h}시간 ${m}분` : h ? `${h}시간` : `${m}분`;
 }
+
+const WEEK = ['일', '월', '화', '수', '목', '금', '토'];
+
+/** YYYY-MM-DD → 3월 10일(수) */
+export function formatDateLabel(date: string) {
+  const [y, m, d] = date.split('-').map(Number);
+  const w = new Date(Date.UTC(y!, m! - 1, d!)).getUTCDay();
+  return `${m}월 ${d}일(${WEEK[w]})`;
+}
+
+/** 시 → 오전 10:00 / 오후 6:00 */
+export function formatHourLabel(h: number) {
+  const ap = h < 12 ? '오전' : '오후';
+  const hh = h % 12 === 0 ? 12 : h % 12;
+  return `${ap} ${hh}:00`;
+}
+
+/** 방문 일시(한국 시간) → 2027년 3월 10일(수) 오전 10:00 */
+export function formatVisit(at: Date) {
+  const date = at.toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+  const hour = Number(at.toLocaleTimeString('en-GB', { timeZone: 'Asia/Seoul', hour: '2-digit', hour12: false }).slice(0, 2));
+  return `${date.slice(0, 4)}년 ${formatDateLabel(date)} ${formatHourLabel(hour)}`;
+}
+
+/** 일시(한국 시간) → 2027-03-10 10:00 (관리자 표) */
+export function formatDateTime(at: Date | null | undefined) {
+  if (!at) return '';
+  return at.toLocaleString('sv-SE', { timeZone: 'Asia/Seoul', hour12: false }).slice(0, 16);
+}

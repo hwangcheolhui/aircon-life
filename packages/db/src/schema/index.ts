@@ -2,3 +2,7 @@ export * from './d1-org';
 export * from './d3-product';
 export * from './d13-system';
 export * from './d4-quote';
+export * from './d2-customer';
+export * from './d7-technician';
+export * from './d5-order';
+export * from './d10-payment';

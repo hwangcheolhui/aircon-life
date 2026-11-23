@@ -2,7 +2,7 @@
   "name": "@aircon/integrations",
   "version": "0.0.0",
   "private": true,
-  "description": "외부 연동 어댑터: 인터페이스 + Mock + Real (CLAUDE.md §7). 기본 진입점은 서버 전용, ./address 는 브라우저·서버 공용.",
+  "description": "외부 연동 어댑터: 인터페이스 + Mock + Real (CLAUDE.md §7). 기본 진입점은 서버 전용, ./address·./payment 는 브라우저·서버 공용.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -13,6 +13,10 @@
     "./address": {
       "types": "./dist/address/index.d.ts",
       "default": "./dist/address/index.js"
+    },
+    "./payment": {
+      "types": "./dist/payment/index.d.ts",
+      "default": "./dist/payment/index.js"
     }
   },
   "scripts": {

@@ -10,3 +10,8 @@ export * from './settings';
 export * from './messages';
 export * from './quote/quote-calc';
 export * from './quote/quote-status';
+export * from './order/order-status';
+export * from './order/order-rules';
+export * from './slot/slot';
+export * from './customer/consent';
+export * from './customer/notify-template';

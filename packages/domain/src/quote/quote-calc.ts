@@ -486,3 +486,68 @@ export function quoteFailureMessage(r: QuoteCalcFailure): string {
       return '선택한 옵션은 이 기기에 적용할 수 없습니다.';
   }
 }
+
+/* ---------- 단계 2 예약: 견적 스냅샷 + 방문 일시 할증 (BR-011·012·013·014) ---------- */
+
+export interface VisitPricing {
+  /** 견적 항목(스냅샷 단가 그대로, BR-014) + 방문 일시 할증 1건 */
+  items: QuoteSnapshotItem[];
+  subtotalAmount: number;
+  discountAmount: number;
+  surchargeAmount: number;
+  totalAmount: number;
+  /** 붙은 야간·휴일 할증 규칙 (없으면 null) → service_order.visit_type */
+  timeRule: { id: number; ruleCode: string; name: string } | null;
+}
+
+/**
+ * 고객 앱 견적은 방문 일시 없이 산출하므로(F-CUS-QUO-04), 예약에서 고른 일시로 야간·휴일 할증을 붙인다.
+ * 상품·옵션·할인 단가는 견적 스냅샷 그대로 쓰고(BR-014 가격 변경 영향 없음), 할증만 현재 사용 중인 규칙으로 판단한다.
+ * 이미 야간·휴일 할증이 들어 있는 견적(시뮬레이터·상담 콘솔)은 그것을 빼고 다시 판단한다.
+ */
+export function applyVisitSurcharge(input: {
+  snapshot: Pick<QuoteSnapshot, 'items' | 'totalUnits'>;
+  rules: readonly SurchargeRuleLike[];
+  visit: VisitAt;
+  holidays: readonly string[];
+}): VisitPricing {
+  const items = input.snapshot.items.filter(
+    (i) => !(i.itemType === 'SURCHARGE' && (i.ruleCode === 'NIGHT' || i.ruleCode === 'HOLIDAY')),
+  );
+  const subtotalAmount = items.filter((i) => i.itemType === 'PRODUCT' || i.itemType === 'OPTION').reduce((s, i) => s + i.amount, 0);
+  const discountAmount = -items.filter((i) => i.itemType === 'DISCOUNT').reduce((s, i) => s + i.amount, 0);
+  const base = subtotalAmount - discountAmount;
+  const time = pickTimeSurcharge(input.rules, input.visit, input.holidays, input.snapshot.totalUnits, base);
+  if (time) {
+    const v = surchargeValue(time, input.snapshot.totalUnits, base);
+    items.push({
+      itemType: 'SURCHARGE',
+      productId: null,
+      optionId: null,
+      surchargeRuleId: time.id,
+      ...v,
+      name: time.name,
+      ruleCode: time.ruleCode,
+      amountType: time.amountType,
+      perUnit: time.perUnit,
+    });
+  }
+  const surchargeAmount = items.filter((i) => i.itemType === 'SURCHARGE').reduce((s, i) => s + i.amount, 0);
+  return {
+    items,
+    subtotalAmount,
+    discountAmount,
+    surchargeAmount,
+    totalAmount: Math.max(0, base + surchargeAmount),
+    timeRule: time ? { id: time.id, ruleCode: time.ruleCode, name: time.name } : null,
+  };
+}
+
+/** C-RSV-010 시간대 배지: 그 일시에 붙는 야간·휴일 할증 이름 (BR-011·012·013) */
+export function visitSurchargeName(
+  rules: readonly SurchargeRuleLike[],
+  visit: VisitAt,
+  holidays: readonly string[],
+): string | null {
+  return pickTimeSurcharge(rules, visit, holidays)?.name ?? null;
+}

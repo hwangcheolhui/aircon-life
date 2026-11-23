@@ -25,6 +25,14 @@ export const SYSTEM_SETTING_SEEDS: readonly SystemSettingSeed[] = [
   { key: 'SELF_ASSIGN_NEEDS_APPROVAL', value: 'Y', description: '자가 배정 운영자 승인 필요 §3.7' },
   { key: 'ADMIN_LOGIN_MAX_FAIL', value: '5', description: '관리자 로그인 실패 잠금 횟수 02 §7' },
   { key: 'ADMIN_PASSWORD_MIN_LENGTH', value: '8', description: '관리자 비밀번호 최소 길이 A-AUTH-020' },
+  // ── 단계 2 예약 ──
+  { key: 'SLOT_DAYS_AHEAD', value: '14', description: '슬롯 자동 생성·고객 예약 가능 일수(내일부터) F-SYS-01·F-CUS-RSV-01' },
+  { key: 'SLOT_JOBS_PER_TECH_HOUR', value: '1', description: '기사 1명이 1시간에 받는 건수(슬롯 수용 건수 계산) F-ADM-DSP-05' },
+  { key: 'WORK_DEFAULT_START', value: '09:00', description: '근무 시간을 비운 근무표의 기본 시작 시각 F-ADM-DSP-06' },
+  { key: 'WORK_DEFAULT_END', value: '18:00', description: '근무 시간을 비운 근무표의 기본 종료 시각 F-ADM-DSP-06' },
+  { key: 'CANCEL_FEE_HOURS', value: '24', description: '방문 몇 시간 이내 취소부터 취소 수수료 BR-030' },
+  { key: 'CANCEL_FEE_AMOUNT', value: '0', description: '취소 수수료(원, 0=없음) BR-030' },
+  { key: 'TERMS_VERSION', value: 'v1.0', description: '고객 약관 버전(consent_history.terms_version) F-CUS-AUTH-03' },
 ];
 
 export const SETTING_KEYS = {
@@ -32,4 +40,13 @@ export const SETTING_KEYS = {
   QUOTE_SITE_SURVEY_MIN_UNITS: 'QUOTE_SITE_SURVEY_MIN_UNITS',
   ADMIN_LOGIN_MAX_FAIL: 'ADMIN_LOGIN_MAX_FAIL',
   ADMIN_PASSWORD_MIN_LENGTH: 'ADMIN_PASSWORD_MIN_LENGTH',
+  PURGE_YEARS: 'PURGE_YEARS',
+  DUPLICATE_CHECK_DAYS: 'DUPLICATE_CHECK_DAYS',
+  SLOT_DAYS_AHEAD: 'SLOT_DAYS_AHEAD',
+  SLOT_JOBS_PER_TECH_HOUR: 'SLOT_JOBS_PER_TECH_HOUR',
+  WORK_DEFAULT_START: 'WORK_DEFAULT_START',
+  WORK_DEFAULT_END: 'WORK_DEFAULT_END',
+  CANCEL_FEE_HOURS: 'CANCEL_FEE_HOURS',
+  CANCEL_FEE_AMOUNT: 'CANCEL_FEE_AMOUNT',
+  TERMS_VERSION: 'TERMS_VERSION',
 } as const;

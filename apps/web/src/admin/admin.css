@@ -25,3 +25,23 @@
 .adm-matrix td:first-child, .adm-matrix th:first-child { text-align: left; }
 
 /* ── 화면별 스타일은 이 아래에 adm- 이름으로 추가합니다 ── */
+
+/* ── 주소 검색 (A-ORD-040 수동 접수, 공용 shared/address-search) ── */
+.adm-address-results { list-style: none; margin: var(--space-3) 0 0; padding: 0; max-height: 320px; overflow-y: auto; }
+.adm-address-results button { width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--color-divider); padding: var(--space-2) 0; font: inherit; color: var(--color-text); cursor: pointer; }
+.adm-address-results button:hover { color: var(--color-primary); }
+.adm-postcode { width: 100%; height: 440px; margin-top: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+
+/* ── 주문 상세 (A-ORD-020) ── */
+.adm-detail-head { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.adm-kv { display: grid; grid-template-columns: 140px 1fr 140px 1fr; gap: var(--space-2) var(--space-4); margin: 0; }
+.adm-kv dt { color: var(--color-text-secondary); }
+.adm-kv dd { margin: 0; }
+.adm-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+/* ── 근무 일정 표 (A-DSP-040) ── */
+.adm-schedule-grid td, .adm-schedule-grid th { text-align: center; white-space: nowrap; }
+.adm-schedule-grid td:first-child, .adm-schedule-grid th:first-child { text-align: left; }
+
+/* ── 슬롯 (A-DSP-030) ── */
+.adm-slot-closed { color: var(--color-text-tertiary); }

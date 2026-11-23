@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { runMigrations } from '../scripts/migrate';
 import { createDb } from './client';
 import { seedBaseData } from './seed';
+import { bookSlots } from './slot-booking';
 
 const url = process.env.TEST_DATABASE_URL;
 const d = url ? describe : describe.skip;
@@ -113,5 +114,83 @@ d('RLS (BR-102, F-ADM-SYS-02)', () => {
     const [r] =
       await sql`SELECT setting_value FROM system_setting WHERE setting_key = 'QUOTE_SITE_SURVEY_MIN_UNITS'`;
     expect(r?.setting_value).toBe('4');
+  });
+
+  describe('단계 2 예약·주문', () => {
+    let order1 = 0;
+    beforeAll(async () => {
+      const [c] = await sql`INSERT INTO customer (customer_no, customer_type, name, phone1, join_channel, privacy_agree_status, status)
+        VALUES ('C2703000001', 'PERSONAL', 'enc', 'enc', 'APP', 'AGREED', 'ACTIVE') RETURNING id`;
+      const [a] = await sql`INSERT INTO customer_address (customer_id, zipcode, road_address, branch_id)
+        VALUES (${c!.id}, '00000', '예시로 1', ${b1}) RETURNING id`;
+      const mk = async (no: string, branchId: number) =>
+        Number(
+          ((await sql`INSERT INTO service_order (order_no, customer_id, address_id, branch_id, channel, order_type, status, subtotal_amount, total_amount, payment_status)
+            VALUES (${no}, ${c!.id}, ${a!.id}, ${branchId}, 'APP', 'NORMAL', 'RECEIVED', 90000, 90000, 'UNPAID') RETURNING id`)[0] as { id: string }).id,
+        );
+      order1 = await mk('2703021000A1', b1);
+      await mk('2703021000A2', b2);
+      await sql`INSERT INTO order_status_history (order_id, to_status, actor_type) VALUES (${order1}, 'RECEIVED', 'CUSTOMER')`;
+      await sql`INSERT INTO consent_history (customer_id, consent_type, action, channel) VALUES (${c!.id}, 'TERMS', 'AGREE', 'APP')`;
+      await sql`INSERT INTO payment (payment_no, order_id, customer_id, payment_stage, method, amount, status)
+        VALUES ('P27030200000001', ${order1}, ${c!.id}, 'PREPAY', 'CARD', 90000, 'APPROVED')`;
+    });
+
+    it('BR-100 비로그인(anon)은 고객·주문을 읽을 수 없다', async () => {
+      expect(await as(null, (tx) => tx`SELECT * FROM customer`)).toHaveLength(0);
+      expect(await as(null, (tx) => tx`SELECT * FROM service_order`)).toHaveLength(0);
+    });
+
+    it('BR-102 거점장은 자기 거점 주문만 조회한다', async () => {
+      const rows = await as(ids.branchMgr, (tx) => tx`SELECT branch_id FROM service_order`);
+      expect(rows.map((r) => Number(r.branch_id))).toEqual([Number(b1)]);
+    });
+
+    it('F-ADM-ORD-01 상담원은 주문 목록을 조회할 수 있다(전체 거점)', async () => {
+      expect(await as(ids.cs, (tx) => tx`SELECT * FROM service_order`)).toHaveLength(2);
+    });
+
+    it('주문 상태 이력·동의 이력·결제는 INSERT ONLY', async () => {
+      await expect(sql`UPDATE order_status_history SET memo = 'x'`).rejects.toThrow(/INSERT ONLY/);
+      await expect(sql`DELETE FROM consent_history`).rejects.toThrow(/INSERT ONLY/);
+      await expect(sql`UPDATE payment SET amount = 1`).rejects.toThrow(/INSERT ONLY/);
+    });
+
+    it('BR-021 동시에 마지막 1자리를 예약하면 한 건만 성공한다', async () => {
+      await sql`INSERT INTO time_slot (branch_id, slot_date, slot_hour, slot_kind, capacity, booked_count)
+        VALUES (${b1}, '2027-03-10', 10, 'NORMAL', 2, 1), (${b1}, '2027-03-10', 11, 'NORMAL', 1, 0)`;
+      const tryBook = () => {
+        const { db, sql: s } = createDb(url!, { max: 1 });
+        return db
+          .transaction(async (tx) => {
+            const ok = await bookSlots(tx, { branchId: b1, slotDate: '2027-03-10', hours: [10] });
+            if (!ok) tx.rollback();
+            return ok;
+          })
+          .catch(() => false)
+          .finally(() => s.end());
+      };
+      const results = await Promise.all([tryBook(), tryBook(), tryBook()]);
+      expect(results.filter(Boolean)).toHaveLength(1);
+      const [r] = await sql`SELECT booked_count FROM time_slot WHERE branch_id = ${b1} AND slot_hour = 10`;
+      expect(r?.booked_count).toBe(2);
+    });
+
+    it('BR-021 예외: 연속 슬롯 중 한 칸이라도 차 있으면 예약 실패', async () => {
+      await sql`UPDATE time_slot SET booked_count = 0 WHERE branch_id = ${b1} AND slot_hour = 10`;
+      await sql`UPDATE time_slot SET is_closed = true WHERE branch_id = ${b1} AND slot_hour = 11`;
+      const { db, sql: s } = createDb(url!, { max: 1 });
+      const ok = await db
+        .transaction(async (tx) => {
+          const r = await bookSlots(tx, { branchId: b1, slotDate: '2027-03-10', hours: [10, 11] });
+          if (!r) tx.rollback();
+          return r;
+        })
+        .catch(() => false);
+      await s.end();
+      expect(ok).toBe(false);
+      const [r] = await sql`SELECT booked_count FROM time_slot WHERE branch_id = ${b1} AND slot_hour = 10`;
+      expect(r?.booked_count).toBe(0);
+    });
   });
 });

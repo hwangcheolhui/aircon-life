@@ -1,2 +1,6 @@
 export * from './auth';
 export * from './storage';
+export * from './payment';
+export * from './identity';
+export * from './social';
+export * from './notify';
