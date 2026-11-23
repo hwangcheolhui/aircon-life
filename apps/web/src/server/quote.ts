@@ -33,18 +33,24 @@ import {
 } from '@aircon/domain';
 import { and, asc, desc, eq, inArray, isNull, like, lt } from 'drizzle-orm';
 import { getDb } from './db';
+import { DEMO_HOLIDAYS, DEMO_QUOTE_CATALOG, demoServiceArea, isQuoteDemoMode } from './quote-demo';
 import { getSettingNumber } from './settings';
 
 type Db = ReturnType<typeof getDb>;
 
 /** F-CUS-QUO-01 / BR-001 법정동 → 관할 지역 */
 export async function findServiceArea(legalDongCode: string, db: Db = getDb()) {
+  if (isQuoteDemoMode()) {
+    const area = demoServiceArea(legalDongCode);
+    return { serviceable: area !== null, branchId: area?.branchId ?? null, area };
+  }
   const rows = await db.select().from(serviceArea).where(eq(serviceArea.legalDongCode, legalDongCode));
   return resolveServiceArea(rows, legalDongCode);
 }
 
 /** 견적에 쓰는 활성 상품·가격·옵션·할증 (카테고리·상품이 사용 중인 것만) */
 export async function loadQuoteCatalog(db: Db = getDb()): Promise<QuoteCatalog> {
+  if (isQuoteDemoMode()) return DEMO_QUOTE_CATALOG;
   const [products, policies, options, rules] = await Promise.all([
     db
       .select({
@@ -113,9 +119,11 @@ export async function computeQuote(
   const priceDate = req.visit?.date ?? kstDate(now);
   const [catalog, holidays, siteSurveyMinUnits] = await Promise.all([
     loadQuoteCatalog(db),
-    req.visit
-      ? db.select({ d: holiday.holidayDate }).from(holiday).where(eq(holiday.holidayDate, req.visit.date))
-      : Promise.resolve([] as { d: string }[]),
+    isQuoteDemoMode()
+      ? Promise.resolve(DEMO_HOLIDAYS.map((d) => ({ d })))
+      : req.visit
+        ? db.select({ d: holiday.holidayDate }).from(holiday).where(eq(holiday.holidayDate, req.visit.date))
+        : Promise.resolve([] as { d: string }[]),
     getSettingNumber(SETTING_KEYS.QUOTE_SITE_SURVEY_MIN_UNITS),
   ]);
   return calculateQuote({

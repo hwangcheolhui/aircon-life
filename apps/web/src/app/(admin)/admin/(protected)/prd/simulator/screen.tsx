@@ -23,6 +23,7 @@ interface Result {
 }
 
 export function SimulatorScreen(p: {
+  demoNotice?: string | null;
   areas: Option[];
   products: { deviceType: string; cleanLevel: string }[];
   options: { id: number; name: string; price: number }[];
@@ -98,6 +99,7 @@ export function SimulatorScreen(p: {
         </span>
       </div>
 
+      {p.demoNotice ? <Alert tone="warning">{p.demoNotice}</Alert> : null}
       <form
         className="ac-search-panel"
         role="search"

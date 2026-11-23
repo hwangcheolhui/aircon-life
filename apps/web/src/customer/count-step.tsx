@@ -132,7 +132,7 @@ export function CountStep({ products, options, deviceLabels, cleanLevels }: Coun
     setSubmitting(true);
     const r = await submitQuote(request);
     if (r.ok && r.data?.ok) {
-      router.push(`/quote/result/${r.data.quoteNo}`);
+      router.push(r.data.path);
       return;
     }
     setSubmitting(false);

@@ -18,7 +18,8 @@
         "ADMIN_AUTH_BYPASS",
         "SUPABASE_URL",
         "STORAGE_DRIVER",
-        "NEXT_PUBLIC_ADDRESS_DRIVER"
+        "NEXT_PUBLIC_ADDRESS_DRIVER",
+        "QUOTE_DEMO_AREA_CODES"
       ]
     },
     "typecheck": {
