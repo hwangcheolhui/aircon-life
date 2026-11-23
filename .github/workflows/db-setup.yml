@@ -1,0 +1,49 @@
+# 운영 DB(Supabase) 마이그레이션·기본 데이터 넣기 — 로컬 설치 없이 GitHub 화면에서 실행
+# 사용: GitHub 저장소 > Actions > "DB 준비 (마이그레이션·시드)" > Run workflow
+# 필요한 저장소 Secrets (Settings > Secrets and variables > Actions):
+#   DATABASE_URL               Supabase > Connect > Session pooler 연결 문자열(비밀번호 포함, 포트 5432)
+#   SUPABASE_URL               Supabase > Project Settings > API > Project URL
+#   SUPABASE_ANON_KEY          같은 화면의 anon public 키
+#   SUPABASE_SERVICE_ROLE_KEY  같은 화면의 service_role 키 (절대 공개 금지)
+#   SEED_SUPER_ADMIN_EMAIL     최초 슈퍼관리자 로그인 이메일
+#   SEED_SUPER_ADMIN_PASSWORD  최초 슈퍼관리자 비밀번호 (직접 정함)
+# 여러 번 실행해도 안전합니다: 마이그레이션은 안 한 것만, 시드는 없는 데이터만 넣습니다.
+name: DB 준비 (마이그레이션·시드)
+
+on:
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: '기본 데이터(공통 코드·알림 문구·기준값·슈퍼관리자)도 넣을까요?'
+        type: boolean
+        default: true
+
+jobs:
+  db:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      AUTH_DRIVER: supabase
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SEED_SUPER_ADMIN_LOGIN_ID: superadmin
+      SEED_SUPER_ADMIN_EMAIL: ${{ secrets.SEED_SUPER_ADMIN_EMAIL }}
+      SEED_SUPER_ADMIN_PASSWORD: ${{ secrets.SEED_SUPER_ADMIN_PASSWORD }}
+    steps:
+      - name: 필수 값 확인
+        run: |
+          if [ -z "$DATABASE_URL" ]; then echo "::error::저장소 Secret DATABASE_URL 이 비어 있습니다."; exit 1; fi
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build --filter="./packages/*"
+      - name: 마이그레이션
+        run: pnpm db:migrate
+      - name: 기본 데이터 넣기
+        if: ${{ inputs.seed }}
+        run: pnpm db:seed
