@@ -237,6 +237,11 @@ export const COMMON_CODE_SEED = [
     ['SURCHARGE', '할증'],
     ['DISCOUNT', '할인'],
   ]),
+  ...g('AREA_OPEN_STATUS', [
+    ['WAITING', '대기'],
+    ['NOTIFIED', '안내완료'],
+    ['EXPIRED', '만료'],
+  ]),
 ];
 
 /** ERD §0.2 역할. 거점장만 BRANCH 범위이고, 나머지는 소속 거점이 지정되면 BR-102에 따라 그 거점으로 제한된다. */
