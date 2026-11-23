@@ -110,7 +110,7 @@ test('슈퍼관리자가 기준 데이터를 등록한다', async ({ page }) => 
   await preview.getByRole('combobox', { name: '거점' }).selectOption({ label: '은평거점' });
   await preview.getByLabel('적용일').fill('2027-03-01');
   await preview.getByRole('button', { name: '미리보기' }).click();
-  await expect(page.getByText('85,000원')).toBeVisible();
+  await expect(page.getByText('적용 단가').locator('strong', { hasText: '85,000원' })).toBeVisible();
 
   // A-PRD-030 야간·휴일 할증
   await page.goto('/admin/prd/surcharges');
