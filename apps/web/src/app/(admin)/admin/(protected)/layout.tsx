@@ -10,6 +10,12 @@ import { requireAdmin } from '@/server/auth';
 import { BRANCH_COOKIE } from '@/server/branch-selection';
 import { getDb, isDbConfigured } from '@/server/db';
 
+/**
+ * 관리자 화면은 요청마다 로그인 세션(쿠키)을 확인해야 하므로 빌드 때 미리 만들어 두지 않는다.
+ * (DB 연결값이 없는 빌드에서는 로그인 확인 전에 "로그인 화면으로 이동"이 정적 페이지로 굳어 버려, 로그인해도 다시 로그인 화면으로 돌아갔다.)
+ */
+export const dynamic = 'force-dynamic';
+
 export default async function ProtectedLayout({ children }: { children: ReactNode }) {
   const admin = await requireAdmin();
   const menu = visibleAdminMenu(admin).map((g) => ({
