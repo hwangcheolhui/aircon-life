@@ -1,10 +1,27 @@
-/* 관리자 화면 배치 보조 (토큰만 사용). 컴포넌트 모양은 components.css 의 ac- 클래스를 쓴다. */
+/*
+ * 관리자 웹(/admin) 전용 스타일 — data-channel="admin" (05 §0.3, §8.6)
+ *
+ * 규칙
+ * - 클래스 이름은 반드시 adm- 로 시작합니다. (고객 cus- · 기사 tec- 와 겹치지 않게)
+ * - 값은 tokens.css 의 의미 토큰만 씁니다. 색 코드(#…)·원시 색(--gray-*, --blue-*)·임의 px 반경·임의 그림자 금지.
+ * - 버튼·입력·표·카드 모양은 components.css 의 ac- 클래스를 쓰고, 여기서는 배치만 잡습니다.
+ * - 공통 틀(GNB·LNB)은 components.css 의 .ac-admin-shell 이 담당합니다.
+ * - 이 파일은 (admin)/layout.tsx 에서 한 번만 불러옵니다.
+ */
+
+/* ── 기초: 페이지 틀·구역 ─────────────────────────── */
+.adm-section { margin-top: var(--space-8); }
 .adm-page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-4); }
 .adm-toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin: var(--space-4) 0 var(--space-2); }
 .adm-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--space-4); }
 .adm-form-grid .adm-span-2 { grid-column: 1 / -1; }
+
+/* ── 로그인 (A-AUTH-010) ─────────────────────────────── */
 .adm-login { min-height: 100vh; display: grid; place-items: center; padding: var(--space-6); background: var(--color-bg-subtle); }
 .adm-login .ac-card { width: 100%; max-width: 400px; }
+
+/* ── 권한 매트릭스 ───────────────────────────────── */
 .adm-matrix td, .adm-matrix th { text-align: center; }
 .adm-matrix td:first-child, .adm-matrix th:first-child { text-align: left; }
-.adm-section { margin-top: var(--space-8); }
+
+/* ── 화면별 스타일은 이 아래에 adm- 이름으로 추가합니다 ── */

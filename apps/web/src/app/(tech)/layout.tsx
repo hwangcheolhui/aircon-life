@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import '@aircon/ui/styles/tokens.css';
 import '@aircon/ui/styles/components.css';
+import '@/tech/tech.css';
 
 export const metadata: Metadata = { title: '기사 앱', robots: { index: false } };
 

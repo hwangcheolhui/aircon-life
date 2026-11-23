@@ -1,6 +1,5 @@
 // C-HOM-010 홈 · F-CUS-HOM-01(일부): 단계 1은 "견적 받기" CTA만. 진행 중 예약 카드 등은 단계 2 이후(04 §3).
 import Link from 'next/link';
-import '@/customer/customer.css';
 
 export default function CustomerHome() {
   return (

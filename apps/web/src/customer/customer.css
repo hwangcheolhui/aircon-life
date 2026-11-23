@@ -1,4 +1,25 @@
-/* 고객 화면 배치 보조 (토큰만 사용). 컴포넌트 모양은 components.css 의 ac- 클래스를 쓴다. */
+/*
+ * 고객 웹(/) 전용 스타일 — data-channel="customer" (05 §0.3, §8.6)
+ *
+ * 규칙
+ * - 클래스 이름은 반드시 cus- 로 시작합니다. (기사 tec- · 관리자 adm- 와 겹치지 않게)
+ * - 값은 tokens.css 의 의미 토큰만 씁니다. 색 코드(#…)·원시 색(--gray-*, --blue-*)·임의 px 반경·임의 그림자 금지.
+ * - 버튼·입력·카드 모양은 components.css 의 ac- 클래스를 쓰고, 여기서는 배치만 잡습니다.
+ * - 이 파일은 (customer)/layout.tsx 에서 한 번만 불러옵니다.
+ */
+
+/* ── 기초: 페이지 틀 ─────────────────────────────── */
+.cus-page {
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+.cus-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* ── 견적 스텝 플로우 (C-QUO-010~040) ─────────────── */
 .cus-flow {
   display: flex;
   flex-direction: column;
@@ -72,6 +93,7 @@
 .cus-amount-row .is-minus {
   color: var(--color-text-secondary);
 }
+/* ── 홈 (C-HOM-010) ─────────────────────────────── */
 .cus-home-hero {
   display: flex;
   flex-direction: column;
@@ -116,3 +138,5 @@
   border-radius: var(--radius-md);
   overflow: hidden;
 }
+
+/* ── 화면별 스타일은 이 아래에 cus- 이름으로 추가합니다 ── */

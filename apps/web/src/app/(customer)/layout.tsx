@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import '@aircon/ui/styles/tokens.css';
 import '@aircon/ui/styles/components.css';
+import '@/customer/customer.css';
 
 export const metadata: Metadata = { title: '에어컨 청소' };
 
