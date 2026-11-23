@@ -34,6 +34,8 @@ export const SYSTEM_SETTING_SEEDS: readonly SystemSettingSeed[] = [
   { key: 'CANCEL_FEE_HOURS', value: '24', description: '방문 몇 시간 이내 취소부터 취소 수수료 BR-030' },
   { key: 'CANCEL_FEE_AMOUNT', value: '0', description: '취소 수수료(원, 0=없음) BR-030' },
   { key: 'TERMS_VERSION', value: 'v1.0', description: '고객 약관 버전(consent_history.terms_version) F-CUS-AUTH-03' },
+  // ── 단계 3 상담 콘솔 ──
+  { key: 'PRIVACY_REASK_MONTHS', value: '12', description: '개인정보 미동의 고객에게 상담 콘솔에서 동의를 다시 묻는 주기(개월) BR-023' },
 ];
 
 export const SETTING_KEYS = {
@@ -51,4 +53,5 @@ export const SETTING_KEYS = {
   CANCEL_FEE_HOURS: 'CANCEL_FEE_HOURS',
   CANCEL_FEE_AMOUNT: 'CANCEL_FEE_AMOUNT',
   TERMS_VERSION: 'TERMS_VERSION',
+  PRIVACY_REASK_MONTHS: 'PRIVACY_REASK_MONTHS',
 } as const;

@@ -466,3 +466,92 @@ export const areaOpenRequestInput = z.object({
   ),
   privacyAgreed: bool(false).refine((v) => v, MSG.required('개인정보 수집·이용 동의')),
 });
+
+/* ---------- 단계 3 상담 콘솔 (F-ADM-CSL-01~10·13~16, F-ADM-CUS-01~03, F-ADM-CNT-05) ---------- */
+/** 보조 연락처: 비우면 null, 넣으면 0으로 시작하는 9~11자리(유선 포함) */
+const optPhone = (label: string) =>
+  z.preprocess(
+    (v) => {
+      const d = typeof v === 'string' ? v.replace(/[^0-9]/g, '') : '';
+      return d === '' ? null : d;
+    },
+    z.string().regex(/^0\d{8,10}$/, `${label} 형식이 올바르지 않습니다.`).nullable(),
+  );
+/** A-CSL-012 4단계 주소(주소검색 → 주소선택 → 상세주소 → 주소정제) 결과 */
+export const consoleAddressInput = z.object({
+  address: reservationAddressInput,
+  detailAddress: reqStr('상세주소', 200),
+  housingType: optStr(20),
+  hasElevator: bool(false),
+  parkingNote: optStr(200),
+});
+/** A-CSL-012 신규 고객 등록 */
+export const consoleCustomerInput = consoleAddressInput.extend({
+  name: reqStr('고객명', 30),
+  phone1: phoneInput('전화1'),
+  phone2: optPhone('전화2'),
+  customerType: z.enum(['PERSONAL', 'BUSINESS']).default('PERSONAL'),
+});
+/** A-CSL-014 고객정보 수정 (주소는 새로 넣을 때만) */
+export const consoleCustomerUpdateInput = z.object({
+  customerId: reqId('고객'),
+  name: reqStr('고객명', 30),
+  phone1: phoneInput('전화1'),
+  phone2: optPhone('전화2'),
+  happycallReject: bool(false),
+  newAddress: consoleAddressInput.nullable().default(null),
+});
+/** A-CSL-013 개인정보 동의 응답·철회 */
+export const consentAnswerInput = z.object({
+  customerId: reqId('고객'),
+  callLogId: optId(),
+  action: z.enum(['AGREE', 'DISAGREE', 'NOT_ASKED', 'WITHDRAW'], { errorMap: () => ({ message: MSG.required('동의 여부') }) }),
+});
+/** A-CSL-020 출장접수 */
+export const phoneOrderInput = z.object({
+  customerId: reqId('고객'),
+  callLogId: optId(),
+  addressId: reqId('방문 주소'),
+  lines: z.array(quoteLineInput).min(1, MSG.required('기기 형태')).max(20),
+  options: z.array(quoteOptionInput).max(20).default([]),
+  symptom: reqStr('접수 증상', 30),
+  brand: optStr(30),
+  modelName: optStr(50),
+  orderType: z.enum(['NORMAL', 'URGENT'], { errorMap: () => ({ message: MSG.required('접수 유형') }) }),
+  customerRequest: optStr(500),
+  twoPerson: bool(false),
+  frequent: bool(false),
+  requestedDate: optDate(),
+  requestedTime: optTime(),
+  slotDate: dateStr('약속일시'),
+  slotHour,
+  technicianId: optId(),
+  internalNote: optStr(1000),
+  duplicateConfirmed: bool(false),
+});
+export type PhoneOrderInput = z.output<typeof phoneOrderInput>;
+/** A-CSL-050 일반문의·클레임 기록 */
+export const consultRecordInput = z.object({
+  customerId: reqId('고객'),
+  callLogId: optId(),
+  consultType: z.enum(['INQUIRY', 'CLAIM'], { errorMap: () => ({ message: MSG.required('상담 유형') }) }),
+  subType: reqStr('세부 유형', 30),
+  relatedOrderId: optId(),
+  content: reqStr('상담 내용', 4000),
+  done: bool(false),
+});
+/** A-CUS-020 등급·태그·메모 (F-ADM-CUS-03) */
+export const customerGradeInput = z.object({
+  customerId: reqId('고객'),
+  grade: reqStr('고객 등급', 20),
+  tags: z.array(z.string().regex(/^[A-Z0-9_]+$/)).max(20).default([]),
+});
+export const customerMemoInput = z.object({ customerId: reqId('고객'), memo: optStr(4000) });
+/** A-CNT-050 상담 스크립트 */
+export const consultScriptInput = z.object({
+  scriptCode: code('스크립트 코드', 30),
+  title: reqStr('제목', 100),
+  content: reqStr('내용', 4000),
+  triggerPoint: reqStr('사용 시점', 30),
+  isActive: bool(true),
+});

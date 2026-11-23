@@ -16,3 +16,5 @@ export * from './slot/slot';
 export * from './customer/consent';
 export * from './customer/notify-template';
 export * from './area/area-open-request';
+export * from './consult/consult-status';
+export * from './consult/console-rules';

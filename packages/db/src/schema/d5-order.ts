@@ -18,9 +18,10 @@ import { customer, customerAddress } from './d2-customer';
 import { serviceOption, serviceProduct, surchargeRule } from './d3-product';
 import { quote } from './d4-quote';
 import { auditColumns, idColumn, softDelete } from './common';
+import { consultation } from './d6-consult';
 
 /**
- * 2.5.1 서비스 주문. consultation_id(단계 3)·coupon_id(단계 9)의 FK는 해당 테이블이 생기는 단계에서 건다.
+ * 2.5.1 서비스 주문. coupon_id(단계 9)의 FK는 해당 테이블이 생기는 단계에서 건다. consultation_id = 전화 접수 상담(단계 3).
  * status 변경은 packages/domain 주문 상태 전이(assertOrderTransition)를 거치고 order_status_history 에 1행 INSERT 한다.
  */
 export const serviceOrder = pgTable(
@@ -38,7 +39,7 @@ export const serviceOrder = pgTable(
       .notNull()
       .references(() => branch.id),
     quoteId: bigint('quote_id', { mode: 'number' }).references(() => quote.id),
-    consultationId: bigint('consultation_id', { mode: 'number' }),
+    consultationId: bigint('consultation_id', { mode: 'number' }).references((): AnyPgColumn => consultation.id),
     parentOrderId: bigint('parent_order_id', { mode: 'number' }).references((): AnyPgColumn => serviceOrder.id),
     channel: varchar('channel', { length: 20 }).notNull(), // ORDER_CHANNEL
     orderType: varchar('order_type', { length: 20 }).notNull(), // ORDER_TYPE

@@ -3,6 +3,7 @@
 > 에어컨 청소 기반 지역생활서비스 플랫폼 — MVP ~ 2단계 확장 대응 데이터 모델
 > 문서 버전: v1.1 · 작성일: 2026-11-22 · 작성 관점: 프로그램 분석·설계자
 > v1.2(단계 1 보강): 서비스 지역 오픈 알림 신청 `area_open_request`(§2.2.7, §3.9) 추가, 알림 템플릿 `AREA_OPENED`, 설정 `AREA_OPEN_REQUEST_KEEP_DAYS`
+> v1.4(단계 3 구현 반영): `call_log`·`consultation`·`consult_script`·`customer_tag`·`assignment`·`assignment_history` 구현, §4 단계 3 코드 그룹, 설정 `PRIVACY_REASK_MONTHS`, §3.5 상담 초기 상태, 상담 번호 형식
 > v1.3(단계 2 구현 반영): §4 단계 2 코드 그룹, `system_setting` 슬롯·취소·약관 키, `notification_log.created_at`, `refund.requested_by` 타입, 접수번호 형식, 알림 템플릿 코드, 결제·환불 INSERT ONLY 처리 방식
 > v1.1(단계 0 구현 반영): `admin_user` Supabase Auth 연결, 일시 타입 확정, §4 코드 그룹 추가, `system_setting` 키 추가, 가격 정책 동순위 결정 규칙
 > 연계 문서: [02_기능정의서.md](./02_기능정의서.md) · [03_IA.md](./03_IA.md)
@@ -717,6 +718,8 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 #### 2.6.7 `consult_script` — 상담 스크립트/응대 멘트 (개인정보 동의 멘트, 야간·휴일 안내 등)
 `id`, `script_code`(UK), `title`, `content`, `trigger_point`(`PRIVACY_CONSENT`/`NIGHT_VISIT`/`HOLIDAY_VISIT`/`PURGE_REQUEST`), `is_active`, 공통컬럼
 
+> 단계 3 구현: `call_log`·`consultation`·`consult_script`를 만들었습니다(`followup_request`·`safety_incident`·`incident_recipient`·`voc`는 단계 8). 상담 번호는 `J` + KST `YYMMDD` + 4자리 일련번호. 상담 콘솔에서 고객을 확정하면 `call_log`(INBOUND, 발신 번호 암호화·해시) 1행을 만들고, 전화 출장접수는 `consultation`(consult_type `ORDER`, status `DONE`, sub_type = `ORDER_SYMPTOM` 코드)과 주문을 한 트랜잭션에서 만듭니다. 접수 시 받은 브랜드·모델명·고객 요구일시는 별도 컬럼 없이 `consultation.content`에 함께 적습니다. `voc`가 생기기 전까지 클레임은 consult_type `CLAIM`·status `OPEN`으로 남겨 BR-022 Alert의 "미완료 클레임"으로 셉니다. 일반문의·클레임 세부 유형은 코드 그룹 `INQUIRY_SUB_TYPE`. 기본 스크립트 4종(PRIVACY_CONSENT·NIGHT_VISIT·HOLIDAY_VISIT·PURGE_REQUEST)은 시드로 넣고 A-CNT-050에서 삭제할 수 없습니다(사용 안 함으로만 변경).
+
 ---
 
 ### D7. 기사·교육
@@ -862,6 +865,8 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 
 #### 2.8.3 `assignment_history` — 배정·이관 이력 (INSERT ONLY)
 `id`, `order_id`(FK), `from_technician_id`, `to_technician_id`, `action`(`ASSIGN`/`REASSIGN`/`TRANSFER`/`UNASSIGN`/`SELF_REQUEST`/`SELF_APPROVE`), `reason`, `actor_type`, `actor_id`, `created_at`
+
+> 단계 3 구현: 상담 콘솔에서 기사를 직접 고를 수 있어 `assignment`·`assignment_history`를 단계 4-1에서 앞당겨 만들었습니다. 기사 선택 접수는 `assignment`(role `MAIN`, assign_method `MANUAL`, status `ACCEPTED`, `time_slot_id`·`scheduled_start/end`) 1행과 `assignment_history`(action `ASSIGN`) 1행을 넣습니다. `assignment_history`는 INSERT ONLY(DB 트리거). 배정 보드·재배정은 단계 4-1.
 
 #### 2.8.4 `route_plan` — 기사 일자별 방문 코스
 기사가 관할 구역 안에서 하루(또는 다음 날) 방문 순서를 짜는 단위입니다. 기사 1명 × 일자 1개.
@@ -1233,7 +1238,7 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 `id`, `actor_type`, `actor_id`, `action`(`VIEW_PII`/`EXPORT`/`UPDATE`/`DELETE`/`LOGIN`/`PERMISSION_CHANGE`), `target_table`, `target_id`(VARCHAR(50): 문자열 PK 테이블 대응), `ip_address`, `user_agent`, `detail_json`, `created_at`. **INSERT ONLY**: DB 트리거로 UPDATE·DELETE를 막습니다.
 
 #### 2.13.8 `system_setting` — 시스템 설정(키-값)
-`setting_key`(PK, 예: `QUOTE_EXPIRE_DAYS`=7, `REVISIT_MONTHS`=11, `PURGE_YEARS`=…, `SETTLEMENT_WEEKDAY`=`WED`, `POPUP_DEFAULT_TIME`=08:30, `DUPLICATE_CHECK_DAYS`=30, `ROUTE_CONFIRM_DEADLINE`=전날 18:00, `ROUTE_TRAVEL_BUFFER_MIN`=10, `ARRIVAL_WINDOW_HOURS`=2, `LOCATION_INTERVAL_SEC`=60, `LOCATION_RETENTION_DAYS`=90, `SELF_ASSIGN_ENABLED`=거점별 Y/N, `SELF_ASSIGN_NEEDS_APPROVAL`=Y, `ADMIN_LOGIN_MAX_FAIL`=5, `ADMIN_PASSWORD_MIN_LENGTH`=8, `QUOTE_SITE_SURVEY_MIN_UNITS`=4(시스템·천장형 합계가 이 대수 이상이면 "현장 확인 견적" 안내, 단계 1), 단계 2: `SLOT_DAYS_AHEAD`=14(슬롯 자동 생성·고객 달력 일수), `SLOT_JOBS_PER_TECH_HOUR`=1(기사 1명 시간당 처리 건수), `WORK_DEFAULT_START`=09:00·`WORK_DEFAULT_END`=18:00(근무 시간을 비운 일정의 기본값, 반차는 가운데 시각으로 나눔), `CANCEL_FEE_HOURS`=24·`CANCEL_FEE_AMOUNT`=0(BR-030 방문 N시간 전부터 취소 수수료, 금액은 운영사가 정함), `TERMS_VERSION`=v1.0(동의 이력에 남는 약관 버전), `AREA_OPEN_REQUEST_KEEP_DAYS`=365(오픈 알림 신청 대기 보관일, 지나면 EXPIRED·연락처 삭제, BR-003)), `setting_value`, `description`, `updated_at`, `updated_by`
+`setting_key`(PK, 예: `QUOTE_EXPIRE_DAYS`=7, `REVISIT_MONTHS`=11, `PURGE_YEARS`=…, `SETTLEMENT_WEEKDAY`=`WED`, `POPUP_DEFAULT_TIME`=08:30, `DUPLICATE_CHECK_DAYS`=30, `ROUTE_CONFIRM_DEADLINE`=전날 18:00, `ROUTE_TRAVEL_BUFFER_MIN`=10, `ARRIVAL_WINDOW_HOURS`=2, `LOCATION_INTERVAL_SEC`=60, `LOCATION_RETENTION_DAYS`=90, `SELF_ASSIGN_ENABLED`=거점별 Y/N, `SELF_ASSIGN_NEEDS_APPROVAL`=Y, `ADMIN_LOGIN_MAX_FAIL`=5, `ADMIN_PASSWORD_MIN_LENGTH`=8, `QUOTE_SITE_SURVEY_MIN_UNITS`=4(시스템·천장형 합계가 이 대수 이상이면 "현장 확인 견적" 안내, 단계 1), 단계 2: `SLOT_DAYS_AHEAD`=14(슬롯 자동 생성·고객 달력 일수), `SLOT_JOBS_PER_TECH_HOUR`=1(기사 1명 시간당 처리 건수), `WORK_DEFAULT_START`=09:00·`WORK_DEFAULT_END`=18:00(근무 시간을 비운 일정의 기본값, 반차는 가운데 시각으로 나눔), `CANCEL_FEE_HOURS`=24·`CANCEL_FEE_AMOUNT`=0(BR-030 방문 N시간 전부터 취소 수수료, 금액은 운영사가 정함), `TERMS_VERSION`=v1.0(동의 이력에 남는 약관 버전), `AREA_OPEN_REQUEST_KEEP_DAYS`=365(오픈 알림 신청 대기 보관일, 지나면 EXPIRED·연락처 삭제, BR-003), 단계 3: `PRIVACY_REASK_MONTHS`=12(BR-023 미동의 고객 재질의 주기, 개월)), `setting_value`, `description`, `updated_at`, `updated_by`
 
 ---
 
@@ -1272,6 +1277,8 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 
 ### 3.5 상담 상태
 `OPEN(미완료) → IN_PROGRESS → DONE` / `TRANSFERRED`. 동일 고객의 `OPEN` 상담·미완료 VOC가 있으면 상담 콘솔 진입 시 Alert.
+
+단계 3 구현: 초기 상태는 `OPEN` 또는 `DONE`(통화 중 처리 완료한 일반문의·전화 출장접수는 바로 `DONE`으로 생성). 허용 전이는 `OPEN → IN_PROGRESS/DONE/TRANSFERRED`, `IN_PROGRESS → DONE/TRANSFERRED`(`packages/domain` `assertConsultTransition`). 상담 상태는 별도 이력 테이블 없이 `completed_at`·`updated_by`로 남깁니다.
 
 ### 3.6 코스 상태 `route_plan.status`
 `DRAFT → OPTIMIZED → CONFIRMED → IN_PROGRESS → DONE`
@@ -1388,6 +1395,22 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 | `NOTIFICATION_STATUS` | QUEUED 대기 / SENT 발송 / FAILED 실패 / FALLBACK_SMS 문자 대체 발송 | notification_log.status |
 | `TECH_STATUS` | APPLICANT 지원 / TRAINING 교육중 / ACTIVE 활동 / PAUSED 휴직 / LEFT 이탈 | technician.status |
 | `CONTRACT_TYPE` | EMPLOYEE 근로 / FREELANCER 도급(사업소득 3.3%) / PARTNER 사업자 | technician.contract_type |
+
+**단계 3에서 추가한 그룹**
+
+| group_code | 코드 목록 | 사용 컬럼 |
+|---|---|---|
+| `CALL_DIRECTION` | INBOUND 인입 / OUTBOUND 발신 | call_log.direction |
+| `CONSULT_CHANNEL` | PHONE 전화 / APP_CHAT 앱 채팅 / KAKAO 카카오톡 / WEB 웹 | consultation.channel |
+| `CONSULT_STATUS` | OPEN 미완료 / IN_PROGRESS 처리중 / DONE 완료 / TRANSFERRED 이관 | consultation.status |
+| `ORDER_SYMPTOM` | REGULAR_CLEAN 정기 청소 / ODOR 냄새 / LEAK 누수 / WEAK_COOLING 냉방 약함 / MOLD 곰팡이·오염 / ETC 기타 | consultation.sub_type (consult_type=ORDER, 접수 증상) |
+| `INQUIRY_SUB_TYPE` | PRICE 가격 문의 / SCHEDULE 일정 문의 / SERVICE 서비스 내용 문의 / QUALITY 품질/세척불량 / ATTITUDE 태도/불친절 / EXTRA_CHARGE 가격/추가요금 / DELAY 일정/지연 / ETC 기타 | consultation.sub_type (INQUIRY·CLAIM) |
+| `SCRIPT_TRIGGER` | PRIVACY_CONSENT 개인정보 동의 / NIGHT_VISIT 야간 방문 안내 / HOLIDAY_VISIT 휴일 방문 안내 / PURGE_REQUEST 파기 요청 응대 | consult_script.trigger_point |
+| `CUSTOMER_TAG` | FREQUENT 다빈도 / CAUTION 주의 / MOVING 이사예정 | customer_tag.tag_code |
+| `ASSIGN_ROLE` | MAIN 주기사 / SUPPORT 지원기사 / ACCOMPANY 교육 동행 | assignment.role |
+| `ASSIGN_METHOD` | AUTO 자동 추천 / MANUAL 운영자 / SELF 기사 자가 배정 | assignment.assign_method |
+| `ASSIGN_STATUS` | REQUESTED 승인 대기 / PROPOSED 제안 / ACCEPTED 확정 / REJECTED 반려 / TRANSFERRED 이관 / CANCELED 취소 | assignment.status |
+| `ASSIGN_ACTION` | ASSIGN 배정 / REASSIGN 재배정 / TRANSFER 이관 / UNASSIGN 배정 취소 / SELF_REQUEST 자가 배정 요청 / SELF_APPROVE 자가 배정 승인 | assignment_history.action |
 
 ---
 

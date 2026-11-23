@@ -397,7 +397,107 @@ export const COMMON_CODE_SEED = [
     ['WAITING', '대기'],
     ['NOTIFIED', '안내완료'],
     ['EXPIRED', '만료'],
+  ]),  // ── 단계 3 상담 콘솔 (01 §4 "단계 3에서 추가한 그룹"). 마이그레이션 0005 에도 같은 값이 있다 ──
+  ...g('CALL_DIRECTION', [
+    ['INBOUND', '인입'],
+    ['OUTBOUND', '발신'],
   ]),
+  ...g('CONSULT_CHANNEL', [
+    ['PHONE', '전화'],
+    ['APP_CHAT', '앱 채팅'],
+    ['KAKAO', '카카오톡'],
+    ['WEB', '웹'],
+  ]),
+  ...g('CONSULT_STATUS', [
+    ['OPEN', '미완료'],
+    ['IN_PROGRESS', '처리중'],
+    ['DONE', '완료'],
+    ['TRANSFERRED', '이관'],
+  ]),
+  ...g('ORDER_SYMPTOM', [
+    ['REGULAR_CLEAN', '정기 청소'],
+    ['ODOR', '냄새'],
+    ['LEAK', '누수'],
+    ['WEAK_COOLING', '냉방 약함'],
+    ['MOLD', '곰팡이·오염'],
+    ['ETC', '기타'],
+  ]),
+  ...g('INQUIRY_SUB_TYPE', [
+    ['PRICE', '가격 문의'],
+    ['SCHEDULE', '일정 문의'],
+    ['SERVICE', '서비스 내용 문의'],
+    ['QUALITY', '품질/세척불량'],
+    ['ATTITUDE', '태도/불친절'],
+    ['EXTRA_CHARGE', '가격/추가요금'],
+    ['DELAY', '일정/지연'],
+    ['ETC', '기타'],
+  ]),
+  ...g('SCRIPT_TRIGGER', [
+    ['PRIVACY_CONSENT', '개인정보 동의'],
+    ['NIGHT_VISIT', '야간 방문 안내'],
+    ['HOLIDAY_VISIT', '휴일 방문 안내'],
+    ['PURGE_REQUEST', '파기 요청 응대'],
+  ]),
+  ...g('CUSTOMER_TAG', [
+    ['FREQUENT', '다빈도'],
+    ['CAUTION', '주의'],
+    ['MOVING', '이사예정'],
+  ]),
+  ...g('ASSIGN_ROLE', [
+    ['MAIN', '주기사'],
+    ['SUPPORT', '지원기사'],
+    ['ACCOMPANY', '교육 동행'],
+  ]),
+  ...g('ASSIGN_METHOD', [
+    ['AUTO', '자동 추천'],
+    ['MANUAL', '운영자'],
+    ['SELF', '기사 자가 배정'],
+  ]),
+  ...g('ASSIGN_STATUS', [
+    ['REQUESTED', '승인 대기'],
+    ['PROPOSED', '제안'],
+    ['ACCEPTED', '확정'],
+    ['REJECTED', '반려'],
+    ['TRANSFERRED', '이관'],
+    ['CANCELED', '취소'],
+  ]),
+  ...g('ASSIGN_ACTION', [
+    ['ASSIGN', '배정'],
+    ['REASSIGN', '재배정'],
+    ['TRANSFER', '이관'],
+    ['UNASSIGN', '배정 취소'],
+    ['SELF_REQUEST', '자가 배정 요청'],
+    ['SELF_APPROVE', '자가 배정 승인'],
+  ]),
+];
+
+/** 상담 스크립트 초기값 (01 §2.6.7, F-ADM-CSL-16). 운영 중 문구는 A-CNT-050에서 바꾸며 시드는 덮어쓰지 않는다. 마이그레이션 0005 에도 같은 값이 있다. */
+export const CONSULT_SCRIPT_SEED = [
+  {
+    scriptCode: 'PRIVACY_CONSENT',
+    title: '개인정보 수집·이용 동의',
+    content:
+      '원활한 출장 접수를 위해 고객님의 성함, 연락처, 방문 주소를 수집·이용합니다. 수집한 정보는 서비스 제공과 사후 관리에만 쓰고, 관련 법에 따른 보관 기간이 지나면 파기합니다. 동의하시겠습니까?',
+    triggerPoint: 'PRIVACY_CONSENT',
+  },
+  {
+    scriptCode: 'NIGHT_VISIT',
+    title: '평일 야간 방문 안내',
+    content: '평일 오후 6시 이후 방문은 야간 할증이 추가됩니다. 이 시간으로 약속을 잡아 드릴까요?',
+    triggerPoint: 'NIGHT_VISIT',
+  },
+  {
+    scriptCode: 'HOLIDAY_VISIT',
+    title: '휴일 방문 안내',
+    content: '토요일·일요일·공휴일 방문은 휴일 할증이 추가됩니다. 이 날짜로 약속을 잡아 드릴까요?',
+    triggerPoint: 'HOLIDAY_VISIT',
+  },
+  {
+    scriptCode: 'PURGE_REQUEST',
+    title: '개인정보 파기 요청 응대',
+    content: '요청하신 개인정보 파기는 진행 중인 예약이 없을 때 처리됩니다. 법에 따라 거래 기록은 정해진 기간 동안 보관 후 파기됩니다.',
+    triggerPoint: 'PURGE_REQUEST',
+  },
 ];
 
 /**
