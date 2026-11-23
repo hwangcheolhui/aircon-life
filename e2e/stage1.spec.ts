@@ -93,7 +93,8 @@ test('C-QUO 비서비스 지역은 안내가 뜨고, 서비스 지역은 견적�
   await page.getByRole('button', { name: '견적 보기' }).click();
 
   // C-QUO-040 결과
-  await expect(page).toHaveURL(/\/quote\/result\/Q\d{10}$/);
+  // 개발 서버는 결과 화면을 처음 열 때 컴파일하므로 CI에서는 5초를 넘길 수 있다
+  await expect(page).toHaveURL(/\/quote\/result\/Q\d{10}$/, { timeout: 30_000 });
   await expect(page.getByRole('heading', { name: '표준 견적이 나왔어요' })).toBeVisible();
   await expect(page.locator('.ac-bottom-bar')).toContainText(EXPECTED);
   await expect(page.getByText('스탠드 완전분해 세척 대수 할인 5%')).toBeVisible();
