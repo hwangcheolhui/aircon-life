@@ -15,10 +15,13 @@ export const isQuoteDemoMode = () => !isDbConfigured();
 
 /**
  * 체험 모드에서 서비스 가능으로 보는 지역: 법정동 코드 앞자리(시군구 5자리 또는 법정동 10자리).
- * QUOTE_DEMO_AREA_CODES(쉼표 구분)로 바꿀 수 있고, 없으면 예시 거점(은평) 관할인 서울 은평구(11380).
+ * QUOTE_DEMO_AREA_CODES(쉼표 구분)로 바꿀 수 있고, 없으면 경기 성남시 분당구 백현동(4113511000, 판교역로 166 일대).
  */
+/** 사용자가 지정한 체험 주소: 경기 성남시 분당구 판교역로 166 → 법정동 백현동 */
+export const DEFAULT_DEMO_AREA_CODES = '4113511000';
+
 export function demoAreaPrefixes(): string[] {
-  const raw = process.env.QUOTE_DEMO_AREA_CODES ?? '11380';
+  const raw = process.env.QUOTE_DEMO_AREA_CODES || DEFAULT_DEMO_AREA_CODES;
   return raw
     .split(',')
     .map((s) => s.trim())
