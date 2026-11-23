@@ -3,6 +3,8 @@
  * - Real: 포트원 V2 본인인증(결제와 같은 SDK, 06 §4.2). 브라우저 인증창이 끝나면 서버가 인증 ID로 포트원 API에 결과(이름·휴대폰)를 확인한다.
  * - Mock: 화면에 보이는 6자리 인증번호를 입력한다(개발·E2E). 인증번호는 서버가 서명한 쿠키로 확인한다.
  * 전환: IDENTITY_DRIVER=portone|mock (기본 mock). Real 은 PORTONE_API_SECRET·PORTONE_STORE_ID·PORTONE_IDENTITY_CHANNEL_KEY 필요.
+ * 임시 테스트 모드: IDENTITY_DRIVER=mock 이고 IDENTITY_MOCK_AUTO_VERIFY=true 면 [인증번호 받기]만 눌러도 인증 완료로 본다
+ * (본인인증 키 발급 전 구현 기간 한정, 02 §7). portone 에서는 무시한다. 운영 전 반드시 끈다.
  */
 
 export type IdentityDriver = 'mock' | 'portone';
@@ -53,6 +55,10 @@ export function createIdentityVerifier(env: NodeJS.ProcessEnv = process.env): Id
     ? createPortOneIdentityVerifier({ apiSecret: env.PORTONE_API_SECRET ?? '' })
     : createMockIdentityVerifier();
 }
+
+/** 임시 테스트 모드(인증번호 입력 생략) 여부 — mock 드라이버에서만 켜진다 */
+export const isIdentityAutoVerify = (env: { IDENTITY_DRIVER?: string; IDENTITY_MOCK_AUTO_VERIFY?: string }): boolean =>
+  resolveIdentityDriver(env.IDENTITY_DRIVER) === 'mock' && env.IDENTITY_MOCK_AUTO_VERIFY === 'true';
 
 /** 모의 인증번호 6자리 */
 export function generateMockCode(random: () => number = Math.random): string {

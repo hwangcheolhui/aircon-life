@@ -8,7 +8,18 @@ import { confirmIdentity, confirmPhoneCode, requestPhoneCode } from '../actions'
 
 type Step = { step: 'DONE'; linked: boolean } | { step: 'TERMS' };
 
-export function PhoneForm({ next, driver, portone }: { next: string; driver: 'mock' | 'portone'; portone: PortOneConfig | null }) {
+export function PhoneForm({
+  next,
+  driver,
+  autoVerify,
+  portone,
+}: {
+  next: string;
+  driver: 'mock' | 'portone';
+  /** 임시 테스트 모드: [인증번호 받기]만으로 인증 완료 */
+  autoVerify: boolean;
+  portone: PortOneConfig | null;
+}) {
   const router = useRouter();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -68,7 +79,9 @@ export function PhoneForm({ next, driver, portone }: { next: string; driver: 'mo
               setErrors(r.fieldErrors ?? {});
               return setMessage(r.message ?? null);
             }
-            setMockCode((r.data as { mockCode: string }).mockCode);
+            const d = r.data as { mockCode: string } | { verified: Step };
+            if ('verified' in d) return go(d.verified);
+            setMockCode(d.mockCode);
             return;
           }
           const r = await confirmPhoneCode({ phone, code });
@@ -82,6 +95,7 @@ export function PhoneForm({ next, driver, portone }: { next: string; driver: 'mo
     >
       {notice ? <Alert tone="success">{notice}</Alert> : null}
       {message ? <Alert tone="danger">{message}</Alert> : null}
+      {autoVerify ? <Alert tone="warning">테스트 모드: 인증번호 받기를 누르면 인증이 바로 완료돼요.</Alert> : null}
       <Field label="이름" required error={errors.name}>
         {(id, d, inv) => (
           <Input id={id} aria-describedby={d} aria-invalid={inv} value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" disabled={Boolean(mockCode)} />
