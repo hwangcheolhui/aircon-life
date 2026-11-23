@@ -18,3 +18,6 @@ export * from './customer/notify-template';
 export * from './area/area-open-request';
 export * from './consult/consult-status';
 export * from './consult/console-rules';
+export * from './dispatch/assignment-rules';
+export * from './dispatch/assignment-status';
+export * from './tech/tech-rules';

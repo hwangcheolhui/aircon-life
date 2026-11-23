@@ -36,6 +36,12 @@ export const SYSTEM_SETTING_SEEDS: readonly SystemSettingSeed[] = [
   { key: 'TERMS_VERSION', value: 'v1.0', description: '고객 약관 버전(consent_history.terms_version) F-CUS-AUTH-03' },
   // ── 단계 3 상담 콘솔 ──
   { key: 'PRIVACY_REASK_MONTHS', value: '12', description: '개인정보 미동의 고객에게 상담 콘솔에서 동의를 다시 묻는 주기(개월) BR-023' },
+  // ── 단계 4-1 배정·기사 앱 ──
+  { key: 'ASSIGN_TRAVEL_BUFFER_MIN', value: '30', description: '배정 보드 시간 겹침 검사에 더하는 이동 버퍼(분) F-ADM-DSP-01' },
+  { key: 'TECH_ACCOMPANY_COUNT', value: '3', description: '신규 견습 기사 초기 팀장 동행 건수(기사 등록 시 기본값) BR-071' },
+  { key: 'UNASSIGNED_ALERT_HOURS', value: '4', description: '미지정(긴급) 건을 약속 몇 시간 전부터 경고할지 F-SYS-09·BR-024' },
+  { key: 'TECH_LOGIN_MAX_FAIL', value: '5', description: '기사 앱 비밀번호 로그인 실패 잠금 횟수(인증번호 로그인으로 해제) F-TEC-AUTH-01' },
+  { key: 'TECH_PASSWORD_MIN_LENGTH', value: '8', description: '기사 앱 비밀번호 최소 길이 F-TEC-MY-01' },
 ];
 
 export const SETTING_KEYS = {
@@ -54,4 +60,9 @@ export const SETTING_KEYS = {
   CANCEL_FEE_AMOUNT: 'CANCEL_FEE_AMOUNT',
   TERMS_VERSION: 'TERMS_VERSION',
   PRIVACY_REASK_MONTHS: 'PRIVACY_REASK_MONTHS',
+  ASSIGN_TRAVEL_BUFFER_MIN: 'ASSIGN_TRAVEL_BUFFER_MIN',
+  TECH_ACCOMPANY_COUNT: 'TECH_ACCOMPANY_COUNT',
+  UNASSIGNED_ALERT_HOURS: 'UNASSIGNED_ALERT_HOURS',
+  TECH_LOGIN_MAX_FAIL: 'TECH_LOGIN_MAX_FAIL',
+  TECH_PASSWORD_MIN_LENGTH: 'TECH_PASSWORD_MIN_LENGTH',
 } as const;

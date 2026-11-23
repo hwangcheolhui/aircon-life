@@ -13,6 +13,11 @@ export const NOTIFICATION_TEMPLATE_CODES = [
   'PAYMENT_DONE',
   'REVISIT_11M',
   'REVIEW_REQUEST',
+  // 단계 4-1: 기사 앱 알림(T-NTF-010) · 운영자 미지정 경고(F-SYS-09)
+  'TECH_JOB_ASSIGNED',
+  'TECH_JOB_CHANGED',
+  'TECH_TRANSFER_REJECTED',
+  'UNASSIGNED_WARNING',
 ] as const;
 export type NotificationTemplateCode = (typeof NOTIFICATION_TEMPLATE_CODES)[number];
 
@@ -21,4 +26,4 @@ export function renderTemplate(body: string, vars: Record<string, string>): stri
 }
 
 /** 화면 템플릿 편집(A-CRM-040)에서 안내하는 치환 변수 */
-export const TEMPLATE_VARIABLES = ['고객명', '접수번호', '방문일시', '금액', '거점전화'] as const;
+export const TEMPLATE_VARIABLES = ['고객명', '접수번호', '방문일시', '금액', '거점전화', '기사명'] as const;

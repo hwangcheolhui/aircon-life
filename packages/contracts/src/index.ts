@@ -555,3 +555,74 @@ export const consultScriptInput = z.object({
   triggerPoint: reqStr('사용 시점', 30),
   isActive: bool(true),
 });
+
+/* ---------- 단계 4-1 기사 앱 (F-TEC-AUTH-01, F-TEC-MY-01, F-TEC-JOB-05) ---------- */
+export const techPasswordLoginInput = z.object({ phone: phoneInput(), password: reqStr('비밀번호', 200) });
+export const techOtpStartInput = z.object({ phone: phoneInput() });
+export const techOtpConfirmInput = phoneConfirmInput;
+export const techPasswordSetInput = z
+  .object({
+    newPassword: reqStr('새 비밀번호', 200),
+    newPasswordConfirm: reqStr('새 비밀번호 확인', 200),
+  })
+  .refine((v) => v.newPassword === v.newPasswordConfirm, { path: ['newPasswordConfirm'], message: '새 비밀번호가 일치하지 않습니다.' });
+export const techProfileInput = z.object({ intro: optStr(300) });
+export const transferRequestInput = z.object({ orderNo: reqStr('접수번호', 20), reason: reqStr('이관 사유', 200) });
+
+/* ---------- 단계 4-1 관리자 기사 상세 (A-TEC-020, F-ADM-TEC-02·03) ---------- */
+export const technicianProfileInput = z.object({
+  name: reqStr('이름', 30),
+  displayName: optStr(30),
+  phone: phoneInput('연락처'),
+  branchId: reqId('소속 거점'),
+  contractType: reqStr('계약 형태', 20),
+  status: reqStr('상태', 20),
+  joinedAt: optDate(),
+  leftAt: optDate(),
+  leaveReason: optStr(30),
+  bizRegNo: optStr(20),
+  licenses: optStr(200),
+  bankCode: optStr(10),
+  /** 비워 두면 기존 계좌 유지 */
+  bankAccount: optStr(30),
+  accountHolder: optStr(30),
+  hasVehicle: bool(false),
+  vehicleNo: optStr(20),
+  insuranceJoined: bool(false),
+  intro: optStr(300),
+  accompanyRequiredCount: reqInt('초기 동행 건수'),
+});
+const skillRow = z.object({ deviceType: reqStr('기기 유형', 20), skillLevel: z.enum(['CAN_ASSIST', 'CAN_SOLO', 'CAN_TEACH']) });
+export const technicianSkillsInput = z.object({ technicianId: reqId('기사'), skills: z.array(skillRow).max(30) });
+const areaRow = z.object({ legalDongCode: z.string().regex(/^\d{10}$/, '법정동 코드 형식이 올바르지 않습니다.'), priority: z.coerce.number().int().min(1).max(2) });
+export const technicianAreasInput = z.object({ technicianId: reqId('기사'), areas: z.array(areaRow).max(300) });
+export const gradeChangeInput = z.object({
+  technicianId: reqId('기사'),
+  toGrade: reqStr('변경 등급', 20),
+  reason: reqStr('변경 사유', 200),
+  effectiveDate: dateStr('적용일'),
+});
+
+/* ---------- 단계 4-1 배정 (A-DSP-010·020, F-ADM-DSP-01·03·04) ---------- */
+export const assignInput = z.object({
+  orderId: reqId('주문'),
+  mainTechId: reqId('주기사'),
+  supportTechId: optId(),
+  accompanyTechId: optId(),
+  /** 경고(WARN)를 확인하고 배정 */
+  confirmWarnings: bool(false),
+});
+export const reassignInput = z.object({
+  orderId: reqId('주문'),
+  toTechId: reqId('새 기사'),
+  reason: reqStr('변경 사유', 200),
+  confirmWarnings: bool(false),
+});
+export const unassignInput = z.object({ orderId: reqId('주문'), reason: reqStr('배정 취소 사유', 200) });
+export const transferDecisionInput = z.object({
+  assignmentId: reqId('이관 요청'),
+  decision: z.enum(['APPROVE', 'REJECT']),
+  toTechId: optId(),
+  reason: optStr(200),
+  confirmWarnings: bool(false),
+});

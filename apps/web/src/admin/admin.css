@@ -85,3 +85,26 @@
 .adm-csl-ellipsis { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 1280px) { .adm-csl-main { grid-template-columns: 1fr; } }
 .adm-cus-tab { margin-top: var(--space-4); }
+.adm-gap-top { margin-top: var(--space-4); }
+
+/* A-DSP-010 배정 보드 */
+.adm-board-summary { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-3); }
+.adm-board { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: var(--space-4); align-items: start; margin-top: var(--space-4); }
+.adm-board-queue { display: grid; gap: var(--space-2); }
+.adm-board-cards { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); max-height: 720px; overflow-y: auto; }
+.adm-board-card { display: grid; gap: var(--space-1); cursor: grab; }
+.adm-board-card p { margin: 0; }
+.adm-board-card.is-urgent { border-color: var(--color-danger); }
+.adm-board-card__head { display: flex; gap: var(--space-1); align-items: center; flex-wrap: wrap; }
+.adm-board-card__time { font-weight: var(--font-weight-semibold); }
+.adm-gantt th, .adm-gantt td { padding: var(--space-1); text-align: center; vertical-align: top; }
+.adm-gantt .adm-gantt-tech { text-align: left; white-space: nowrap; min-width: 160px; }
+.adm-gantt-tags { display: flex; gap: var(--space-1); flex-wrap: wrap; margin-top: var(--space-1); }
+.adm-gantt-cell { min-width: 72px; }
+.adm-gantt-cell.is-off { background: var(--color-bg-muted); }
+.adm-gantt tr.is-drop td, .adm-gantt tr.is-drop th { background: var(--color-primary-subtle); }
+.adm-gantt-job { display: block; width: 100%; margin-bottom: var(--space-1); padding: var(--space-1); border: 1px solid var(--color-primary); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text); font: inherit; font-size: var(--text-caption-size); text-align: left; cursor: pointer; }
+.adm-gantt-job.is-sub { border-style: dashed; border-color: var(--color-border-strong); }
+.adm-gantt-job:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: 2px; }
+.adm-issue-list { margin: var(--space-1) 0 0; padding-left: var(--space-5); }
+@media (max-width: 1280px) { .adm-board { grid-template-columns: 1fr; } }

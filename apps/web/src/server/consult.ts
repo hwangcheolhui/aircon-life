@@ -34,6 +34,7 @@ import {
   type BranchFilter,
   type ConsultStatus,
   type TechBusy,
+  ACTIVE_ASSIGN_STATUSES,
   ACTIVE_ORDER_STATUSES,
   OPEN_CONSULT_STATUSES,
   SETTING_KEYS,
@@ -254,7 +255,7 @@ async function customerOrders(customerId: number) {
       .select({ orderId: assignment.orderId, name: technician.name })
       .from(assignment)
       .innerJoin(technician, eq(technician.id, assignment.technicianId))
-      .where(and(inArray(assignment.orderId, ids), eq(assignment.role, 'MAIN'), inArray(assignment.status, ['ACCEPTED', 'PROPOSED']))),
+      .where(and(inArray(assignment.orderId, ids), eq(assignment.role, 'MAIN'), inArray(assignment.status, ['ACCEPTED', 'PROPOSED', 'TRANSFER_REQUESTED']))),
   ]);
   const nameOf = await itemNames(null);
   return orders.map((o) => ({
@@ -500,7 +501,7 @@ async function busyOn(tx: Tx | Db, techIds: number[], date: string): Promise<Tec
     .where(
       and(
         inArray(assignment.technicianId, techIds),
-        inArray(assignment.status, ['REQUESTED', 'PROPOSED', 'ACCEPTED']),
+        inArray(assignment.status, [...ACTIVE_ASSIGN_STATUSES]),
         inArray(serviceOrder.status, [...ACTIVE_ORDER_STATUSES]),
         gte(assignment.scheduledStart, from),
         lt(assignment.scheduledStart, to),

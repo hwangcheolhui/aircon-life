@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { CrudScreen, type Option, labelOf } from '@/admin/crud-screen';
 import { saveTechnician, technicianDetail } from './actions';
 
@@ -37,6 +38,8 @@ export function TechniciansScreen(p: {
       filters={[
         { name: 'q', label: '기사 코드·이름', match: (r, v) => `${r.techCode} ${r.name}`.toLowerCase().includes(v.toLowerCase()) },
         { name: 'branchId', label: '소속 거점', options: p.branches, match: (r, v) => String(r.branchId) === v },
+        { name: 'grade', label: '등급', options: grade, match: (r, v) => r.grade === v },
+        { name: 'contractType', label: '계약 형태', options: contract, match: (r, v) => r.contractType === v },
         { name: 'status', label: '상태', options: status, match: (r, v) => r.status === v },
       ]}
       columns={[
@@ -48,6 +51,14 @@ export function TechniciansScreen(p: {
         { header: '계약 형태', cell: (r) => labelOf(contract, r.contractType) },
         { header: '상태', cell: (r) => labelOf(status, r.status) },
         { header: '입사일', cell: (r) => <span className="ac-num">{r.joinedAt ?? ''}</span> },
+        {
+          header: '상세',
+          cell: (r) => (
+            <Link className="ac-btn ac-btn--ghost ac-btn--sm" href={`/admin/tec/technicians/${r.id}`} onDoubleClick={(e) => e.stopPropagation()}>
+              상세
+            </Link>
+          ),
+        },
       ]}
       defaults={{ status: 'ACTIVE', grade: 'REGULAR', contractType: 'FREELANCER', branchId: p.branches.length === 1 ? p.branches[0]!.value : '' }}
       toForm={(r) => ({ ...r, branchId: String(r.branchId) })}
@@ -62,7 +73,7 @@ export function TechniciansScreen(p: {
         { name: 'displayName', label: '고객 표시 이름' },
         { name: 'phone', label: '연락처', required: true, inputMode: 'tel' },
         { name: 'branchId', label: '소속 거점', type: 'select', required: true, options: p.branches },
-        { name: 'grade', label: '등급', type: 'select', required: true, options: grade },
+        { name: 'grade', label: '등급', type: 'select', required: true, options: grade, lockOnEdit: true, help: '등록 뒤에는 기사 상세의 [등급 변경]에서 바꿉니다.' },
         { name: 'contractType', label: '계약 형태', type: 'select', required: true, options: contract },
         { name: 'status', label: '상태', type: 'select', required: true, options: status, help: '활동(ACTIVE) 기사만 슬롯 수용 건수에 들어갑니다.' },
         { name: 'joinedAt', label: '입사일', type: 'date' },
