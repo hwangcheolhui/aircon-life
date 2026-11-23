@@ -730,8 +730,9 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 |---|---|---|---|---|
 | id | BIGINT | PK | | |
 | tech_code | VARCHAR(20) | UK, NN | 기사 코드 | `T00123` |
-| login_id | VARCHAR(50) | UK | 기사 앱 로그인 ID(휴대폰 번호) | |
-| password_hash | VARCHAR(255) | | | |
+| login_id | VARCHAR(64) | UK | 기사 앱 로그인 ID = 휴대폰 번호 **검색용 해시**(`phone_hash`와 같은 방식, 평문 번호를 두지 않음). 등록·연락처 수정 때 채움(단계 4-1) | |
+| password_hash | VARCHAR(255) | | 비밀번호 로그인용(T-MY-010에서 기사가 직접 만듦). 비어 있으면 인증번호 로그인만 가능 | |
+| login_fail_count | INT | 기본 0 | 비밀번호 연속 실패 횟수. `TECH_LOGIN_MAX_FAIL` 이상이면 비밀번호 로그인 잠김, 인증번호 로그인 성공·관리자 잠금 해제 시 0 (단계 4-1) | |
 | name | VARCHAR(30) | NN | 이름 | |
 | display_name | VARCHAR(30) | | 동명이인 구분 표시명 | 김민수_A |
 | phone 🔒 | VARCHAR(100) | NN | | |
@@ -759,10 +760,14 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 | 공통컬럼 + deleted_at | | | | |
 
 #### 2.7.2 `technician_skill` — 기사 숙련(기기 유형별 작업 가능 여부)
-`technician_id`(FK), `device_type`(코드), `skill_level`(`CAN_ASSIST`/`CAN_SOLO`/`CAN_TEACH`), `certified_at`, `certified_by`(FK→admin_user). PK(technician_id, device_type)
+`technician_id`(FK), `device_type`(코드), `skill_level`(`CAN_ASSIST`/`CAN_SOLO`/`CAN_TEACH`), `certified_at`, `certified_by`(FK→admin_user), 공통컬럼. PK(technician_id, device_type)
+
+> 단계 4-1: A-TEC-020 [숙련·지역] 탭에서 저장(전체 교체). 숙련이 바뀐 행만 `certified_at`=오늘·`certified_by`=저장한 관리자. 배정 시 숙련 없음은 경고, `CAN_ASSIST`만 있으면 주기사 불가(BR-072).
 
 #### 2.7.3 `technician_area` — 기사 관할 법정동 (구역의 법정동 목록)
-`technician_id`(FK), `zone_id`(FK→technician_zone), `legal_dong_code`, `priority`(1=주 관할, 2=보조 관할), PK(technician_id, legal_dong_code)
+`technician_id`(FK), `zone_id`(FK→technician_zone, **NULL 허용**), `legal_dong_code`, `priority`(1=주 관할, 2=보조 관할), 공통컬럼, PK(technician_id, legal_dong_code)
+
+> 단계 4-1: A-TEC-020에서 소속 거점의 `service_area` 법정동만 골라 저장하며 `zone_id`는 비워 둡니다. 구역(`technician_zone`)과 FK는 단계 4-2(A-DSP-060)에서 붙입니다. 배정 시 지역 미지정·지역 밖은 경고입니다.
 
 > 관할 판단(주문이 기사 관할 안인지)은 이 테이블의 법정동 일치로 합니다. 지도 경계 표시는 `technician_zone.boundary_geojson`을 씁니다.
 
@@ -784,7 +789,7 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 | 공통컬럼 + deleted_at | | | | |
 
 #### 2.7.4 `technician_grade_history` — 등급 변경 이력
-`id`, `technician_id`(FK), `from_grade`, `to_grade`, `reason`, `approved_by`(FK→admin_user), `effective_date`, `created_at`
+`id`, `technician_id`(FK), `from_grade`(신규 등록이면 NULL), `to_grade`, `reason`, `approved_by`(FK→admin_user), `effective_date`, `created_at` — **INSERT ONLY**(단계 4-1). 등급은 A-TEC-020 [등급 변경](사유 필수)으로만 바꾸고, 기사 등록 때 1행(`reason`=신규 등록)을 남깁니다.
 
 #### 2.7.5 `work_schedule` — 기사 근무 일정 (MCS '나만의 캘린더 – 근무')
 
@@ -1120,7 +1125,7 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 ### D12. CRM·마케팅·품질
 
 #### 2.12.1 `notification_template` — 알림 템플릿
-`id`, `template_code`(UK, `ORDER_CONFIRMED`, `ORDER_CHANGED`(일정 변경, 단계 2), `ORDER_CANCELED`(취소, 단계 2), `VISIT_REMINDER`(방문 전날 18:00, 단계 2), `TECH_ASSIGNED`, `ON_THE_WAY`, `WORK_DONE`, `PAYMENT_DONE`, `REVISIT_11M`, `REVIEW_REQUEST`, `AREA_OPENED`(서비스 지역 오픈 안내, F-ADM-DSP-11)), `channel`(`ALIMTALK`/`SMS`/`PUSH`/`EMAIL`), `target`(`CUSTOMER`/`TECHNICIAN`/`ADMIN`), `title`, `body`(치환변수 `#{고객명}` 등), `kakao_template_id`, `is_active`, 공통컬럼
+`id`, `template_code`(UK, `ORDER_CONFIRMED`, `ORDER_CHANGED`(일정 변경, 단계 2), `ORDER_CANCELED`(취소, 단계 2), `VISIT_REMINDER`(방문 전날 18:00, 단계 2), `TECH_ASSIGNED`, `ON_THE_WAY`, `WORK_DONE`, `PAYMENT_DONE`, `REVISIT_11M`, `REVIEW_REQUEST`, `AREA_OPENED`(서비스 지역 오픈 안내, F-ADM-DSP-11), 단계 4-1: `TECH_ASSIGNED`(고객 기사 배정 안내, `#{기사명}`), `TECH_JOB_ASSIGNED`·`TECH_JOB_CHANGED`·`TECH_TRANSFER_REJECTED`(기사 앱 푸시), `UNASSIGNED_WARNING`(운영자 미지정 경고 푸시, F-SYS-09)), `channel`(`ALIMTALK`/`SMS`/`PUSH`/`EMAIL`), `target`(`CUSTOMER`/`TECHNICIAN`/`ADMIN`), `title`, `body`(치환변수 `#{고객명}` 등), `kakao_template_id`, `is_active`, 공통컬럼
 
 #### 2.12.2 `notification_log` — 알림 발송 이력
 `id`, `template_id`(FK), `receiver_type`, `receiver_id`, `receiver_phone_masked`, `channel`, `related_type`(`ORDER`/`CAMPAIGN`/...), `related_id`, `status`(`QUEUED`/`SENT`/`FAILED`/`FALLBACK_SMS`), `sent_at`, `fail_reason`, `created_at`(단계 2 추가: 실패 건도 시각을 남기고 고객 알림함 C-NTF-010 정렬에 사용)
@@ -1238,7 +1243,7 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 `id`, `actor_type`, `actor_id`, `action`(`VIEW_PII`/`EXPORT`/`UPDATE`/`DELETE`/`LOGIN`/`PERMISSION_CHANGE`), `target_table`, `target_id`(VARCHAR(50): 문자열 PK 테이블 대응), `ip_address`, `user_agent`, `detail_json`, `created_at`. **INSERT ONLY**: DB 트리거로 UPDATE·DELETE를 막습니다.
 
 #### 2.13.8 `system_setting` — 시스템 설정(키-값)
-`setting_key`(PK, 예: `QUOTE_EXPIRE_DAYS`=7, `REVISIT_MONTHS`=11, `PURGE_YEARS`=…, `SETTLEMENT_WEEKDAY`=`WED`, `POPUP_DEFAULT_TIME`=08:30, `DUPLICATE_CHECK_DAYS`=30, `ROUTE_CONFIRM_DEADLINE`=전날 18:00, `ROUTE_TRAVEL_BUFFER_MIN`=10, `ARRIVAL_WINDOW_HOURS`=2, `LOCATION_INTERVAL_SEC`=60, `LOCATION_RETENTION_DAYS`=90, `SELF_ASSIGN_ENABLED`=거점별 Y/N, `SELF_ASSIGN_NEEDS_APPROVAL`=Y, `ADMIN_LOGIN_MAX_FAIL`=5, `ADMIN_PASSWORD_MIN_LENGTH`=8, `QUOTE_SITE_SURVEY_MIN_UNITS`=4(시스템·천장형 합계가 이 대수 이상이면 "현장 확인 견적" 안내, 단계 1), 단계 2: `SLOT_DAYS_AHEAD`=14(슬롯 자동 생성·고객 달력 일수), `SLOT_JOBS_PER_TECH_HOUR`=1(기사 1명 시간당 처리 건수), `WORK_DEFAULT_START`=09:00·`WORK_DEFAULT_END`=18:00(근무 시간을 비운 일정의 기본값, 반차는 가운데 시각으로 나눔), `CANCEL_FEE_HOURS`=24·`CANCEL_FEE_AMOUNT`=0(BR-030 방문 N시간 전부터 취소 수수료, 금액은 운영사가 정함), `TERMS_VERSION`=v1.0(동의 이력에 남는 약관 버전), `AREA_OPEN_REQUEST_KEEP_DAYS`=365(오픈 알림 신청 대기 보관일, 지나면 EXPIRED·연락처 삭제, BR-003), 단계 3: `PRIVACY_REASK_MONTHS`=12(BR-023 미동의 고객 재질의 주기, 개월)), `setting_value`, `description`, `updated_at`, `updated_by`
+`setting_key`(PK, 예: `QUOTE_EXPIRE_DAYS`=7, `REVISIT_MONTHS`=11, `PURGE_YEARS`=…, `SETTLEMENT_WEEKDAY`=`WED`, `POPUP_DEFAULT_TIME`=08:30, `DUPLICATE_CHECK_DAYS`=30, `ROUTE_CONFIRM_DEADLINE`=전날 18:00, `ROUTE_TRAVEL_BUFFER_MIN`=10, `ARRIVAL_WINDOW_HOURS`=2, `LOCATION_INTERVAL_SEC`=60, `LOCATION_RETENTION_DAYS`=90, `SELF_ASSIGN_ENABLED`=거점별 Y/N, `SELF_ASSIGN_NEEDS_APPROVAL`=Y, `ADMIN_LOGIN_MAX_FAIL`=5, `ADMIN_PASSWORD_MIN_LENGTH`=8, `QUOTE_SITE_SURVEY_MIN_UNITS`=4(시스템·천장형 합계가 이 대수 이상이면 "현장 확인 견적" 안내, 단계 1), 단계 2: `SLOT_DAYS_AHEAD`=14(슬롯 자동 생성·고객 달력 일수), `SLOT_JOBS_PER_TECH_HOUR`=1(기사 1명 시간당 처리 건수), `WORK_DEFAULT_START`=09:00·`WORK_DEFAULT_END`=18:00(근무 시간을 비운 일정의 기본값, 반차는 가운데 시각으로 나눔), `CANCEL_FEE_HOURS`=24·`CANCEL_FEE_AMOUNT`=0(BR-030 방문 N시간 전부터 취소 수수료, 금액은 운영사가 정함), `TERMS_VERSION`=v1.0(동의 이력에 남는 약관 버전), `AREA_OPEN_REQUEST_KEEP_DAYS`=365(오픈 알림 신청 대기 보관일, 지나면 EXPIRED·연락처 삭제, BR-003), 단계 3: `PRIVACY_REASK_MONTHS`=12(BR-023 미동의 고객 재질의 주기, 개월), 단계 4-1: `ASSIGN_TRAVEL_BUFFER_MIN`=30(배정 시간 겹침 판단 때 앞뒤 이동 여유, 분), `TECH_ACCOMPANY_COUNT`=3(신규 기사 등록 시 `accompany_required_count` 기본값, BR-071), `UNASSIGNED_ALERT_HOURS`=4(약속 N시간 이내 미지정 경고, F-SYS-09), `TECH_LOGIN_MAX_FAIL`=5(기사 비밀번호 연속 실패 잠금), `TECH_PASSWORD_MIN_LENGTH`=8(기사 비밀번호 최소 길이)), `setting_value`, `description`, `updated_at`, `updated_by`
 
 ---
 
@@ -1288,6 +1293,22 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 
 ### 3.7 자가 배정 `assignment.status = REQUESTED`
 기사가 관할 지도에서 미배정 주문을 일정에 넣으면 `REQUESTED` → 운영자 승인 시 `ACCEPTED`(거점 설정이 승인 불필요면 즉시 `ACCEPTED`) / 반려 시 `REJECTED`.
+
+### 3.10 배정 상태 `assignment.status` (단계 4-1)
+
+| 코드 | 명칭 | 의미 | 다음 가능 상태 | 변경 주체 |
+|---|---|---|---|---|
+| `REQUESTED` | 요청 | 자가 배정 요청(§3.7, 단계 4-2) | ACCEPTED, REJECTED, CANCELED | 기사 |
+| `PROPOSED` | 제안 | 자동 추천 배정안(단계 9) | ACCEPTED, REJECTED, CANCELED | 시스템 |
+| `ACCEPTED` | 확정 | 운영자 수동 배정(A-DSP-010)은 바로 확정 | TRANSFER_REQUESTED, TRANSFERRED, CANCELED | 운영자 |
+| `TRANSFER_REQUESTED` | 이관 요청 | 기사가 출발 전 이관 요청(F-TEC-JOB-05). 승인 전까지 그 기사 작업으로 유지 | ACCEPTED(반려), TRANSFERRED(승인), CANCELED | 기사 → 운영자 |
+| `TRANSFERRED` | 이관됨 | 재배정·이관 승인으로 다른 기사에게 넘어감(새 기사는 새 `ACCEPTED` 행) | (종료) | 운영자 |
+| `REJECTED` | 반려 | 요청·제안 반려 | (종료) | 운영자 |
+| `CANCELED` | 취소 | 배정 취소(주문 ASSIGNED → ASSIGN_WAIT) | (종료) | 운영자 |
+
+- 전이표는 `packages/domain` `ASSIGN_TRANSITIONS`가 단일 출처입니다. 상태가 바뀔 때마다 `assignment_history`에 1행 INSERT(`action`: ASSIGN / REASSIGN / TRANSFER / TRANSFER_REQUEST / TRANSFER_REJECT / UNASSIGN). 이관 요청 사유는 `assignment.reject_reason`에 둡니다.
+- 주문 상태는 첫 배정 때 RECEIVED·ASSIGN_WAIT → ASSIGNED, 배정 취소 때 ASSIGNED → ASSIGN_WAIT로 주문 상태 전이 함수를 거쳐 바뀝니다(§3.1).
+- 배정 검증(BR-070·071·072): 차단 = 배정 불가 상태·교육중 기사의 주·보조 배정·동행 미완료 견습의 단독 배정·보조 가능만 있는 기사의 주기사 배정·2인 작업 보조 누락·동행인데 주기사가 팀장 아님. 경고(확인 후 진행) = 근무 없음·휴무·근무 시간 밖·시간 겹침(`ASSIGN_TRAVEL_BUFFER_MIN`)·숙련 없음·활동지역 없음/밖.
 
 ### 3.8 견적 상태 `quote.status` (단계 1)
 
@@ -1409,8 +1430,9 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 | `CUSTOMER_TAG` | FREQUENT 다빈도 / CAUTION 주의 / MOVING 이사예정 | customer_tag.tag_code |
 | `ASSIGN_ROLE` | MAIN 주기사 / SUPPORT 지원기사 / ACCOMPANY 교육 동행 | assignment.role |
 | `ASSIGN_METHOD` | AUTO 자동 추천 / MANUAL 운영자 / SELF 기사 자가 배정 | assignment.assign_method |
-| `ASSIGN_STATUS` | REQUESTED 승인 대기 / PROPOSED 제안 / ACCEPTED 확정 / REJECTED 반려 / TRANSFERRED 이관 / CANCELED 취소 | assignment.status |
-| `ASSIGN_ACTION` | ASSIGN 배정 / REASSIGN 재배정 / TRANSFER 이관 / UNASSIGN 배정 취소 / SELF_REQUEST 자가 배정 요청 / SELF_APPROVE 자가 배정 승인 | assignment_history.action |
+| `ASSIGN_STATUS` | REQUESTED 승인 대기 / PROPOSED 제안 / ACCEPTED 확정 / REJECTED 반려 / TRANSFERRED 이관 / CANCELED 취소 / TRANSFER_REQUESTED 이관 요청(단계 4-1) | assignment.status (§3.10) |
+| `ASSIGN_ACTION` | ASSIGN 배정 / REASSIGN 재배정 / TRANSFER 이관 / UNASSIGN 배정 취소 / SELF_REQUEST 자가 배정 요청 / SELF_APPROVE 자가 배정 승인 / TRANSFER_REQUEST 이관 요청 / TRANSFER_REJECT 이관 반려(단계 4-1) | assignment_history.action |
+| `SKILL_LEVEL` | CAN_ASSIST 보조 가능 / CAN_SOLO 단독 가능 / CAN_TEACH 교육 가능 (단계 4-1) | technician_skill.skill_level |
 
 ---
 

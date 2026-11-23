@@ -460,6 +460,7 @@ export const COMMON_CODE_SEED = [
     ['REJECTED', '반려'],
     ['TRANSFERRED', '이관'],
     ['CANCELED', '취소'],
+    ['TRANSFER_REQUESTED', '이관 요청'],
   ]),
   ...g('ASSIGN_ACTION', [
     ['ASSIGN', '배정'],
@@ -468,6 +469,14 @@ export const COMMON_CODE_SEED = [
     ['UNASSIGN', '배정 취소'],
     ['SELF_REQUEST', '자가 배정 요청'],
     ['SELF_APPROVE', '자가 배정 승인'],
+    ['TRANSFER_REQUEST', '이관 요청'],
+    ['TRANSFER_REJECT', '이관 반려'],
+  ]),
+  // ── 단계 4-1 ──
+  ...g('SKILL_LEVEL', [
+    ['CAN_ASSIST', '보조 가능'],
+    ['CAN_SOLO', '단독 가능'],
+    ['CAN_TEACH', '교육 가능'],
   ]),
 ];
 
@@ -533,6 +542,18 @@ export const NOTIFICATION_TEMPLATE_SEED = [
     title: '내일 방문 안내',
     body: '#{고객명}님, 내일 #{방문일시}에 에어컨 청소 기사님이 방문합니다.\n접수번호: #{접수번호}\n에어컨 주변 물건을 치워 주시고, 주차가 어려우면 미리 알려 주세요. 문의: #{거점전화}',
   },
+  // ── 단계 4-1 (마이그레이션 0006 에도 같은 값) ──
+  {
+    templateCode: 'TECH_ASSIGNED',
+    channel: 'ALIMTALK',
+    target: 'CUSTOMER',
+    title: '기사 배정 안내',
+    body: '#{고객명}님, 방문할 기사님이 정해졌습니다.\n담당 기사: #{기사명}\n방문 일시: #{방문일시}\n접수번호: #{접수번호}\n문의: #{거점전화}',
+  },
+  { templateCode: 'TECH_JOB_ASSIGNED', channel: 'PUSH', target: 'TECHNICIAN', title: '새 작업 배정', body: '#{방문일시} 작업이 배정되었습니다.\n접수번호: #{접수번호}' },
+  { templateCode: 'TECH_JOB_CHANGED', channel: 'PUSH', target: 'TECHNICIAN', title: '배정 변경', body: '#{접수번호} 작업이 다른 기사에게 넘어갔거나 배정이 취소되었습니다.' },
+  { templateCode: 'TECH_TRANSFER_REJECTED', channel: 'PUSH', target: 'TECHNICIAN', title: '이관 요청 반려', body: '#{접수번호} 작업의 이관 요청이 반려되었습니다. 예정대로 방문해 주세요.' },
+  { templateCode: 'UNASSIGNED_WARNING', channel: 'PUSH', target: 'ADMIN', title: '미지정 건 경고', body: '#{접수번호} 약속(#{방문일시})이 곧 다가오는데 기사가 지정되지 않았습니다.' },
 ];
 
 /** ERD §0.2 역할. 거점장만 BRANCH 범위이고, 나머지는 소속 거점이 지정되면 BR-102에 따라 그 거점으로 제한된다. */

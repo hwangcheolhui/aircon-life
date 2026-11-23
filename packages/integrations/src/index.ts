@@ -4,3 +4,4 @@ export * from './payment';
 export * from './identity';
 export * from './social';
 export * from './notify';
+export * from './push';

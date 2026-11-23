@@ -1,4 +1,4 @@
-// C-ORD-020 예약 상세 · F-CUS-ORD-02: 상태 타임라인, 방문 예정 시간, 기사 정보(배정 후, 단계 3), 항목·금액, 액션(결제·변경·취소·고객센터)
+// C-ORD-020 예약 상세 · F-CUS-ORD-02: 상태 타임라인, 방문 예정 시간, 기사 정보(배정 후, 단계 4-1: 고객 표시 이름·소개), 항목·금액, 액션(결제·변경·취소·고객센터)
 import { canCustomerCancel } from '@aircon/domain';
 import { Alert, Card, StatusBadge, Tag } from '@aircon/ui';
 import { ChevronLeft } from 'lucide-react';
@@ -61,7 +61,14 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ or
             {o.roadAddress} {o.detailAddress}
           </dd>
           <dt>담당 기사</dt>
-          <dd>배정되면 알려 드려요</dd>
+          {o.tech ? (
+            <dd>
+              <strong>{o.tech.name} 기사님</strong>
+              {o.tech.intro ? <p className="ac-caption cus-tech-intro">{o.tech.intro}</p> : null}
+            </dd>
+          ) : (
+            <dd>배정되면 알려 드려요</dd>
+          )}
           {o.customerRequest ? (
             <>
               <dt>요청사항</dt>

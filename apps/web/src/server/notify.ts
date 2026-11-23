@@ -5,16 +5,16 @@ import 'server-only';
  */
 import { branch, notificationLog, notificationTemplate, serviceOrder } from '@aircon/db';
 import { type NotificationTemplateCode, maskPhone, renderTemplate } from '@aircon/domain';
-import { createNotifyTransport, sendWithFallback } from '@aircon/integrations';
-import { eq } from 'drizzle-orm';
+import { createNotifyTransport, createPushSender, sendWithFallback } from '@aircon/integrations';
+import { and, eq } from 'drizzle-orm';
 import { formatVisit } from '@/customer/format';
 import { getCustomerContact } from './customers';
 import { getDb, isDbConfigured } from './db';
 
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
 
-/** 주문 관련 고객 알림 1건 발송 */
-export async function notifyOrder(code: NotificationTemplateCode, orderId: number): Promise<void> {
+/** 주문 관련 고객 알림 1건 발송. extra 는 템플릿 치환 변수 추가분(예: 기사명) */
+export async function notifyOrder(code: NotificationTemplateCode, orderId: number, extra: Record<string, string> = {}): Promise<void> {
   if (!isDbConfigured()) return;
   const db = getDb();
   try {
@@ -34,6 +34,7 @@ export async function notifyOrder(code: NotificationTemplateCode, orderId: numbe
       방문일시: o.order.promisedAt ? formatVisit(o.order.promisedAt) : '',
       금액: won(o.order.totalAmount),
       거점전화: o.branchPhone ?? '',
+      ...extra,
     };
     const text = renderTemplate(t.body, vars);
     const preferred = t.channel === 'ALIMTALK' ? 'ALIMTALK' : 'SMS';
@@ -64,4 +65,55 @@ export async function notifyOrder(code: NotificationTemplateCode, orderId: numbe
   } catch (e) {
     console.error('알림 발송 실패', code, orderId, e);
   }
+}
+
+/**
+ * 기사·운영자 앱 알림 (단계 4-1: 신규 배정·배정 변경·이관 반려 → 기사 알림함 T-NTF-010, F-SYS-09 미지정 경고 → 운영자).
+ * notification_log(channel=PUSH)에 남기고 앱 푸시 어댑터로 보낸다. 실패해도 업무 처리는 막지 않는다.
+ * 기사 알림은 receiver_id = 기사 ID, 운영자 경고는 거점 단위라 receiver_id 없이 related(주문)로 남긴다.
+ */
+export async function notifyStaff(
+  code: NotificationTemplateCode,
+  receiver: { type: 'TECHNICIAN'; id: number } | { type: 'ADMIN'; id: null },
+  orderId: number,
+  link?: string,
+): Promise<void> {
+  if (!isDbConfigured()) return;
+  const db = getDb();
+  try {
+    const [t] = await db.select().from(notificationTemplate).where(eq(notificationTemplate.templateCode, code));
+    if (!t || !t.isActive) return;
+    const [o] = await db.select().from(serviceOrder).where(eq(serviceOrder.id, orderId));
+    if (!o) return;
+    const text = renderTemplate(t.body, { 접수번호: o.orderNo, 방문일시: o.promisedAt ? formatVisit(o.promisedAt) : '', 금액: won(o.totalAmount) });
+    const r = await createPushSender()
+      .send({ receiverType: receiver.type, receiverId: receiver.id ?? 0, title: t.title, body: text, link })
+      .catch((e: Error) => ({ ok: false, failReason: e.message }));
+    await db.insert(notificationLog).values({
+      templateId: t.id,
+      receiverType: receiver.type,
+      receiverId: receiver.id,
+      channel: 'PUSH',
+      relatedType: 'ORDER',
+      relatedId: orderId,
+      status: r.ok ? 'SENT' : 'FAILED',
+      sentAt: r.ok ? new Date() : null,
+      failReason: r.failReason?.slice(0, 300) ?? null,
+    });
+  } catch (e) {
+    console.error('앱 알림 발송 실패', code, orderId, e);
+  }
+}
+
+/** 같은 주문에 이 템플릿 알림을 이미 남겼는지 (F-SYS-09 중복 경고 방지) */
+export async function alreadyNotified(code: NotificationTemplateCode, orderId: number): Promise<boolean> {
+  const db = getDb();
+  const [t] = await db.select({ id: notificationTemplate.id }).from(notificationTemplate).where(eq(notificationTemplate.templateCode, code));
+  if (!t) return true;
+  const [hit] = await db
+    .select({ id: notificationLog.id })
+    .from(notificationLog)
+    .where(and(eq(notificationLog.templateId, t.id), eq(notificationLog.relatedType, 'ORDER'), eq(notificationLog.relatedId, orderId)))
+    .limit(1);
+  return Boolean(hit);
 }

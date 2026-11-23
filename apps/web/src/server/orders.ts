@@ -7,6 +7,7 @@ import 'server-only';
  */
 import { customerQuoteInput, type ReservationInput } from '@aircon/contracts';
 import {
+  assignment,
   bookSlots,
   branch,
   customer,
@@ -22,12 +23,14 @@ import {
   refund,
   releaseSlots,
   serviceOrder,
+  technician,
 } from '@aircon/db';
 import {
   type ActorType,
   type OrderStatus,
   type QuoteSnapshot,
   ACTIVE_ORDER_STATUSES,
+  CONFIRMED_ASSIGN_STATUSES,
   SETTING_KEYS,
   addressKey,
   applyVisitSurcharge,
@@ -415,13 +418,20 @@ export async function getCustomerOrder(customerId: number, orderNo: string) {
     .innerJoin(branch, eq(branch.id, serviceOrder.branchId))
     .where(and(eq(serviceOrder.orderNo, orderNo), eq(serviceOrder.customerId, customerId), isNull(serviceOrder.deletedAt)));
   if (!row) return null;
-  const [items, history, requests, payments] = await Promise.all([
+  const [items, history, requests, payments, techs] = await Promise.all([
     db.select().from(orderItem).where(eq(orderItem.orderId, row.order.id)),
     db.select().from(orderStatusHistory).where(eq(orderStatusHistory.orderId, row.order.id)).orderBy(orderStatusHistory.createdAt),
     db.select().from(orderChangeRequest).where(eq(orderChangeRequest.orderId, row.order.id)).orderBy(desc(orderChangeRequest.createdAt)),
     db.select().from(payment).where(eq(payment.orderId, row.order.id)).orderBy(desc(payment.createdAt)),
+    // 배정 기사(주기사) 공개 정보: 고객 표시 이름·소개만 (연락처·위치 좌표는 보여 주지 않음, BR-115)
+    db
+      .select({ name: technician.name, displayName: technician.displayName, intro: technician.intro })
+      .from(assignment)
+      .innerJoin(technician, eq(technician.id, assignment.technicianId))
+      .where(and(eq(assignment.orderId, row.order.id), eq(assignment.role, 'MAIN'), inArray(assignment.status, [...CONFIRMED_ASSIGN_STATUSES]))),
   ]);
   const names = await itemNames(row.order.quoteId);
+  const t = techs[0];
   return {
     ...row.order,
     roadAddress: row.address.roadAddress,
@@ -432,6 +442,7 @@ export async function getCustomerOrder(customerId: number, orderNo: string) {
     history,
     requests,
     payments,
+    tech: t ? { name: t.displayName || t.name, intro: t.intro } : null,
   };
 }
 
