@@ -86,6 +86,16 @@ export const MOCK_ADDRESSES: readonly AddressResult[] = [
     buildingName: null,
   },
   {
+    zipcode: '13529',
+    roadAddress: '경기 성남시 분당구 판교역로 166',
+    jibunAddress: '경기 성남시 분당구 백현동 532',
+    legalDongCode: '4113511000',
+    sido: '경기',
+    sigungu: '성남시 분당구',
+    eupmyeondong: '백현동',
+    buildingName: null,
+  },
+  {
     zipcode: '21354',
     roadAddress: '인천 부평구 부평대로 1 (예시)',
     jibunAddress: '인천 부평구 부평동 1',

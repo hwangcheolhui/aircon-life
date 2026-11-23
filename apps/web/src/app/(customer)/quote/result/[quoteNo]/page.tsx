@@ -1,12 +1,14 @@
 // C-QUO-040 견적 결과 (S4) · F-CUS-QUO-04 — 항목별 금액·할인·할증·총액·소요시간·포함/불포함·현장 추가요금 조건·유효기한
-import { isQuoteExpired } from '@aircon/domain';
+import { customerQuoteInput } from '@aircon/contracts';
+import { SETTING_KEYS, isQuoteExpired, quoteExpiresAt } from '@aircon/domain';
 import { Alert, Button, Card } from '@aircon/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { formatDuration, formatWon } from '@/customer/format';
 import { QuoteBottomBar, StepHeader } from '@/customer/quote-flow';
-import { isDbConfigured } from '@/server/db';
-import { getQuoteByNo } from '@/server/quote';
+import { computeQuote, getQuoteByNo } from '@/server/quote';
+import { DEMO_QUOTE_NO, decodeDemoRequest, isQuoteDemoMode } from '@/server/quote-demo';
+import { getSettingNumber } from '@/server/settings';
 
 export const metadata = { title: '견적 결과' };
 export const dynamic = 'force-dynamic';
@@ -21,10 +23,39 @@ const kst = (d: Date) =>
     minute: '2-digit',
   });
 
-export default async function QuoteResultPage({ params }: { params: Promise<{ quoteNo: string }> }) {
+/** 체험 모드(DB 미연결): 저장된 견적 대신 주소에 담긴 입력값으로 같은 공용 계산을 다시 한다 */
+async function demoQuote(raw: string | undefined) {
+  const parsed = customerQuoteInput.safeParse(decodeDemoRequest(raw));
+  if (!parsed.success) return null;
+  const r = await computeQuote({ ...parsed.data, customerType: 'PERSONAL', visit: null });
+  if (!r.ok) return null;
+  const now = new Date();
+  return {
+    quoteNo: '체험용(저장 안 됨)',
+    status: 'ISSUED',
+    totalAmount: r.totalAmount,
+    estimatedDurationMin: r.estimatedDurationMin,
+    expiresAt: quoteExpiresAt(now, await getSettingNumber(SETTING_KEYS.QUOTE_EXPIRE_DAYS)),
+    snapshot: r.snapshot,
+  };
+}
+
+export default async function QuoteResultPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ quoteNo: string }>;
+  searchParams: Promise<{ r?: string }>;
+}) {
   const { quoteNo } = await params;
-  if (!isDbConfigured() || !/^Q\d{10}$/.test(quoteNo)) notFound();
-  const q = await getQuoteByNo(quoteNo);
+  const demo = isQuoteDemoMode();
+  const q = demo
+    ? quoteNo === DEMO_QUOTE_NO
+      ? await demoQuote((await searchParams).r)
+      : null
+    : /^Q\d{10}$/.test(quoteNo)
+      ? await getQuoteByNo(quoteNo)
+      : null;
   if (!q || !q.snapshot) notFound();
   const s = q.snapshot;
   const expired = isQuoteExpired(q, new Date());

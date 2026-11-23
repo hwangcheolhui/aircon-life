@@ -2,16 +2,19 @@
 import { Alert } from '@aircon/ui';
 import type { ReactNode } from 'react';
 import { QuoteFlowProvider } from '@/customer/quote-flow';
-import { isDbConfigured } from '@/server/db';
+import { isQuoteDemoMode } from '@/server/quote-demo';
 import '@/customer/customer.css';
 
 export default function QuoteLayout({ children }: { children: ReactNode }) {
   return (
     <QuoteFlowProvider>
       <div className="cus-flow">
-        {!isDbConfigured() ? (
+        {isQuoteDemoMode() ? (
           <div className="cus-flow__body" style={{ flex: 'none', paddingBottom: 0 }}>
-            <Alert tone="warning">견적 서비스를 준비하고 있습니다. 지금은 견적을 받을 수 없습니다.</Alert>
+            <Alert tone="warning">
+              체험 모드입니다. 지정된 예시 지역 주소만 다음 단계로 넘어가고, 예시 가격으로 계산하며 견적은
+              저장되지 않습니다.
+            </Alert>
           </div>
         ) : null}
         {children}

@@ -5,6 +5,7 @@ import { requireScreen } from '@/server/auth';
 import { currentBranchFilter } from '@/server/branch-selection';
 import { loadCodes } from '@/server/codes';
 import { getDb } from '@/server/db';
+import { DEMO_QUOTE_CATALOG, demoAreaPrefixes, isQuoteDemoMode } from '@/server/quote-demo';
 import { SimulatorScreen } from './screen';
 
 export default async function SimulatorPage() {
@@ -38,16 +39,23 @@ export default async function SimulatorPage() {
       .orderBy(asc(serviceOption.optionCode)),
     loadCodes(['DEVICE_TYPE', 'CLEAN_LEVEL', 'CUSTOMER_TYPE', 'QUOTE_ITEM_TYPE']),
   ]);
+  // DB 미연결 체험 모드: 고객 화면과 같은 예시 상품·옵션으로 시뮬레이션한다(server/quote-demo.ts)
+  const demo = isQuoteDemoMode();
   return (
     <SimulatorScreen
+      demoNotice={
+        demo
+          ? `체험 모드: 예시 가격으로 계산합니다. 서비스 가능 지역은 법정동 코드 ${demoAreaPrefixes().join(', ')}(으)로 시작하는 주소입니다.`
+          : null
+      }
       areas={areas
         .filter((a) => a.legalDongCode)
         .map((a) => ({
           value: a.legalDongCode!,
           label: `${a.sido} ${a.sigungu} ${a.eupmyeondong} · ${a.branchName}${a.isServiceable ? '' : ' (서비스 불가)'}`,
         }))}
-      products={products}
-      options={options}
+      products={demo ? [...DEMO_QUOTE_CATALOG.products] : products}
+      options={demo ? [...DEMO_QUOTE_CATALOG.options] : options}
       codes={codes}
     />
   );
