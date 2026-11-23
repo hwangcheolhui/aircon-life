@@ -3,7 +3,6 @@ import { Alert } from '@aircon/ui';
 import type { ReactNode } from 'react';
 import { QuoteFlowProvider } from '@/customer/quote-flow';
 import { isQuoteDemoMode } from '@/server/quote-demo';
-import '@/customer/customer.css';
 
 export default function QuoteLayout({ children }: { children: ReactNode }) {
   return (
