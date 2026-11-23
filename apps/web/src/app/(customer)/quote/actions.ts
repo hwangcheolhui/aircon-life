@@ -1,8 +1,9 @@
 'use server';
 // C-QUO-010~040 고객 견적 서버 액션 (비회원 가능, F-CUS-AUTH-02). 공용 견적 모듈만 거친다(F-CUS-QUO-04).
-import { customerQuoteInput, legalDongCodeInput } from '@aircon/contracts';
+import { areaOpenRequestInput, customerQuoteInput, legalDongCodeInput } from '@aircon/contracts';
 import { quoteFailureMessage } from '@aircon/domain';
 import { handle, parse } from '@/server/action-result';
+import { requestAreaOpen } from '@/server/area-open';
 import { computeQuote, findServiceArea, issueQuote } from '@/server/quote';
 import { DEMO_QUOTE_NO, encodeDemoRequest, isQuoteDemoMode } from '@/server/quote-demo';
 
@@ -44,5 +45,16 @@ export async function submitQuote(input: unknown) {
     return r.ok
       ? { ok: true as const, path: `/quote/result/${r.quoteNo}` }
       : { ok: false as const, message: quoteFailureMessage(r) };
+  });
+}
+
+/**
+ * F-CUS-QUO-08 C-QUO-011 서비스 지역 오픈 알림 신청 (BR-003). 비회원 가능.
+ * 체험 모드(DB 미연결)에서는 저장하지 않고 kind=DEMO 를 돌려준다.
+ */
+export async function requestAreaOpenNotice(input: unknown) {
+  return handle(async () => {
+    const q = parse(areaOpenRequestInput, input);
+    return requestAreaOpen(q);
   });
 }

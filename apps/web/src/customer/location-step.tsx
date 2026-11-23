@@ -1,12 +1,13 @@
 'use client';
-// C-QUO-010 위치 입력 · F-CUS-QUO-01 (BR-001 서비스 지역 확인)
+// C-QUO-010 위치 입력 · F-CUS-QUO-01 (BR-001 서비스 지역 확인), 비서비스 지역은 C-QUO-011 오픈 알림 신청(F-CUS-QUO-08)
 import type { AddressResult } from '@aircon/integrations/address';
-import { Alert, Button, Card, Modal } from '@aircon/ui';
+import { Alert, Button, Card } from '@aircon/ui';
 import { MapPin, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import { checkServiceArea } from '@/app/(customer)/quote/actions';
 import { AddressSearchModal } from './address-search';
+import { AreaOpenModal } from './area-open-form';
 import { QuoteBottomBar, StepHeader, useQuoteDraft } from './quote-flow';
 
 export function LocationStep() {
@@ -81,29 +82,13 @@ export function LocationStep() {
         </Button>
       </QuoteBottomBar>
       <AddressSearchModal open={searching} onClose={() => setSearching(false)} onSelect={onSelect} />
-      <Modal
-        open={outOfArea !== null}
-        title="아직 서비스하지 않는 지역이에요"
-        description={
-          <>
-            {outOfArea?.roadAddress}
-            <br />
-            서비스 지역을 차례로 넓혀 가고 있어요. 다른 주소로 다시 확인해 주세요.
-          </>
-        }
+      <AreaOpenModal
+        address={outOfArea}
         onClose={() => setOutOfArea(null)}
-        actions={
-          <Button
-            variant="primary"
-            block
-            onClick={() => {
-              setOutOfArea(null);
-              setSearching(true);
-            }}
-          >
-            다른 주소 검색
-          </Button>
-        }
+        onSearchAgain={() => {
+          setOutOfArea(null);
+          setSearching(true);
+        }}
       />
     </>
   );

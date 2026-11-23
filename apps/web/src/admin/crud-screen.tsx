@@ -64,6 +64,8 @@ export interface CrudScreenProps<T> {
   rowClassName?: (row: T) => string | undefined;
   toolbarExtra?: ReactNode;
   headerExtra?: ReactNode;
+  /** 저장 성공 토스트 뒤에 덧붙일 안내 (예: F-ADM-DSP-11 오픈 알림 발송 건수) */
+  savedNote?: (data: unknown) => string | null;
 }
 
 export function CrudScreen<T>(p: CrudScreenProps<T>) {
@@ -143,7 +145,8 @@ export function CrudScreen<T>(p: CrudScreenProps<T>) {
         return;
       }
       setEditing(null);
-      toast(kind === 'save' ? MSG.saved : MSG.deleted);
+      const note = kind === 'save' ? p.savedNote?.(res.data) : null;
+      toast(kind === 'save' ? (note ? `${MSG.saved} ${note}` : MSG.saved) : MSG.deleted);
       router.refresh();
     } finally {
       setBusy(false);
