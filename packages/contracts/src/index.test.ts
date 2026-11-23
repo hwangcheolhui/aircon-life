@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { branchInput, fieldErrors, pricePolicyInput, surchargeRuleInput } from './index';
+import { areaOpenRequestInput, branchInput, fieldErrors, pricePolicyInput, surchargeRuleInput } from './index';
 
 describe('입력 스키마', () => {
   it('필수 누락 시 "○○은(는) 필수 입력값입니다." 문구를 낸다', () => {
@@ -76,5 +76,23 @@ describe('단계 2 입력 스키마', async () => {
   it('일정 변경 요청은 새 일정이 필수, 취소 요청은 아니다 (F-CUS-ORD-03)', () => {
     expect(changeRequestInput.safeParse({ orderNo: 'x', requestType: 'RESCHEDULE' }).success).toBe(false);
     expect(changeRequestInput.safeParse({ orderNo: 'x', requestType: 'CANCEL' }).success).toBe(true);
+  });
+});
+
+describe('오픈 알림 신청 입력 (F-CUS-QUO-08)', () => {
+  const base = { legalDongCode: '4113511000', sido: '경기', sigungu: '성남시 분당구', eupmyeondong: '백현동' };
+  it('BR-003 휴대폰 번호와 동의가 있으면 통과', () => {
+    const r = areaOpenRequestInput.safeParse({ ...base, phone: ' 010-1234-5678 ', privacyAgreed: true });
+    expect(r.success && r.data.phone).toBe('010-1234-5678');
+  });
+  it('BR-003 동의하지 않으면 필수 문구', () => {
+    const r = areaOpenRequestInput.safeParse({ ...base, phone: '010-1234-5678', privacyAgreed: false });
+    expect(r.success).toBe(false);
+    expect(fieldErrors(r.error!).privacyAgreed).toBe('개인정보 수집·이용 동의는 필수 입력값입니다.');
+  });
+  it('BR-003 번호가 비었거나 휴대폰이 아니면 거절', () => {
+    const empty = areaOpenRequestInput.safeParse({ ...base, phone: '', privacyAgreed: true });
+    expect(fieldErrors(empty.error!).phone).toBe('휴대폰 번호는 필수 입력값입니다.');
+    expect(areaOpenRequestInput.safeParse({ ...base, phone: '02-123-4567', privacyAgreed: true }).success).toBe(false);
   });
 });

@@ -2,7 +2,7 @@
  * 관리자 단계 0 입력 스키마. 필수 누락 문구는 "○○은(는) 필수 입력값입니다." 형식(03 §6.2).
  * 폼은 문자열로 들어오므로 빈 문자열은 null로 바꾼 뒤 검증한다.
  */
-import { MSG, PERMISSION_ACTIONS, validateDiscountTiers } from '@aircon/domain';
+import { MSG, PERMISSION_ACTIONS, isMobilePhone, validateDiscountTiers } from '@aircon/domain';
 import { z } from 'zod';
 
 const blankToNull = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? null : v);
@@ -449,4 +449,20 @@ export const notificationTemplateInput = z.object({
   body: reqStr('본문', 2000),
   kakaoTemplateId: optStr(50),
   isActive: bool(true),
+});
+
+/* ---------- 단계 1 보강: 서비스 지역 오픈 알림 신청 (F-CUS-QUO-08, BR-003) ---------- */
+export const areaOpenRequestInput = z.object({
+  legalDongCode: legalDongCodeInput,
+  sido: reqStr('시도', 30),
+  sigungu: reqStr('시군구', 30),
+  eupmyeondong: reqStr('읍면동', 30),
+  phone: z.preprocess(
+    (v) => (v == null ? '' : trimmed(v)),
+    z
+      .string()
+      .min(1, MSG.required('휴대폰 번호'))
+      .refine(isMobilePhone, '휴대폰 번호를 정확히 입력해 주세요. (예: 010-1234-5678)'),
+  ),
+  privacyAgreed: bool(false).refine((v) => v, MSG.required('개인정보 수집·이용 동의')),
 });

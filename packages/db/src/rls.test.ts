@@ -193,4 +193,32 @@ d('RLS (BR-102, F-ADM-SYS-02)', () => {
       expect(r?.booked_count).toBe(0);
     });
   });
+
+  it('F-CUS-QUO-08 오픈 알림 신청은 서버만 접근한다: 브라우저 키로는 읽기·쓰기 불가', async () => {
+    await sql`INSERT INTO area_open_request (legal_dong_code, sido, sigungu, eupmyeondong, phone, phone_hash, privacy_agreed_at, status)
+      VALUES ('4113511000', '경기', '성남시 분당구', '백현동', 'v1:x:y:z', ${'a'.repeat(64)}, now(), 'WAITING')`;
+    expect(await as(null, (tx) => tx`SELECT * FROM area_open_request`)).toHaveLength(0);
+    expect(await as(ids.super, (tx) => tx`SELECT * FROM area_open_request`)).toHaveLength(0);
+    await expect(
+      as(
+        null,
+        (tx) => tx`INSERT INTO area_open_request (legal_dong_code, sido, sigungu, eupmyeondong, privacy_agreed_at, status)
+        VALUES ('4113511000', '경기', '성남시 분당구', '백현동', now(), 'WAITING')`,
+      ),
+    ).rejects.toThrow(/row-level security/);
+  });
+
+  it('BR-003 같은 지역·같은 번호의 대기 신청은 1건만 저장된다(안내 후에는 다시 신청 가능)', async () => {
+    const h = 'b'.repeat(64);
+    await sql`INSERT INTO area_open_request (legal_dong_code, sido, sigungu, eupmyeondong, phone_hash, privacy_agreed_at, status)
+      VALUES ('4113511000', '경기', '성남시 분당구', '백현동', ${h}, now(), 'WAITING')`;
+    await expect(
+      sql`INSERT INTO area_open_request (legal_dong_code, sido, sigungu, eupmyeondong, phone_hash, privacy_agreed_at, status)
+        VALUES ('4113511000', '경기', '성남시 분당구', '백현동', ${h}, now(), 'WAITING')`,
+    ).rejects.toThrow(/area_open_request_waiting_uk/);
+    await sql`INSERT INTO area_open_request (legal_dong_code, sido, sigungu, eupmyeondong, phone_hash, privacy_agreed_at, status)
+      VALUES ('4113511000', '경기', '성남시 분당구', '백현동', ${h}, now(), 'NOTIFIED')`;
+    const [r] = await sql`SELECT setting_value FROM system_setting WHERE setting_key = 'AREA_OPEN_REQUEST_KEEP_DAYS'`;
+    expect(r?.setting_value).toBe('365');
+  });
 });

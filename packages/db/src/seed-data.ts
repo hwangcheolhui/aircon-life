@@ -393,6 +393,11 @@ export const COMMON_CODE_SEED = [
     ['FREELANCER', '도급(사업소득 3.3%)'],
     ['PARTNER', '사업자'],
   ]),
+  ...g('AREA_OPEN_STATUS', [
+    ['WAITING', '대기'],
+    ['NOTIFIED', '안내완료'],
+    ['EXPIRED', '만료'],
+  ]),
 ];
 
 /**

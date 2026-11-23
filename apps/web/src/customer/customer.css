@@ -254,3 +254,25 @@
   flex-direction: column;
   gap: var(--space-3);
 }
+
+/* ── 오픈 알림 신청 (C-QUO-011, 서비스 불가 안내 안 폼) ── */
+.cus-open-form {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.cus-open-form__area {
+  margin: 0;
+}
+.cus-open-form__consent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.cus-open-form__consent .ac-caption {
+  margin: 0;
+}
+.cus-open-form__error {
+  color: var(--color-danger);
+}

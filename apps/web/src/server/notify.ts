@@ -36,23 +36,25 @@ export async function notifyOrder(code: NotificationTemplateCode, orderId: numbe
       거점전화: o.branchPhone ?? '',
     };
     const text = renderTemplate(t.body, vars);
+    const preferred = t.channel === 'ALIMTALK' ? 'ALIMTALK' : 'SMS';
     const outcome = await sendWithFallback(
       createNotifyTransport(),
       {
         to: contact.phone,
         text,
         title: t.title,
-        kakaoTemplateId: t.kakaoTemplateId,
+        kakaoTemplateId: t.kakaoTemplateId ?? undefined,
         variables: Object.fromEntries(Object.entries(vars).map(([k, v]) => [`#{${k}}`, v])),
       },
-      t.channel === 'ALIMTALK' ? 'ALIMTALK' : 'SMS',
-    ).catch((e: Error) => ({ status: 'FAILED' as const, channel: 'SMS' as const, failReason: e.message }));
+      preferred,
+    ).catch((e: Error) => ({ status: 'FAILED' as const, channel: null, failReason: e.message }));
     await db.insert(notificationLog).values({
       templateId: t.id,
       receiverType: 'CUSTOMER',
       receiverId: o.order.customerId,
       receiverPhoneMasked: maskPhone(contact.phone),
-      channel: outcome.channel,
+      // 둘 다 실패하면 처음 시도한 채널로 남긴다
+      channel: outcome.channel ?? preferred,
       relatedType: 'ORDER',
       relatedId: orderId,
       status: outcome.status,

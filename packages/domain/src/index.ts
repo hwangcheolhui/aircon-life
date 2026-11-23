@@ -15,3 +15,4 @@ export * from './order/order-rules';
 export * from './slot/slot';
 export * from './customer/consent';
 export * from './customer/notify-template';
+export * from './area/area-open-request';

@@ -186,7 +186,7 @@ test('C-AUTH·C-RSV 휴대폰 인증 가입 후 현장 결제 예약 → 잔여 
     SELECT l.status, l.channel, l.receiver_phone_masked AS phone FROM notification_log l
     JOIN notification_template t ON t.id = l.template_id JOIN service_order o ON o.id = l.related_id
     WHERE t.template_code = 'ORDER_CONFIRMED' AND o.order_no = ${firstOrderNo}`;
-  expect(log).toMatchObject({ status: 'FALLBACK_SMS', channel: 'SMS', phone: '010-****-4444' }); // 카카오 템플릿 ID 미등록 → 문자 대체
+  expect(log).toMatchObject({ status: 'SENT', channel: 'ALIMTALK', phone: '010-****-4444' }); // 모의 알림톡 발송 (실패 시 문자 대체는 단위 테스트)
 
   // 고객 내 예약
   await page.getByRole('link', { name: '예약 상세 보기' }).click();

@@ -11,6 +11,7 @@ export interface SystemSettingSeed {
 export const SYSTEM_SETTING_SEEDS: readonly SystemSettingSeed[] = [
   { key: 'QUOTE_EXPIRE_DAYS', value: '7', description: '견적 유효기간(일) BR-015' },
   { key: 'QUOTE_SITE_SURVEY_MIN_UNITS', value: '4', description: '시스템·천장형 합계가 이 대수 이상이면 현장 확인 견적 안내 F-CUS-QUO-04' },
+  { key: 'AREA_OPEN_REQUEST_KEEP_DAYS', value: '365', description: '오픈 알림 신청 대기 보관일(지나면 만료·연락처 삭제) BR-003' },
   { key: 'REVISIT_MONTHS', value: '11', description: '재방문 알림 기준 개월 BR-091' },
   { key: 'PURGE_YEARS', value: '5', description: '개인정보 보관 연수(법무 확인 필요) ERD §6' },
   { key: 'SETTLEMENT_WEEKDAY', value: 'WED', description: '정산 지급 요일 BR-080' },
@@ -38,6 +39,7 @@ export const SYSTEM_SETTING_SEEDS: readonly SystemSettingSeed[] = [
 export const SETTING_KEYS = {
   QUOTE_EXPIRE_DAYS: 'QUOTE_EXPIRE_DAYS',
   QUOTE_SITE_SURVEY_MIN_UNITS: 'QUOTE_SITE_SURVEY_MIN_UNITS',
+  AREA_OPEN_REQUEST_KEEP_DAYS: 'AREA_OPEN_REQUEST_KEEP_DAYS',
   ADMIN_LOGIN_MAX_FAIL: 'ADMIN_LOGIN_MAX_FAIL',
   ADMIN_PASSWORD_MIN_LENGTH: 'ADMIN_PASSWORD_MIN_LENGTH',
   PURGE_YEARS: 'PURGE_YEARS',

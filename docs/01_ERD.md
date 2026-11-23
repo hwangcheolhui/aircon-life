@@ -2,7 +2,8 @@
 
 > 에어컨 청소 기반 지역생활서비스 플랫폼 — MVP ~ 2단계 확장 대응 데이터 모델
 > 문서 버전: v1.1 · 작성일: 2026-11-22 · 작성 관점: 프로그램 분석·설계자
-> v1.2(단계 2 구현 반영): §4 단계 2 코드 그룹, `system_setting` 슬롯·취소·약관 키, `notification_log.created_at`, `refund.requested_by` 타입, 접수번호 형식, 알림 템플릿 코드, 결제·환불 INSERT ONLY 처리 방식
+> v1.2(단계 1 보강): 서비스 지역 오픈 알림 신청 `area_open_request`(§2.2.7, §3.9) 추가, 알림 템플릿 `AREA_OPENED`, 설정 `AREA_OPEN_REQUEST_KEEP_DAYS`
+> v1.3(단계 2 구현 반영): §4 단계 2 코드 그룹, `system_setting` 슬롯·취소·약관 키, `notification_log.created_at`, `refund.requested_by` 타입, 접수번호 형식, 알림 템플릿 코드, 결제·환불 INSERT ONLY 처리 방식
 > v1.1(단계 0 구현 반영): `admin_user` Supabase Auth 연결, 일시 타입 확정, §4 코드 그룹 추가, `system_setting` 키 추가, 가격 정책 동순위 결정 규칙
 > 연계 문서: [02_기능정의서.md](./02_기능정의서.md) · [03_IA.md](./03_IA.md)
 
@@ -47,12 +48,12 @@
 8. **거점 단위 데이터 격리**: 운영 데이터(주문·기사·일정·정산)는 `branch_id`를 가지며, 거점장 권한은 자기 거점만 조회합니다.
 9. **상태 변경은 이력 테이블에 남긴다**: 주문·배정·정산의 상태 변경 시 `*_status_history`에 1행 INSERT.
 
-### 0.4 도메인 구성 (총 13개 도메인, 83개 테이블)
+### 0.4 도메인 구성 (총 13개 도메인, 84개 테이블)
 
 | # | 도메인 | 접두/대표 테이블 | 테이블 수 |
 |---|---|---|---|
 | D1 | 조직·권한·공통 | `branch`, `admin_user`, `role`, `common_code` | 8 |
-| D2 | 고객 | `customer`, `customer_address`, `customer_device`, `consent_history` | 6 |
+| D2 | 고객 | `customer`, `customer_address`, `customer_device`, `consent_history`, `area_open_request` | 7 |
 | D3 | 상품·가격 | `service_category`, `service_product`, `price_policy`, `surcharge_rule` | 6 |
 | D4 | 견적 | `quote`, `quote_item`, `device_image` | 3 |
 | D5 | 주문(접수) | `service_order`, `order_item`, `order_status_history` | 4 |
@@ -373,6 +374,28 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 
 #### 2.2.6 `customer_tag` — 고객 태그(다빈도, 주의, 이사예정 등)
 `customer_id`(FK), `tag_code`(VARCHAR, common_code `CUSTOMER_TAG`), `note`, 공통컬럼. PK(customer_id, tag_code)
+
+#### 2.2.7 `area_open_request` — 서비스 지역 오픈 알림 신청 (단계 1 보강)
+비서비스 지역 주소로 견적을 시작한 고객이 남기는 "이 지역이 열리면 알려 주세요" 신청(F-CUS-QUO-08). 회원 가입 전이라 `customer`와 연결하지 않고 연락처만 받습니다. 관할 지역(`service_area`)이 서비스 가능이 되면 대기 중 신청자에게 1회 안내하고(F-ADM-DSP-11, F-SYS-19), 안내·만료 후에는 연락처를 지웁니다(BR-003).
+
+| 컬럼 | 타입 | 제약 | 설명 | 코드값/예시 |
+|---|---|---|---|---|
+| id | BIGINT | PK | | |
+| legal_dong_code | VARCHAR(10) | NN, IDX | 신청 지역 법정동 코드(주소 검색 결과) | 4113511000 |
+| sido / sigungu / eupmyeondong | VARCHAR(30) | NN | 지역명(안내 문구·관리자 집계용). 도로명·상세주소는 저장하지 않음 | 경기/성남시 분당구/백현동 |
+| phone 🔒 | VARCHAR(100) | | 알림 받을 휴대폰 번호. `NOTIFIED`·`EXPIRED`가 되면 NULL | |
+| phone_hash | CHAR(64) | | 중복 신청 확인용 해시. 연락처와 함께 NULL | |
+| privacy_agreed_at | DATETIME | NN | 개인정보(연락처) 수집·이용 동의 일시. 동의 없이는 저장하지 않음 | |
+| status | VARCHAR(20) | NN | 신청 상태(§3.9) | `WAITING`, `NOTIFIED`, `EXPIRED` |
+| branch_id | BIGINT | FK→branch | 안내 시점에 매핑된 거점(신청 시점엔 관할이 없어 NULL) | |
+| notified_at | DATETIME | | 오픈 안내 발송 일시 | |
+| notify_channel | VARCHAR(20) | | 실제 발송 채널 | `ALIMTALK`, `SMS`(알림톡 실패 대체) |
+| notify_fail_count | INT | 기본 0 | 발송 실패 횟수(실패하면 `WAITING` 유지, 다음 배치에서 재시도) | |
+| last_fail_reason | VARCHAR(200) | | 최근 실패 사유 | |
+| 공통컬럼 | | | | |
+| UK(legal_dong_code, phone_hash) WHERE status='WAITING' | | | 같은 지역·같은 번호의 대기 신청은 1건 | |
+
+> 단계 2에서 `notification_log`가 생기면 발송 1건마다 `related_type='AREA_OPEN_REQUEST'`로 함께 남깁니다. 그 전까지는 이 행의 `notified_at`·`notify_channel`·`last_fail_reason`이 발송 이력입니다.
 
 ---
 
@@ -1092,7 +1115,7 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 ### D12. CRM·마케팅·품질
 
 #### 2.12.1 `notification_template` — 알림 템플릿
-`id`, `template_code`(UK, `ORDER_CONFIRMED`, `ORDER_CHANGED`(일정 변경, 단계 2), `ORDER_CANCELED`(취소, 단계 2), `VISIT_REMINDER`(방문 전날 18:00, 단계 2), `TECH_ASSIGNED`, `ON_THE_WAY`, `WORK_DONE`, `PAYMENT_DONE`, `REVISIT_11M`, `REVIEW_REQUEST`), `channel`(`ALIMTALK`/`SMS`/`PUSH`/`EMAIL`), `target`(`CUSTOMER`/`TECHNICIAN`/`ADMIN`), `title`, `body`(치환변수 `#{고객명}` 등), `kakao_template_id`, `is_active`, 공통컬럼
+`id`, `template_code`(UK, `ORDER_CONFIRMED`, `ORDER_CHANGED`(일정 변경, 단계 2), `ORDER_CANCELED`(취소, 단계 2), `VISIT_REMINDER`(방문 전날 18:00, 단계 2), `TECH_ASSIGNED`, `ON_THE_WAY`, `WORK_DONE`, `PAYMENT_DONE`, `REVISIT_11M`, `REVIEW_REQUEST`, `AREA_OPENED`(서비스 지역 오픈 안내, F-ADM-DSP-11)), `channel`(`ALIMTALK`/`SMS`/`PUSH`/`EMAIL`), `target`(`CUSTOMER`/`TECHNICIAN`/`ADMIN`), `title`, `body`(치환변수 `#{고객명}` 등), `kakao_template_id`, `is_active`, 공통컬럼
 
 #### 2.12.2 `notification_log` — 알림 발송 이력
 `id`, `template_id`(FK), `receiver_type`, `receiver_id`, `receiver_phone_masked`, `channel`, `related_type`(`ORDER`/`CAMPAIGN`/...), `related_id`, `status`(`QUEUED`/`SENT`/`FAILED`/`FALLBACK_SMS`), `sent_at`, `fail_reason`, `created_at`(단계 2 추가: 실패 건도 시각을 남기고 고객 알림함 C-NTF-010 정렬에 사용)
@@ -1210,7 +1233,7 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 `id`, `actor_type`, `actor_id`, `action`(`VIEW_PII`/`EXPORT`/`UPDATE`/`DELETE`/`LOGIN`/`PERMISSION_CHANGE`), `target_table`, `target_id`(VARCHAR(50): 문자열 PK 테이블 대응), `ip_address`, `user_agent`, `detail_json`, `created_at`. **INSERT ONLY**: DB 트리거로 UPDATE·DELETE를 막습니다.
 
 #### 2.13.8 `system_setting` — 시스템 설정(키-값)
-`setting_key`(PK, 예: `QUOTE_EXPIRE_DAYS`=7, `REVISIT_MONTHS`=11, `PURGE_YEARS`=…, `SETTLEMENT_WEEKDAY`=`WED`, `POPUP_DEFAULT_TIME`=08:30, `DUPLICATE_CHECK_DAYS`=30, `ROUTE_CONFIRM_DEADLINE`=전날 18:00, `ROUTE_TRAVEL_BUFFER_MIN`=10, `ARRIVAL_WINDOW_HOURS`=2, `LOCATION_INTERVAL_SEC`=60, `LOCATION_RETENTION_DAYS`=90, `SELF_ASSIGN_ENABLED`=거점별 Y/N, `SELF_ASSIGN_NEEDS_APPROVAL`=Y, `ADMIN_LOGIN_MAX_FAIL`=5, `ADMIN_PASSWORD_MIN_LENGTH`=8, `QUOTE_SITE_SURVEY_MIN_UNITS`=4(시스템·천장형 합계가 이 대수 이상이면 "현장 확인 견적" 안내, 단계 1), 단계 2: `SLOT_DAYS_AHEAD`=14(슬롯 자동 생성·고객 달력 일수), `SLOT_JOBS_PER_TECH_HOUR`=1(기사 1명 시간당 처리 건수), `WORK_DEFAULT_START`=09:00·`WORK_DEFAULT_END`=18:00(근무 시간을 비운 일정의 기본값, 반차는 가운데 시각으로 나눔), `CANCEL_FEE_HOURS`=24·`CANCEL_FEE_AMOUNT`=0(BR-030 방문 N시간 전부터 취소 수수료, 금액은 운영사가 정함), `TERMS_VERSION`=v1.0(동의 이력에 남는 약관 버전)), `setting_value`, `description`, `updated_at`, `updated_by`
+`setting_key`(PK, 예: `QUOTE_EXPIRE_DAYS`=7, `REVISIT_MONTHS`=11, `PURGE_YEARS`=…, `SETTLEMENT_WEEKDAY`=`WED`, `POPUP_DEFAULT_TIME`=08:30, `DUPLICATE_CHECK_DAYS`=30, `ROUTE_CONFIRM_DEADLINE`=전날 18:00, `ROUTE_TRAVEL_BUFFER_MIN`=10, `ARRIVAL_WINDOW_HOURS`=2, `LOCATION_INTERVAL_SEC`=60, `LOCATION_RETENTION_DAYS`=90, `SELF_ASSIGN_ENABLED`=거점별 Y/N, `SELF_ASSIGN_NEEDS_APPROVAL`=Y, `ADMIN_LOGIN_MAX_FAIL`=5, `ADMIN_PASSWORD_MIN_LENGTH`=8, `QUOTE_SITE_SURVEY_MIN_UNITS`=4(시스템·천장형 합계가 이 대수 이상이면 "현장 확인 견적" 안내, 단계 1), 단계 2: `SLOT_DAYS_AHEAD`=14(슬롯 자동 생성·고객 달력 일수), `SLOT_JOBS_PER_TECH_HOUR`=1(기사 1명 시간당 처리 건수), `WORK_DEFAULT_START`=09:00·`WORK_DEFAULT_END`=18:00(근무 시간을 비운 일정의 기본값, 반차는 가운데 시각으로 나눔), `CANCEL_FEE_HOURS`=24·`CANCEL_FEE_AMOUNT`=0(BR-030 방문 N시간 전부터 취소 수수료, 금액은 운영사가 정함), `TERMS_VERSION`=v1.0(동의 이력에 남는 약관 버전), `AREA_OPEN_REQUEST_KEEP_DAYS`=365(오픈 알림 신청 대기 보관일, 지나면 EXPIRED·연락처 삭제, BR-003)), `setting_value`, `description`, `updated_at`, `updated_by`
 
 ---
 
@@ -1271,6 +1294,17 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 - 전이표는 `packages/domain` `QUOTE_TRANSITIONS`가 단일 출처입니다. 견적에는 상태 이력 테이블이 없어 상태 컬럼만 바꿉니다.
 - 고객 앱 견적은 계산 즉시 `ISSUED`로 저장합니다. 배치 전이라도 유효기한이 지난 `ISSUED` 견적은 화면에서 만료로 보여 줍니다.
 
+### 3.9 오픈 알림 신청 상태 `area_open_request.status` (단계 1 보강)
+
+| 코드 | 명칭 | 의미 | 다음 가능 상태 | 변경 주체 |
+|---|---|---|---|---|
+| `WAITING` | 대기 | 신청 접수, 지역 오픈 전(또는 발송 실패로 재시도 대기) | NOTIFIED, EXPIRED | 고객 |
+| `NOTIFIED` | 안내완료 | 지역이 서비스 가능이 되어 오픈 안내 발송 성공. 연락처 삭제 | (종료) | 시스템(관할 지역 저장·F-SYS-19) |
+| `EXPIRED` | 만료 | 보관일(`AREA_OPEN_REQUEST_KEEP_DAYS`) 경과. 연락처 삭제 | (종료) | 시스템(F-SYS-19) |
+
+- 전이표는 `packages/domain` `AREA_OPEN_TRANSITIONS`가 단일 출처입니다. 이력 테이블은 두지 않고 상태 컬럼만 바꿉니다.
+- 발송이 실패하면 상태를 바꾸지 않고 `notify_fail_count`+1, `last_fail_reason`만 남겨 다음 배치에서 다시 보냅니다.
+
 ---
 
 ## 4. 주요 코드 그룹 (common_code 초기 데이터)
@@ -1322,6 +1356,7 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 |---|---|---|
 | `QUOTE_STATUS` | DRAFT 작성중 / ISSUED 발행 / CONVERTED 주문전환 / EXPIRED 만료 | quote.status (§3.8) |
 | `QUOTE_ITEM_TYPE` | PRODUCT 상품 / OPTION 옵션 / SURCHARGE 할증 / DISCOUNT 할인 | quote_item.item_type |
+| `AREA_OPEN_STATUS` | WAITING 대기 / NOTIFIED 안내완료 / EXPIRED 만료 | area_open_request.status (§3.9) |
 
 **단계 2에서 추가한 그룹** (§2 테이블의 코드값 열을 코드 그룹으로 등록)
 
@@ -1381,6 +1416,7 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 | 동의 | 앱 가입 시 필수/선택 동의 → `consent_history`. 전화 접수 시 상담원이 구두 동의(동의/미동의/질의못함) 기록 |
 | 철회 | 동의 철회 시 마케팅 발송 즉시 중단, 필수 동의 철회 = 탈퇴 처리 |
 | 보관·파기 | 탈퇴 또는 최종 거래 후 보관기간(전자상거래법 기준 거래기록 5년 등, 법무 확인 필요) 경과 시 `customer.status=PURGED`, 개인 식별 컬럼 NULL/비식별화. 주문·결제 금액 데이터는 통계용으로 비식별 보존 |
+| 오픈 알림 신청 | `area_open_request`는 동의(`privacy_agreed_at`) 받은 휴대폰 번호와 법정동만 저장(도로명·상세주소 미저장). 안내 발송(`NOTIFIED`) 또는 보관일 경과(`EXPIRED`) 즉시 `phone`·`phone_hash`를 NULL로 지움. 관리자 화면에는 지역별 건수만 보이고 번호는 보이지 않음 |
 | 위치정보 | 주소 좌표는 서비스 제공 목적에 한정. 기사 위치(`technician_location`)는 기사 동의 후 근무 시작~종료 사이에만 수집, 고객에게는 이동중(ON_THE_WAY)일 때 도착 예정시각만 노출(좌표 비노출), 원본은 90일 후 삭제 |
 
 ---
