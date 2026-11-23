@@ -45,3 +45,43 @@
 
 /* ── 슬롯 (A-DSP-030) ── */
 .adm-slot-closed { color: var(--color-text-tertiary); }
+
+/* ---------- 단계 3: A-CSL-010 상담 콘솔 ---------- */
+.adm-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.adm-text-danger { color: var(--color-danger); }
+.adm-csl { display: grid; gap: var(--space-4); }
+.adm-csl-customer__row { display: flex; align-items: flex-end; gap: var(--space-4); flex-wrap: wrap; }
+.adm-csl-phone { display: flex; align-items: center; gap: var(--space-2); }
+.adm-csl-who { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; padding-bottom: var(--space-2); }
+.adm-csl-facts { display: grid; grid-template-columns: repeat(4, auto 1fr); gap: var(--space-2) var(--space-4); margin: var(--space-4) 0 0; }
+.adm-csl-facts dt { color: var(--color-text-secondary); }
+.adm-csl-facts dd { margin: 0; }
+.adm-csl-main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: var(--space-4); align-items: start; }
+.adm-csl-order { display: grid; gap: var(--space-3); margin-top: var(--space-4); }
+.adm-csl-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); }
+.adm-csl-grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); align-items: end; }
+.adm-csl-line-actions { display: flex; gap: var(--space-2); align-items: flex-end; }
+.adm-csl-quote { padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--color-bg-subtle); }
+.adm-csl-stats { display: grid; grid-template-columns: 1fr auto; gap: var(--space-2) var(--space-3); margin: var(--space-3) 0; }
+.adm-csl-stats dt { color: var(--color-text-secondary); }
+.adm-csl-stats dd { margin: 0; text-align: right; }
+.adm-csl-scripts-title { margin-top: var(--space-4); }
+.adm-csl-scripts { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: grid; gap: var(--space-2); }
+.adm-csl-script { margin: var(--space-2) 0; padding: var(--space-3); border-left: 3px solid var(--color-border-strong); background: var(--color-bg-subtle); color: var(--color-text); white-space: pre-wrap; }
+.adm-csl-tt-head { margin-top: 0; }
+.adm-csl-tt td, .adm-csl-tt th { text-align: center; white-space: nowrap; padding: var(--space-1) var(--space-2); }
+.adm-csl-tt th[scope="row"] { text-align: left; }
+.adm-csl-tt-off { color: var(--color-danger); }
+.adm-csl-tt-none { color: var(--color-text-tertiary); }
+.adm-csl-tt-cell { min-width: 40px; padding: var(--space-1) var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text); font: inherit; cursor: pointer; }
+.adm-csl-tt-cell:hover:not(:disabled) { border-color: var(--color-primary); }
+.adm-csl-tt-cell[aria-pressed="true"] { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-on-primary); }
+.adm-csl-tt-cell:disabled { background: var(--color-bg-muted); color: var(--color-text-disabled); cursor: not-allowed; }
+.adm-csl-tt-cell:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: 2px; }
+.adm-csl-address { display: grid; gap: var(--space-3); }
+.adm-csl-steps { margin-bottom: var(--space-3); }
+.adm-csl-modal-body { display: grid; gap: var(--space-3); }
+.adm-csl-history .ac-table tbody tr { cursor: pointer; }
+.adm-csl-ellipsis { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 1280px) { .adm-csl-main { grid-template-columns: 1fr; } }
+.adm-cus-tab { margin-top: var(--space-4); }

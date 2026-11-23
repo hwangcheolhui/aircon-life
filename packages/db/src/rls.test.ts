@@ -194,6 +194,54 @@ d('RLS (BR-102, F-ADM-SYS-02)', () => {
     });
   });
 
+  describe('단계 3 상담 콘솔', () => {
+    let cust1 = 0;
+    beforeAll(async () => {
+      const mk = async (no: string, branchId: number) => {
+        const [c] = await sql`INSERT INTO customer (customer_no, customer_type, name, phone1, join_channel, privacy_agree_status, status)
+          VALUES (${no}, 'PERSONAL', 'enc', 'enc', 'PHONE', 'NOT_ASKED', 'ACTIVE') RETURNING id`;
+        await sql`INSERT INTO customer_address (customer_id, zipcode, road_address, branch_id) VALUES (${c!.id}, '00000', '상담로 1', ${branchId})`;
+        await sql`INSERT INTO consultation (consult_no, customer_id, channel, consult_type, status) VALUES (${'J' + no.slice(1)}, ${c!.id}, 'PHONE', 'INQUIRY', 'OPEN')`;
+        return Number(c!.id);
+      };
+      cust1 = await mk('C2703100001', b1);
+      await mk('C2703100002', b2);
+    });
+
+    it('BR-102 거점장은 자기 거점 고객·상담만 조회한다 (A-CUS-010·A-CSL-070)', async () => {
+      const customers = await as(ids.branchMgr, (tx) => tx`SELECT id FROM customer WHERE customer_no LIKE 'C27031%'`);
+      expect(customers.map((r) => Number(r.id))).toEqual([cust1]);
+      const consults = await as(ids.branchMgr, (tx) => tx`SELECT customer_id FROM consultation`);
+      expect(consults.map((r) => Number(r.customer_id))).toEqual([cust1]);
+    });
+
+    it('F-ADM-CUS-01 상담원은 전체 거점 고객을 조회한다', async () => {
+      expect(await as(ids.cs, (tx) => tx`SELECT id FROM customer WHERE customer_no LIKE 'C27031%'`)).toHaveLength(2);
+    });
+
+    it('F-ADM-CSL-16 상담원은 상담 스크립트를 읽을 수 있지만 고칠 수 없다 (A-CNT-050 W 없음)', async () => {
+      expect((await as(ids.cs, (tx) => tx`SELECT script_code FROM consult_script`)).length).toBeGreaterThan(0);
+      const updated = await as(ids.cs, (tx) => tx`UPDATE consult_script SET title = 'x' RETURNING id`);
+      expect(updated).toHaveLength(0);
+    });
+
+    it('BR-100 비로그인(anon)은 통화·상담 기록을 읽을 수 없다', async () => {
+      expect(await as(null, (tx) => tx`SELECT * FROM consultation`)).toHaveLength(0);
+      expect(await as(null, (tx) => tx`SELECT * FROM call_log`)).toHaveLength(0);
+    });
+
+    it('배정 이력은 INSERT ONLY', async () => {
+      const [o] = await sql`SELECT id FROM service_order LIMIT 1`;
+      await sql`INSERT INTO assignment_history (order_id, action, actor_type) VALUES (${o!.id}, 'ASSIGN', 'ADMIN')`;
+      await expect(sql`UPDATE assignment_history SET reason = 'x'`).rejects.toThrow(/INSERT ONLY/);
+    });
+
+    it('BR-023 동의 재질의 주기 기준값이 시스템 설정에 있다', async () => {
+      const [r] = await sql`SELECT setting_value FROM system_setting WHERE setting_key = 'PRIVACY_REASK_MONTHS'`;
+      expect(r?.setting_value).toBe('12');
+    });
+  });
+
   it('F-CUS-QUO-08 오픈 알림 신청은 서버만 접근한다: 브라우저 키로는 읽기·쓰기 불가', async () => {
     await sql`INSERT INTO area_open_request (legal_dong_code, sido, sigungu, eupmyeondong, phone, phone_hash, privacy_agreed_at, status)
       VALUES ('4113511000', '경기', '성남시 분당구', '백현동', 'v1:x:y:z', ${'a'.repeat(64)}, now(), 'WAITING')`;

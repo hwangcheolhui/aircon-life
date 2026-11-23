@@ -9,12 +9,14 @@ import {
   integer,
   numeric,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   varchar,
 } from 'drizzle-orm/pg-core';
 import { adminUser, branch } from './d1-org';
 import { auditColumns, idColumn, softDelete } from './common';
+import { callLog } from './d6-consult';
 
 /** 2.2.1 고객. corporate_account_id 의 FK는 corporate_account 테이블이 생기는 단계(11)에서 건다. */
 export const customer = pgTable(
@@ -82,7 +84,7 @@ export const customerAddress = pgTable(
   (t) => [index('customer_address_customer_idx').on(t.customerId)],
 );
 
-/** 2.2.4 동의 이력 (INSERT ONLY — DB 트리거로 UPDATE/DELETE 차단). call_log_id 의 FK는 단계 3에서 건다. */
+/** 2.2.4 동의 이력 (INSERT ONLY — DB 트리거로 UPDATE/DELETE 차단). 상담원 구두 동의는 근거 통화(call_log_id)를 남긴다(단계 3). */
 export const consentHistory = pgTable(
   'consent_history',
   {
@@ -95,8 +97,22 @@ export const consentHistory = pgTable(
     channel: varchar('channel', { length: 20 }).notNull(), // CONSENT_CHANNEL
     termsVersion: varchar('terms_version', { length: 20 }),
     agentAdminId: bigint('agent_admin_id', { mode: 'number' }).references(() => adminUser.id),
-    callLogId: bigint('call_log_id', { mode: 'number' }),
+    callLogId: bigint('call_log_id', { mode: 'number' }).references((): AnyPgColumn => callLog.id),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('consent_history_customer_idx').on(t.customerId, t.createdAt)],
+);
+
+/** 2.2.6 고객 태그 (다빈도·주의·이사예정 등, F-ADM-CUS-03). PK(customer_id, tag_code) */
+export const customerTag = pgTable(
+  'customer_tag',
+  {
+    customerId: bigint('customer_id', { mode: 'number' })
+      .notNull()
+      .references(() => customer.id),
+    tagCode: varchar('tag_code', { length: 30 }).notNull(), // CUSTOMER_TAG
+    note: varchar('note', { length: 200 }),
+    ...auditColumns,
+  },
+  (t) => [primaryKey({ columns: [t.customerId, t.tagCode] })],
 );

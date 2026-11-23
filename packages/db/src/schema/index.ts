@@ -7,3 +7,5 @@ export * from './d2-customer';
 export * from './d7-technician';
 export * from './d5-order';
 export * from './d10-payment';
+export * from './d6-consult';
+export * from './d8-assignment';

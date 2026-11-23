@@ -14,6 +14,6 @@ describe('임시 개발 모드 열람 주체', () => {
     expect(hasPermission(preview, 'A-PRD-011', 'CREATE')).toBe(false);
   });
   it('아직 구현하지 않은 단계의 화면은 포함하지 않는다', () => {
-    expect(hasPermission(preview, 'A-CSL-010', 'READ')).toBe(false);
+    expect(hasPermission(preview, 'A-DSP-010', 'READ')).toBe(false);
   });
 });
