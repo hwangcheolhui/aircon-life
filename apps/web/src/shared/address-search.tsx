@@ -1,6 +1,6 @@
 'use client';
 /**
- * 주소 검색 모달 (F-CUS-QUO-01). NEXT_PUBLIC_ADDRESS_DRIVER=kakao(기본) → 카카오 우편번호 서비스 위젯,
+ * 주소 검색 모달 (F-CUS-QUO-01 고객 견적·예약, F-ADM-ORD-06 관리자 수동 접수). 채널 CSS 접두어(cus-/adm-)를 prefix 로 받는다. NEXT_PUBLIC_ADDRESS_DRIVER=kakao(기본) → 카카오 우편번호 서비스 위젯,
  * mock → 예시 주소 목록 검색 (packages/integrations/address).
  */
 import {
@@ -44,7 +44,7 @@ function loadPostcodeScript(): Promise<void> {
   return scriptPromise;
 }
 
-function KakaoPostcode({ onSelect }: { onSelect: (a: AddressResult) => void }) {
+function KakaoPostcode({ onSelect, prefix }: { onSelect: (a: AddressResult) => void; prefix: Prefix }) {
   const ref = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -64,12 +64,12 @@ function KakaoPostcode({ onSelect }: { onSelect: (a: AddressResult) => void }) {
     };
   }, [onSelect]);
   if (error) return <p className="ac-body-sm">{error} 잠시 후 다시 시도해 주세요.</p>;
-  return <div ref={ref} className="cus-postcode" />;
+  return <div ref={ref} className={`${prefix}-postcode`} />;
 }
 
 const mockSearch = createMockAddressSearch();
 
-function MockSearch({ onSelect }: { onSelect: (a: AddressResult) => void }) {
+function MockSearch({ onSelect, prefix }: { onSelect: (a: AddressResult) => void; prefix: Prefix }) {
   const [q, setQ] = useState('');
   const [results, setResults] = useState<AddressResult[] | null>(null);
   return (
@@ -100,7 +100,7 @@ function MockSearch({ onSelect }: { onSelect: (a: AddressResult) => void }) {
       {results === null ? null : results.length === 0 ? (
         <Empty />
       ) : (
-        <ul className="cus-address-results">
+        <ul className={`${prefix}-address-results`}>
           {results.map((a) => (
             <li key={`${a.legalDongCode}-${a.roadAddress}`}>
               <button type="button" onClick={() => onSelect(a)}>
@@ -118,14 +118,18 @@ function MockSearch({ onSelect }: { onSelect: (a: AddressResult) => void }) {
   );
 }
 
+type Prefix = 'cus' | 'adm';
+
 export function AddressSearchModal({
   open,
   onClose,
   onSelect,
+  prefix = 'cus',
 }: {
   open: boolean;
   onClose: () => void;
   onSelect: (a: AddressResult) => void;
+  prefix?: Prefix;
 }) {
   return (
     <Modal
@@ -140,9 +144,9 @@ export function AddressSearchModal({
     >
       {open ? (
         driver === 'kakao' ? (
-          <KakaoPostcode onSelect={onSelect} />
+          <KakaoPostcode onSelect={onSelect} prefix={prefix} />
         ) : (
-          <MockSearch onSelect={onSelect} />
+          <MockSearch onSelect={onSelect} prefix={prefix} />
         )
       ) : null}
     </Modal>

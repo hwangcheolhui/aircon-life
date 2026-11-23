@@ -1,7 +1,7 @@
 /**
  * 알림 발송 (알림톡 + SMS 대체). CLAUDE.md §7 인터페이스 + Mock + Real, 06 §4.3 솔라피.
  * 사용처: F-ADM-DSP-11·F-SYS-19 지역 오픈 안내(단계 1 보강), 이후 단계 2 예약 알림(F-SYS-03 등).
- * 전환: NOTIFY_DRIVER=mock|solapi (기본 mock). 서버 전용.
+ * 전환: NOTIFY_DRIVER=mock|solapi (기본 mock). 서버 전용. Mock에서 MOCK_NOTIFY_ALIMTALK_FAIL=true 면 알림톡 실패를 흉내 낸다.
  * - Mock: 실제로 보내지 않고 보낸 내용을 메모리에 남기며, 서버 로그에는 마스킹 번호만 찍는다.
  * - Real(솔라피 REST v4): SOLAPI_API_KEY·SOLAPI_API_SECRET·SOLAPI_SENDER_NUMBER, 알림톡은 SOLAPI_KAKAO_PF_ID + 메시지의 kakaoTemplateId.
  *   알림톡 템플릿이 아직 없으면(kakaoTemplateId 없음) 바로 SMS로 보낸다.
@@ -182,5 +182,6 @@ export function createNotifyTransport(env: NodeJS.ProcessEnv = process.env): Not
       pfId: env.SOLAPI_KAKAO_PF_ID || undefined,
     });
   }
-  return createMockNotifyTransport();
+  // MOCK_NOTIFY_ALIMTALK_FAIL=true 면 알림톡 실패 → SMS 대체 흐름을 시험한다
+  return createMockNotifyTransport({ failAlimtalk: env.MOCK_NOTIFY_ALIMTALK_FAIL === 'true' });
 }

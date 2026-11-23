@@ -303,6 +303,154 @@ export const quoteSimulationInput = customerQuoteInput
 export type CustomerQuoteInput = z.output<typeof customerQuoteInput>;
 export type QuoteSimulationInput = z.output<typeof quoteSimulationInput>;
 
+/* ---------- 단계 2 고객 가입·예약 (F-CUS-AUTH-01~05, F-CUS-RSV-01~05, F-CUS-ORD-03) ---------- */
+/** 휴대폰 번호: 숫자만 남겨 010으로 시작하는 10~11자리 */
+export const phoneInput = (label = '휴대폰 번호') =>
+  z.preprocess(
+    (v) => (typeof v === 'string' ? v.replace(/[^0-9]/g, '') : ''),
+    z.string().min(1, MSG.required(label)).regex(/^01[016789]\d{7,8}$/, `${label} 형식이 올바르지 않습니다.`),
+  );
+export const phoneStartInput = z.object({ name: reqStr('이름', 30), phone: phoneInput() });
+export const phoneConfirmInput = z.object({
+  phone: phoneInput(),
+  code: z.preprocess((v) => trimmed(v ?? ''), z.string().min(1, MSG.required('인증번호')).regex(/^\d{6}$/, '인증번호 6자리를 입력하세요.')),
+});
+export const signupConsentInput = z.object({
+  TERMS: bool(false),
+  PRIVACY_REQUIRED: bool(false),
+  LOCATION: bool(false),
+  MARKETING_SMS: bool(false),
+  MARKETING_PUSH: bool(false),
+});
+export const consentSettingInput = signupConsentInput.omit({ TERMS: true, PRIVACY_REQUIRED: true });
+
+const slotHour = z.coerce.number({ invalid_type_error: MSG.required('방문 시간') }).int().min(0).max(23);
+export const reservationAddressInput = z.object({
+  zipcode: reqStr('우편번호', 10),
+  roadAddress: reqStr('도로명 주소', 200),
+  jibunAddress: optStr(200),
+  legalDongCode: legalDongCodeInput,
+});
+/** C-RSV-010~030 예약 (견적 번호 + 일정 + 방문 정보 + 결제 방식) */
+export const reservationInput = z.object({
+  quoteNo: reqStr('견적', 20),
+  /** 체험 모드(DB 미연결)에서 견적 대신 넘기는 입력값 */
+  demoQuote: z.unknown().optional(),
+  slotDate: dateStr('방문 날짜'),
+  slotHour,
+  address: reservationAddressInput,
+  detailAddress: reqStr('상세주소', 200),
+  housingType: reqStr('주거 유형', 20),
+  hasElevator: bool(false),
+  parkingNote: optStr(200),
+  customerRequest: optStr(500),
+  payMethod: z.enum(['PREPAY', 'ONSITE'], { errorMap: () => ({ message: MSG.required('결제 방식') }) }),
+  cancelPolicyAgreed: z.literal(true, { errorMap: () => ({ message: '취소 규정에 동의해 주세요.' }) }),
+  duplicateConfirmed: bool(false),
+});
+export type ReservationInput = z.output<typeof reservationInput>;
+
+/** C-ORD-030 일정 변경·취소 요청 */
+export const changeRequestInput = z
+  .object({
+    orderNo: reqStr('접수번호', 20),
+    requestType: z.enum(['RESCHEDULE', 'CANCEL'], { errorMap: () => ({ message: MSG.required('요청 유형') }) }),
+    requestedDate: optDate(),
+    requestedHour: z.preprocess((v) => (blankToNull(v ?? null) === null ? null : Number(v)), z.number().int().min(0).max(23).nullable()),
+    reason: optStr(500),
+  })
+  .refine((v) => v.requestType === 'CANCEL' || (v.requestedDate !== null && v.requestedHour !== null), {
+    path: ['requestedDate'],
+    message: MSG.required('새 일정'),
+  });
+
+export const withdrawInput = z.object({ reason: optStr(300), agreed: z.literal(true, { errorMap: () => ({ message: '유의사항을 확인해 주세요.' }) }) });
+
+/* ---------- 단계 2 관리자 (A-TEC-010, A-DSP-030·040, A-ORD-010~040, A-CRM-040) ---------- */
+export const technicianInput = z.object({
+  techCode: code('기사 코드', 20),
+  name: reqStr('이름', 30),
+  displayName: optStr(30),
+  phone: phoneInput('연락처'),
+  branchId: reqId('소속 거점'),
+  grade: reqStr('등급', 20),
+  contractType: reqStr('계약 형태', 20),
+  status: reqStr('상태', 20),
+  joinedAt: optDate(),
+});
+
+export const scheduleBulkInput = z
+  .object({
+    technicianIds: z.array(z.coerce.number().int().min(1)).min(1, MSG.required('기사')),
+    dateFrom: dateStr('시작일'),
+    dateTo: dateStr('종료일'),
+    weekdays: z.array(z.coerce.number().int().min(0).max(6)).min(1, MSG.required('요일')),
+    scheduleType: reqStr('근무 유형', 20),
+    startTime: optTime(),
+    endTime: optTime(),
+    maxJobs: optInt(0),
+    note: optStr(200),
+  })
+  .refine((v) => v.dateFrom <= v.dateTo, { path: ['dateTo'], message: '종료일은 시작일 이후여야 합니다.' })
+  .refine((v) => (v.startTime === null) === (v.endTime === null) && (!v.startTime || !v.endTime || v.startTime < v.endTime), {
+    path: ['endTime'],
+    message: '근무 시간은 시작·종료를 함께, 종료가 시작보다 늦게 입력하세요.',
+  });
+
+export const slotUpdateInput = z.object({
+  id: reqId('슬롯'),
+  capacity: reqInt('수용 건수'),
+  isClosed: bool(false),
+});
+export const slotGenerateInput = z
+  .object({ branchId: reqId('거점'), dateFrom: dateStr('시작일'), dateTo: dateStr('종료일') })
+  .refine((v) => v.dateFrom <= v.dateTo, { path: ['dateTo'], message: '종료일은 시작일 이후여야 합니다.' });
+
+export const orderCancelInput = z.object({
+  orderId: reqId('주문'),
+  cancelReason: reqStr('취소 사유', 30),
+  memo: optStr(500),
+});
+export const orderUpdateInput = z.object({
+  orderId: reqId('주문'),
+  slotDate: optDate(),
+  slotHour: z.preprocess((v) => (blankToNull(v ?? null) === null ? null : Number(v)), z.number().int().min(0).max(23).nullable()),
+  customerRequest: optStr(500),
+  internalNote: optStr(1000),
+  detailAddress: optStr(200),
+});
+export const changeRequestHandleInput = z.object({
+  requestId: reqId('요청'),
+  decision: z.enum(['APPROVED', 'REJECTED']),
+});
+export const manualOrderInput = z.object({
+  customerId: optId(),
+  name: optStr(30),
+  phone: z.preprocess((v) => (blankToNull(v ?? null) === null ? null : v), phoneInput('연락처').nullable()),
+  address: reservationAddressInput,
+  detailAddress: reqStr('상세주소', 200),
+  housingType: reqStr('주거 유형', 20),
+  hasElevator: bool(false),
+  parkingNote: optStr(200),
+  lines: z.array(quoteLineInput).min(1, MSG.required('기기')).max(20),
+  options: z.array(quoteOptionInput).max(20).default([]),
+  customerType: z.enum(['PERSONAL', 'BUSINESS']).default('PERSONAL'),
+  slotDate: dateStr('방문 날짜'),
+  slotHour,
+  orderType: reqStr('접수 유형', 20),
+  channel: reqStr('접수 채널', 20),
+  customerRequest: optStr(500),
+  internalNote: optStr(1000),
+  duplicateConfirmed: bool(false),
+});
+export const notificationTemplateInput = z.object({
+  channel: reqStr('채널', 20),
+  title: reqStr('제목', 100),
+  body: reqStr('본문', 2000),
+  kakaoTemplateId: optStr(50),
+  isActive: bool(true),
+});
+
 /* ---------- 단계 1 보강: 서비스 지역 오픈 알림 신청 (F-CUS-QUO-08, BR-003) ---------- */
 export const areaOpenRequestInput = z.object({
   legalDongCode: legalDongCodeInput,

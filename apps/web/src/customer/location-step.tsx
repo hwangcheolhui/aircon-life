@@ -6,7 +6,7 @@ import { MapPin, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import { checkServiceArea } from '@/app/(customer)/quote/actions';
-import { AddressSearchModal } from './address-search';
+import { AddressSearchModal } from '@/shared/address-search';
 import { AreaOpenModal } from './area-open-form';
 import { QuoteBottomBar, StepHeader, useQuoteDraft } from './quote-flow';
 

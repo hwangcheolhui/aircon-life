@@ -1,4 +1,4 @@
-// C-QUO-040 견적 결과 (S4) · F-CUS-QUO-04 — 항목별 금액·할인·할증·총액·소요시간·포함/불포함·현장 추가요금 조건·유효기한
+// C-QUO-040 견적 결과 (S4) · F-CUS-QUO-04 · 단계 2: [예약하기] → C-RSV-010 — 항목별 금액·할인·할증·총액·소요시간·포함/불포함·현장 추가요금 조건·유효기한
 import { customerQuoteInput } from '@aircon/contracts';
 import { SETTING_KEYS, isQuoteExpired, quoteExpiresAt } from '@aircon/domain';
 import { Alert, Button, Card } from '@aircon/ui';
@@ -62,6 +62,9 @@ export default async function QuoteResultPage({
   const lines = s.items.filter((i) => i.itemType === 'PRODUCT' || i.itemType === 'OPTION');
   const discounts = s.items.filter((i) => i.itemType === 'DISCOUNT');
   const surcharges = s.items.filter((i) => i.itemType === 'SURCHARGE');
+  // C-RSV-010 로 (비로그인이면 휴대폰 인증을 거쳐 돌아온다, F-CUS-AUTH-02)
+  const r = demo ? (await searchParams).r : undefined;
+  const reserveHref = `/reserve/${demo ? DEMO_QUOTE_NO : quoteNo}${r ? `?r=${encodeURIComponent(r)}` : ''}`;
 
   return (
     <>
@@ -166,15 +169,20 @@ export default async function QuoteResultPage({
           </Card>
         ) : null}
 
-        <Alert>온라인 예약은 곧 열립니다. 지금은 고객센터 전화로 예약해 주세요.</Alert>
         <Link href="/quote" className="ac-btn ac-btn--ghost">
           처음부터 다시 견적 받기
         </Link>
       </main>
       <QuoteBottomBar label="총 견적 금액" amount={q.totalAmount}>
-        <Button variant="primary" size="lg" disabled>
-          예약하기
-        </Button>
+        {expired || s.needsSiteSurvey ? (
+          <Button variant="primary" size="lg" disabled>
+            예약하기
+          </Button>
+        ) : (
+          <Link href={reserveHref} className="ac-btn ac-btn--primary ac-btn--lg">
+            예약하기
+          </Link>
+        )}
       </QuoteBottomBar>
     </>
   );

@@ -3,6 +3,7 @@
 > 에어컨 청소 기반 지역생활서비스 플랫폼 — MVP ~ 2단계 확장 대응 데이터 모델
 > 문서 버전: v1.1 · 작성일: 2026-11-22 · 작성 관점: 프로그램 분석·설계자
 > v1.2(단계 1 보강): 서비스 지역 오픈 알림 신청 `area_open_request`(§2.2.7, §3.9) 추가, 알림 템플릿 `AREA_OPENED`, 설정 `AREA_OPEN_REQUEST_KEEP_DAYS`
+> v1.3(단계 2 구현 반영): §4 단계 2 코드 그룹, `system_setting` 슬롯·취소·약관 키, `notification_log.created_at`, `refund.requested_by` 타입, 접수번호 형식, 알림 템플릿 코드, 결제·환불 INSERT ONLY 처리 방식
 > v1.1(단계 0 구현 반영): `admin_user` Supabase Auth 연결, 일시 타입 확정, §4 코드 그룹 추가, `system_setting` 키 추가, 가격 정책 동순위 결정 규칙
 > 연계 문서: [02_기능정의서.md](./02_기능정의서.md) · [03_IA.md](./03_IA.md)
 
@@ -536,7 +537,7 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 | 컬럼 | 타입 | 제약 | 설명 | 코드값/예시 |
 |---|---|---|---|---|
 | id | BIGINT | PK | | |
-| order_no | VARCHAR(20) | UK, NN | 접수 번호(고객·기사 공용) | `2611221530A1` (MMDDHHmm+일련) |
+| order_no | VARCHAR(20) | UK, NN | 접수 번호(고객·기사 공용) | `2611221530A1` (접수 시각 KST YYMMDDHHmm + 같은 분 일련 A1~A9·B1…Z9) |
 | customer_id | BIGINT | FK→customer, NN | | |
 | address_id | BIGINT | FK→customer_address, NN | 방문지 | |
 | branch_id | BIGINT | FK→branch, NN | 담당 거점 | |
@@ -1037,7 +1038,9 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 | 공통컬럼 | | | | |
 
 #### 2.10.2 `refund` — 환불·취소
-`id`, `payment_id`(FK), `amount`, `reason_code`(`CUSTOMER_CANCEL`/`SERVICE_FAIL`/`COMPENSATION`/`DUPLICATE`), `reason_detail`, `cancel_fee`(취소 수수료), `status`(`REQUESTED`/`DONE`/`FAILED`), `pg_cancel_tid`, `requested_by`, `approved_by`(FK→admin_user), `refunded_at`, 공통컬럼
+`id`, `payment_id`(FK), `amount`, `reason_code`(`CUSTOMER_CANCEL`/`SERVICE_FAIL`/`COMPENSATION`/`DUPLICATE`), `reason_detail`, `cancel_fee`(취소 수수료), `status`(`REQUESTED`/`DONE`/`FAILED`), `pg_cancel_tid`, `requested_by`(VARCHAR(20), 요청 주체 `ACTOR_TYPE`: CUSTOMER/ADMIN — 고객·관리자 모두 요청하므로 FK 대신 주체 구분), `approved_by`(FK→admin_user), `refunded_at`, 공통컬럼
+
+> 단계 2 구현: `payment`·`refund`는 INSERT ONLY(DB 트리거). 결제는 PG 확인이 끝난 뒤 최종 상태(`APPROVED`/`FAILED`)로 1행만 넣고(결제 시도마다 `payment_no` 새로 발급 = 포트원 결제 ID), 취소·환불은 `refund` 행으로 남긴다. 주문의 `paid_amount`·`payment_status`가 합계 캐시다.
 
 #### 2.10.3 `tax_document` — 증빙(현금영수증·세금계산서)
 전략 7.1: 개인=현금영수증, 법인=세금계산서.
@@ -1112,10 +1115,10 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 ### D12. CRM·마케팅·품질
 
 #### 2.12.1 `notification_template` — 알림 템플릿
-`id`, `template_code`(UK, `ORDER_CONFIRMED`, `TECH_ASSIGNED`, `ON_THE_WAY`, `WORK_DONE`, `PAYMENT_DONE`, `REVISIT_11M`, `REVIEW_REQUEST`, `AREA_OPENED`(서비스 지역 오픈 안내, F-ADM-DSP-11)), `channel`(`ALIMTALK`/`SMS`/`PUSH`/`EMAIL`), `target`(`CUSTOMER`/`TECHNICIAN`/`ADMIN`), `title`, `body`(치환변수 `#{고객명}` 등), `kakao_template_id`, `is_active`, 공통컬럼
+`id`, `template_code`(UK, `ORDER_CONFIRMED`, `ORDER_CHANGED`(일정 변경, 단계 2), `ORDER_CANCELED`(취소, 단계 2), `VISIT_REMINDER`(방문 전날 18:00, 단계 2), `TECH_ASSIGNED`, `ON_THE_WAY`, `WORK_DONE`, `PAYMENT_DONE`, `REVISIT_11M`, `REVIEW_REQUEST`, `AREA_OPENED`(서비스 지역 오픈 안내, F-ADM-DSP-11)), `channel`(`ALIMTALK`/`SMS`/`PUSH`/`EMAIL`), `target`(`CUSTOMER`/`TECHNICIAN`/`ADMIN`), `title`, `body`(치환변수 `#{고객명}` 등), `kakao_template_id`, `is_active`, 공통컬럼
 
 #### 2.12.2 `notification_log` — 알림 발송 이력
-`id`, `template_id`(FK), `receiver_type`, `receiver_id`, `receiver_phone_masked`, `channel`, `related_type`(`ORDER`/`CAMPAIGN`/...), `related_id`, `status`(`QUEUED`/`SENT`/`FAILED`/`FALLBACK_SMS`), `sent_at`, `fail_reason`
+`id`, `template_id`(FK), `receiver_type`, `receiver_id`, `receiver_phone_masked`, `channel`, `related_type`(`ORDER`/`CAMPAIGN`/...), `related_id`, `status`(`QUEUED`/`SENT`/`FAILED`/`FALLBACK_SMS`), `sent_at`, `fail_reason`, `created_at`(단계 2 추가: 실패 건도 시각을 남기고 고객 알림함 C-NTF-010 정렬에 사용)
 
 #### 2.12.3 `campaign` — 캠페인(재방문·시즌 사전예약)
 전략: "작업 11개월 후 재방문 캠페인", "성수기 전 4~5월 사전예약".
@@ -1230,7 +1233,7 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 `id`, `actor_type`, `actor_id`, `action`(`VIEW_PII`/`EXPORT`/`UPDATE`/`DELETE`/`LOGIN`/`PERMISSION_CHANGE`), `target_table`, `target_id`(VARCHAR(50): 문자열 PK 테이블 대응), `ip_address`, `user_agent`, `detail_json`, `created_at`. **INSERT ONLY**: DB 트리거로 UPDATE·DELETE를 막습니다.
 
 #### 2.13.8 `system_setting` — 시스템 설정(키-값)
-`setting_key`(PK, 예: `QUOTE_EXPIRE_DAYS`=7, `REVISIT_MONTHS`=11, `PURGE_YEARS`=…, `SETTLEMENT_WEEKDAY`=`WED`, `POPUP_DEFAULT_TIME`=08:30, `DUPLICATE_CHECK_DAYS`=30, `ROUTE_CONFIRM_DEADLINE`=전날 18:00, `ROUTE_TRAVEL_BUFFER_MIN`=10, `ARRIVAL_WINDOW_HOURS`=2, `LOCATION_INTERVAL_SEC`=60, `LOCATION_RETENTION_DAYS`=90, `SELF_ASSIGN_ENABLED`=거점별 Y/N, `SELF_ASSIGN_NEEDS_APPROVAL`=Y, `ADMIN_LOGIN_MAX_FAIL`=5, `ADMIN_PASSWORD_MIN_LENGTH`=8, `QUOTE_SITE_SURVEY_MIN_UNITS`=4(시스템·천장형 합계가 이 대수 이상이면 "현장 확인 견적" 안내, 단계 1), `AREA_OPEN_REQUEST_KEEP_DAYS`=365(오픈 알림 신청 대기 보관일, 지나면 EXPIRED·연락처 삭제, BR-003)), `setting_value`, `description`, `updated_at`, `updated_by`
+`setting_key`(PK, 예: `QUOTE_EXPIRE_DAYS`=7, `REVISIT_MONTHS`=11, `PURGE_YEARS`=…, `SETTLEMENT_WEEKDAY`=`WED`, `POPUP_DEFAULT_TIME`=08:30, `DUPLICATE_CHECK_DAYS`=30, `ROUTE_CONFIRM_DEADLINE`=전날 18:00, `ROUTE_TRAVEL_BUFFER_MIN`=10, `ARRIVAL_WINDOW_HOURS`=2, `LOCATION_INTERVAL_SEC`=60, `LOCATION_RETENTION_DAYS`=90, `SELF_ASSIGN_ENABLED`=거점별 Y/N, `SELF_ASSIGN_NEEDS_APPROVAL`=Y, `ADMIN_LOGIN_MAX_FAIL`=5, `ADMIN_PASSWORD_MIN_LENGTH`=8, `QUOTE_SITE_SURVEY_MIN_UNITS`=4(시스템·천장형 합계가 이 대수 이상이면 "현장 확인 견적" 안내, 단계 1), 단계 2: `SLOT_DAYS_AHEAD`=14(슬롯 자동 생성·고객 달력 일수), `SLOT_JOBS_PER_TECH_HOUR`=1(기사 1명 시간당 처리 건수), `WORK_DEFAULT_START`=09:00·`WORK_DEFAULT_END`=18:00(근무 시간을 비운 일정의 기본값, 반차는 가운데 시각으로 나눔), `CANCEL_FEE_HOURS`=24·`CANCEL_FEE_AMOUNT`=0(BR-030 방문 N시간 전부터 취소 수수료, 금액은 운영사가 정함), `TERMS_VERSION`=v1.0(동의 이력에 남는 약관 버전), `AREA_OPEN_REQUEST_KEEP_DAYS`=365(오픈 알림 신청 대기 보관일, 지나면 EXPIRED·연락처 삭제, BR-003)), `setting_value`, `description`, `updated_at`, `updated_by`
 
 ---
 
@@ -1354,6 +1357,37 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 | `QUOTE_STATUS` | DRAFT 작성중 / ISSUED 발행 / CONVERTED 주문전환 / EXPIRED 만료 | quote.status (§3.8) |
 | `QUOTE_ITEM_TYPE` | PRODUCT 상품 / OPTION 옵션 / SURCHARGE 할증 / DISCOUNT 할인 | quote_item.item_type |
 | `AREA_OPEN_STATUS` | WAITING 대기 / NOTIFIED 안내완료 / EXPIRED 만료 | area_open_request.status (§3.9) |
+
+**단계 2에서 추가한 그룹** (§2 테이블의 코드값 열을 코드 그룹으로 등록)
+
+| group_code | 코드 목록 | 사용 컬럼 |
+|---|---|---|
+| `CUSTOMER_STATUS` | ACTIVE 정상 / DORMANT 휴면 / WITHDRAWN 탈퇴 / PURGED 파기 | customer.status |
+| `CUSTOMER_GRADE` | NORMAL 일반 / VIP VIP / FREQUENT 다빈도 / CAUTION 주의 | customer.grade |
+| `JOIN_CHANNEL` | APP 앱 / PHONE 전화 / B2B B2B / REFERRAL 추천 / MIGRATION 이관 | customer.join_channel |
+| `AUTH_PROVIDER` | KAKAO 카카오 / NAVER 네이버 / APPLE 애플 / PHONE 휴대폰 | customer.auth_provider |
+| `PRIVACY_AGREE_STATUS` | AGREED 동의 / DISAGREED 미동의 / NOT_ASKED 질의못함 | customer.privacy_agree_status |
+| `CONSENT_TYPE` | TERMS 서비스 이용약관 / PRIVACY_REQUIRED 개인정보 수집·이용(필수) / PRIVACY_OPTIONAL 개인정보 수집·이용(선택) / LOCATION 위치정보 이용 / MARKETING_SMS 혜택·이벤트 문자·알림톡 받기 / MARKETING_PUSH 혜택·이벤트 앱 알림 받기 / THIRD_PARTY 개인정보 제3자 제공 | consent_history.consent_type |
+| `CONSENT_ACTION` | AGREE 동의 / DISAGREE 미동의 / NOT_ASKED 질의못함 / WITHDRAW 철회 | consent_history.action |
+| `CONSENT_CHANNEL` | APP 앱 / PHONE 전화(구두) / WEB 웹 / PAPER 서면 | consent_history.channel |
+| `ORDER_TYPE` | NORMAL 일반 / URGENT 긴급 / AS 무상AS / B2B_CONTRACT 정기계약 | service_order.order_type |
+| `VISIT_TYPE` | IN_HOURS 업무시간내 / NIGHT 야간 / HOLIDAY 휴일 | service_order.visit_type |
+| `PAYMENT_STATUS` | UNPAID 미결제 / PREPAID 선결제 / PAID 결제완료 / PARTIAL_REFUND 부분환불 / REFUNDED 환불 / RECEIVABLE 미수 | service_order.payment_status |
+| `PAYMENT_STAGE` | PREPAY 예약 시 선결제 / ONSITE 현장 결제 / POSTPAY 작업 후 앱 결제 / INVOICE B2B 청구 | payment.payment_stage |
+| `PAYMENT_TX_STATUS` | READY 대기 / APPROVED 승인 / FAILED 실패 / CANCELED 취소 / PARTIAL_CANCELED 부분취소 | payment.status |
+| `PG_PROVIDER` | TOSS 토스페이먼츠 / NICE 나이스페이 / KCP KCP / MOCK 모의 결제(개발용) | payment.pg_provider (MOCK = 개발용 모의 결제) |
+| `REFUND_REASON` | CUSTOMER_CANCEL 고객 취소 / SERVICE_FAIL 서비스 불가 / COMPENSATION 보상 / DUPLICATE 중복 결제 | refund.reason_code |
+| `REFUND_STATUS` | REQUESTED 요청 / DONE 완료 / FAILED 실패 | refund.status |
+| `CHANGE_REQUEST_TYPE` | RESCHEDULE 일정 변경 / CANCEL 취소 | order_change_request.request_type |
+| `CHANGE_REQUEST_STATUS` | REQUESTED 요청 / APPROVED 승인 / REJECTED 반려 | order_change_request.status |
+| `SLOT_KIND` | NORMAL 일반 / CONTRACT 계약 / URGENT 긴급 / ON_CALL 당직 | time_slot.slot_kind |
+| `ITEM_STATUS` | PLANNED 예정 / DONE 완료 / SKIPPED 작업불가 | order_item.item_status |
+| `ACTOR_TYPE` | CUSTOMER 고객 / TECHNICIAN 기사 / ADMIN 관리자 / SYSTEM 시스템 | order_status_history.actor_type, refund.requested_by |
+| `NOTIFICATION_CHANNEL` | ALIMTALK 알림톡 / SMS 문자 / PUSH 앱 푸시 / EMAIL 이메일 | notification_template.channel, notification_log.channel |
+| `NOTIFICATION_TARGET` | CUSTOMER 고객 / TECHNICIAN 기사 / ADMIN 관리자 | notification_template.target, notification_log.receiver_type |
+| `NOTIFICATION_STATUS` | QUEUED 대기 / SENT 발송 / FAILED 실패 / FALLBACK_SMS 문자 대체 발송 | notification_log.status |
+| `TECH_STATUS` | APPLICANT 지원 / TRAINING 교육중 / ACTIVE 활동 / PAUSED 휴직 / LEFT 이탈 | technician.status |
+| `CONTRACT_TYPE` | EMPLOYEE 근로 / FREELANCER 도급(사업소득 3.3%) / PARTNER 사업자 | technician.contract_type |
 
 ---
 

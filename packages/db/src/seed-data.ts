@@ -237,11 +237,202 @@ export const COMMON_CODE_SEED = [
     ['SURCHARGE', '할증'],
     ['DISCOUNT', '할인'],
   ]),
+  // ── 단계 2에서 추가한 그룹 (ERD §4 하단 표) ──
+  ...g('CUSTOMER_STATUS', [
+    ['ACTIVE', '정상'],
+    ['DORMANT', '휴면'],
+    ['WITHDRAWN', '탈퇴'],
+    ['PURGED', '파기'],
+  ]),
+  ...g('CUSTOMER_GRADE', [
+    ['NORMAL', '일반'],
+    ['VIP', 'VIP'],
+    ['FREQUENT', '다빈도'],
+    ['CAUTION', '주의'],
+  ]),
+  ...g('JOIN_CHANNEL', [
+    ['APP', '앱'],
+    ['PHONE', '전화'],
+    ['B2B', 'B2B'],
+    ['REFERRAL', '추천'],
+    ['MIGRATION', '이관'],
+  ]),
+  ...g('AUTH_PROVIDER', [
+    ['KAKAO', '카카오'],
+    ['NAVER', '네이버'],
+    ['APPLE', '애플'],
+    ['PHONE', '휴대폰'],
+  ]),
+  ...g('PRIVACY_AGREE_STATUS', [
+    ['AGREED', '동의'],
+    ['DISAGREED', '미동의'],
+    ['NOT_ASKED', '질의못함'],
+  ]),
+  ...g('CONSENT_TYPE', [
+    ['TERMS', '서비스 이용약관'],
+    ['PRIVACY_REQUIRED', '개인정보 수집·이용(필수)'],
+    ['PRIVACY_OPTIONAL', '개인정보 수집·이용(선택)'],
+    ['LOCATION', '위치정보 이용'],
+    ['MARKETING_SMS', '혜택·이벤트 문자·알림톡 받기'],
+    ['MARKETING_PUSH', '혜택·이벤트 앱 알림 받기'],
+    ['THIRD_PARTY', '개인정보 제3자 제공'],
+  ]),
+  ...g('CONSENT_ACTION', [
+    ['AGREE', '동의'],
+    ['DISAGREE', '미동의'],
+    ['NOT_ASKED', '질의못함'],
+    ['WITHDRAW', '철회'],
+  ]),
+  ...g('CONSENT_CHANNEL', [
+    ['APP', '앱'],
+    ['PHONE', '전화(구두)'],
+    ['WEB', '웹'],
+    ['PAPER', '서면'],
+  ]),
+  ...g('ORDER_TYPE', [
+    ['NORMAL', '일반'],
+    ['URGENT', '긴급'],
+    ['AS', '무상AS'],
+    ['B2B_CONTRACT', '정기계약'],
+  ]),
+  ...g('VISIT_TYPE', [
+    ['IN_HOURS', '업무시간내'],
+    ['NIGHT', '야간'],
+    ['HOLIDAY', '휴일'],
+  ]),
+  ...g('PAYMENT_STATUS', [
+    ['UNPAID', '미결제'],
+    ['PREPAID', '선결제'],
+    ['PAID', '결제완료'],
+    ['PARTIAL_REFUND', '부분환불'],
+    ['REFUNDED', '환불'],
+    ['RECEIVABLE', '미수'],
+  ]),
+  ...g('PAYMENT_STAGE', [
+    ['PREPAY', '예약 시 선결제'],
+    ['ONSITE', '현장 결제'],
+    ['POSTPAY', '작업 후 앱 결제'],
+    ['INVOICE', 'B2B 청구'],
+  ]),
+  ...g('PAYMENT_TX_STATUS', [
+    ['READY', '대기'],
+    ['APPROVED', '승인'],
+    ['FAILED', '실패'],
+    ['CANCELED', '취소'],
+    ['PARTIAL_CANCELED', '부분취소'],
+  ]),
+  ...g('PG_PROVIDER', [
+    ['TOSS', '토스페이먼츠'],
+    ['NICE', '나이스페이'],
+    ['KCP', 'KCP'],
+    ['MOCK', '모의 결제(개발용)'],
+  ]),
+  ...g('REFUND_REASON', [
+    ['CUSTOMER_CANCEL', '고객 취소'],
+    ['SERVICE_FAIL', '서비스 불가'],
+    ['COMPENSATION', '보상'],
+    ['DUPLICATE', '중복 결제'],
+  ]),
+  ...g('REFUND_STATUS', [
+    ['REQUESTED', '요청'],
+    ['DONE', '완료'],
+    ['FAILED', '실패'],
+  ]),
+  ...g('CHANGE_REQUEST_TYPE', [
+    ['RESCHEDULE', '일정 변경'],
+    ['CANCEL', '취소'],
+  ]),
+  ...g('CHANGE_REQUEST_STATUS', [
+    ['REQUESTED', '요청'],
+    ['APPROVED', '승인'],
+    ['REJECTED', '반려'],
+  ]),
+  ...g('SLOT_KIND', [
+    ['NORMAL', '일반'],
+    ['CONTRACT', '계약'],
+    ['URGENT', '긴급'],
+    ['ON_CALL', '당직'],
+  ]),
+  ...g('ITEM_STATUS', [
+    ['PLANNED', '예정'],
+    ['DONE', '완료'],
+    ['SKIPPED', '작업불가'],
+  ]),
+  ...g('ACTOR_TYPE', [
+    ['CUSTOMER', '고객'],
+    ['TECHNICIAN', '기사'],
+    ['ADMIN', '관리자'],
+    ['SYSTEM', '시스템'],
+  ]),
+  ...g('NOTIFICATION_CHANNEL', [
+    ['ALIMTALK', '알림톡'],
+    ['SMS', '문자'],
+    ['PUSH', '앱 푸시'],
+    ['EMAIL', '이메일'],
+  ]),
+  ...g('NOTIFICATION_TARGET', [
+    ['CUSTOMER', '고객'],
+    ['TECHNICIAN', '기사'],
+    ['ADMIN', '관리자'],
+  ]),
+  ...g('NOTIFICATION_STATUS', [
+    ['QUEUED', '대기'],
+    ['SENT', '발송'],
+    ['FAILED', '실패'],
+    ['FALLBACK_SMS', '문자 대체 발송'],
+  ]),
+  ...g('TECH_STATUS', [
+    ['APPLICANT', '지원'],
+    ['TRAINING', '교육중'],
+    ['ACTIVE', '활동'],
+    ['PAUSED', '휴직'],
+    ['LEFT', '이탈'],
+  ]),
+  ...g('CONTRACT_TYPE', [
+    ['EMPLOYEE', '근로'],
+    ['FREELANCER', '도급(사업소득 3.3%)'],
+    ['PARTNER', '사업자'],
+  ]),
   ...g('AREA_OPEN_STATUS', [
     ['WAITING', '대기'],
     ['NOTIFIED', '안내완료'],
     ['EXPIRED', '만료'],
   ]),
+];
+
+/**
+ * 알림 템플릿 초기값 (01 §2.12.1). 운영 중 문구는 A-CRM-040에서 바꾸며 시드는 덮어쓰지 않는다.
+ * 알림톡은 카카오 검수 후 받은 템플릿 ID를 kakao_template_id 에 넣어야 실제로 발송되고, 비어 있으면 문자(SMS)로 보낸다.
+ */
+export const NOTIFICATION_TEMPLATE_SEED = [
+  {
+    templateCode: 'ORDER_CONFIRMED',
+    channel: 'ALIMTALK',
+    target: 'CUSTOMER',
+    title: '예약 접수 안내',
+    body: '#{고객명}님, 에어컨 청소 예약이 접수되었습니다.\n접수번호: #{접수번호}\n방문 일시: #{방문일시}\n금액: #{금액}\n기사님이 배정되면 다시 알려 드릴게요.',
+  },
+  {
+    templateCode: 'ORDER_CHANGED',
+    channel: 'ALIMTALK',
+    target: 'CUSTOMER',
+    title: '예약 일정 변경 안내',
+    body: '#{고객명}님, 예약 일정이 변경되었습니다.\n접수번호: #{접수번호}\n변경된 방문 일시: #{방문일시}',
+  },
+  {
+    templateCode: 'ORDER_CANCELED',
+    channel: 'ALIMTALK',
+    target: 'CUSTOMER',
+    title: '예약 취소 안내',
+    body: '#{고객명}님, 예약이 취소되었습니다.\n접수번호: #{접수번호}\n결제하신 금액은 취소 규정에 따라 환불됩니다.',
+  },
+  {
+    templateCode: 'VISIT_REMINDER',
+    channel: 'ALIMTALK',
+    target: 'CUSTOMER',
+    title: '내일 방문 안내',
+    body: '#{고객명}님, 내일 #{방문일시}에 에어컨 청소 기사님이 방문합니다.\n접수번호: #{접수번호}\n에어컨 주변 물건을 치워 주시고, 주차가 어려우면 미리 알려 주세요. 문의: #{거점전화}',
+  },
 ];
 
 /** ERD §0.2 역할. 거점장만 BRANCH 범위이고, 나머지는 소속 거점이 지정되면 BR-102에 따라 그 거점으로 제한된다. */

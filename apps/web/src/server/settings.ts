@@ -13,3 +13,11 @@ export async function getSettingNumber(key: string): Promise<number> {
   if (!row || Number.isNaN(n)) throw new Error(`system_setting ${key} 값이 없습니다.`);
   return n;
 }
+
+/** 문자열 기준값 (시각·버전 등) */
+export async function getSettingString(key: string): Promise<string> {
+  if (!isDbConfigured()) return SYSTEM_SETTING_SEEDS.find((s) => s.key === key)?.value ?? '';
+  const [row] = await getDb().select().from(systemSetting).where(eq(systemSetting.settingKey, key));
+  if (!row) throw new Error(`system_setting ${key} 값이 없습니다.`);
+  return row.settingValue;
+}

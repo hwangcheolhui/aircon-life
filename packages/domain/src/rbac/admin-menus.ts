@@ -21,7 +21,7 @@ export type ImplementationStage =
   | '11';
 
 /** 지금까지 구현이 끝난 단계. 단계를 마칠 때마다 이 목록에 추가한다. */
-export const RELEASED_STAGES: readonly ImplementationStage[] = ['0', '1'];
+export const RELEASED_STAGES: readonly ImplementationStage[] = ['0', '1', '2'];
 
 export interface AdminScreen {
   screenId: string;
@@ -104,7 +104,7 @@ export const ADMIN_MENU: readonly AdminMenuGroup[] = [
     key: 'TEC',
     name: '기사',
     screens: [
-      { screenId: 'A-TEC-010', name: '기사 목록', stage: '4-1' },
+      { screenId: 'A-TEC-010', name: '기사 목록', stage: '2' },
       { screenId: 'A-TEC-020', name: '기사 상세·등록', stage: '4-1', inMenu: false },
       { screenId: 'A-TEC-030', name: '지원자 관리', stage: '10' },
       { screenId: 'A-TEC-040', name: '교육 과정', stage: '10' },

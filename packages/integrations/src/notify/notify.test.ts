@@ -73,3 +73,10 @@ describe('솔라피 Real', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 });
+
+describe('Mock 알림톡 실패 흉내 MOCK_NOTIFY_ALIMTALK_FAIL', () => {
+  it('true 면 알림톡이 실패해 SMS로 대체된다', async () => {
+    const t = createNotifyTransport({ MOCK_NOTIFY_ALIMTALK_FAIL: 'true' } as unknown as NodeJS.ProcessEnv);
+    expect((await sendWithFallback(t, msg)).status).toBe('FALLBACK_SMS');
+  });
+});

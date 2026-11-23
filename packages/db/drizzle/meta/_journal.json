@@ -29,6 +29,13 @@
       "when": 1795407064841,
       "tag": "0003_area_open_request",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795409994828,
+      "tag": "0004_order",
+      "breakpoints": true
     }
   ]
 }

@@ -12,22 +12,23 @@ import {
 } from 'drizzle-orm/pg-core';
 import type { QuoteSnapshot } from '@aircon/domain';
 import { branch } from './d1-org';
+import { customer, customerAddress } from './d2-customer';
 import { serviceOption, serviceProduct, surchargeRule } from './d3-product';
 import { auditColumns, idColumn } from './common';
 
 /**
  * 2.4.1 견적. 비회원 견적이면 customer_id 가 NULL (F-CUS-AUTH-02).
- * customer_id·address_id 의 FK는 customer·customer_address 테이블이 생기는 단계 2 마이그레이션에서 건다.
+ * customer_id·address_id 의 FK는 단계 2 마이그레이션(0003)에서 걸었다. 예약 시 주문 고객·주소로 채운다.
  */
 export const quote = pgTable(
   'quote',
   {
     id: idColumn(),
     quoteNo: varchar('quote_no', { length: 20 }).notNull().unique(),
-    customerId: bigint('customer_id', { mode: 'number' }),
+    customerId: bigint('customer_id', { mode: 'number' }).references(() => customer.id),
     guestPhoneHash: char('guest_phone_hash', { length: 64 }),
     channel: varchar('channel', { length: 20 }).notNull(), // ORDER_CHANNEL (APP/PHONE/B2B)
-    addressId: bigint('address_id', { mode: 'number' }),
+    addressId: bigint('address_id', { mode: 'number' }).references(() => customerAddress.id),
     legalDongCode: varchar('legal_dong_code', { length: 10 }).notNull(),
     branchId: bigint('branch_id', { mode: 'number' }).references(() => branch.id),
     isServiceable: boolean('is_serviceable').notNull(),
