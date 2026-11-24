@@ -404,7 +404,13 @@
 }
 .tec-sheet-overlay .ac-sheet {
   max-width: 600px;
+  max-height: 90dvh; /* 입력이 많은 시트(추가요금 등록)는 시트 안에서 스크롤 */
+  overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
 }
+
+/* T-WRK-040 추가요금 목록 (단계 5-2) */
+.tec-extra-item .ac-list-item__body { display: grid; gap: var(--space-1); }

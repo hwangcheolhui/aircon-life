@@ -859,3 +859,46 @@ export const activityInput = z.object({
   activityType: z.enum(['CALL', 'SMS', 'VISIT_TRY', 'NOTE'], { errorMap: () => ({ message: MSG.required('유형') }) }),
   content: reqStr('내용', 500),
 });
+
+/* ---------- 단계 5-2 추가요금·미처리 ---------- */
+
+/** F-TEC-WRK-05 추가요금 등록 (FormData: 값 + evidence 사진 선택). 유형별 필수값은 packages/domain checkExtraChargeInput */
+export const extraChargeInput = z.object({
+  orderNo: orderNoField(),
+  chargeType: z.enum(['RULE', 'MATERIAL', 'ETC', 'DEVICE_ADD'], { errorMap: () => ({ message: MSG.required('유형') }) }),
+  surchargeRuleId: optId(),
+  baseOrderItemId: optId(),
+  quantity: optInt(0),
+  title: optStr(100),
+  amount: optInt(0),
+  reason: reqStr('사유', 300),
+});
+
+/** F-TEC-WRK-05 추가요금 철회 */
+export const extraChargeRefInput = z.object({ orderNo: orderNoField(), chargeId: reqId('추가요금') });
+
+/** F-CUS-ORD-04 고객 앱 동의/거절 */
+export const extraChargeRespondInput = z.object({
+  orderNo: orderNoField(),
+  chargeId: reqId('추가요금'),
+  decision: z.enum(['AGREE', 'DECLINE'], { errorMap: () => ({ message: MSG.required('동의 여부') }) }),
+});
+
+/** F-ADM-PRC-04 기타 추가요금 승인/반려 (반려 사유 필수) */
+export const extraChargeDecisionInput = z
+  .object({
+    chargeId: reqId('추가요금'),
+    decision: z.enum(['APPROVE', 'REJECT']),
+    reason: optStr(300),
+  })
+  .refine((v) => v.decision === 'APPROVE' || Boolean(v.reason), { message: MSG.required('반려 사유'), path: ['reason'] });
+
+/** F-TEC-WRK-08 미처리 저장 (BR-031 사유 필수) */
+export const workPendingInput = z.object({
+  orderNo: orderNoField(),
+  pendingCode: z.enum(['CUSTOMER_ABSENT', 'POSTPONED_CUSTOMER', 'POSTPONED_TECH', 'MATERIAL_SHORT', 'UNSAFE_SITE', 'WEATHER', 'ETC'], {
+    errorMap: () => ({ message: MSG.required('미처리 사유') }),
+  }),
+  memo: optStr(500),
+  revisitDate: optDate(),
+});

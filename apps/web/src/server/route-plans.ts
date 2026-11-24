@@ -1032,7 +1032,7 @@ export async function markRouteStop(
   techId: number,
   orderId: number,
   date: string,
-  event: { type: 'DEPART'; eta: Date | null } | { type: 'ARRIVE' } | { type: 'DONE' },
+  event: { type: 'DEPART'; eta: Date | null } | { type: 'ARRIVE' } | { type: 'DONE' } | { type: 'SKIP' },
   at = new Date(),
 ) {
   const [plan] = await tx
@@ -1051,11 +1051,13 @@ export async function markRouteStop(
         ? { eta: event.eta, etaUpdatedAt: event.eta ? at : null }
         : event.type === 'ARRIVE'
           ? { actualArrival: at, status: 'ARRIVED' }
-          : { actualDeparture: at, status: 'DONE', actualArrival: stop.actualArrival ?? at };
+          : event.type === 'SKIP'
+            ? { actualDeparture: stop.actualArrival ? at : null, status: 'SKIPPED' } // 단계 5-2 미처리
+            : { actualDeparture: at, status: 'DONE', actualArrival: stop.actualArrival ?? at };
     await tx.update(routeStop).set({ ...set, updatedAt: at, updatedBy: techId }).where(eq(routeStop.id, stop.id));
   }
   if (event.type === 'DEPART' && plan.status === 'CONFIRMED') await setPlanStatus(tx, plan, 'IN_PROGRESS', actor);
-  if (event.type === 'DONE' && plan.status === 'IN_PROGRESS') {
+  if ((event.type === 'DONE' || event.type === 'SKIP') && plan.status === 'IN_PROGRESS') {
     const open = await tx
       .select({ id: routeStop.id })
       .from(routeStop)

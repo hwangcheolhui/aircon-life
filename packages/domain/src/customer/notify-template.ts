@@ -28,6 +28,12 @@ export const NOTIFICATION_TEMPLATE_CODES = [
   'SELF_ASSIGN_APPROVED',
   'SELF_ASSIGN_REJECTED',
   // 단계 5-1: 출발·완료 고객 알림(F-SYS-04)은 위 ON_THE_WAY·WORK_DONE
+  // 단계 5-2: 추가요금 동의 요청(F-CUS-ORD-04)·고객부재 안내(F-TEC-WRK-08)·기사 결과 알림·운영자 승인 요청(F-ADM-PRC-04)·장기 미처리(F-SYS-08)
+  'EXTRA_CHARGE_REQUEST',
+  'PENDING_ABSENT',
+  'EXTRA_CHARGE_RESULT',
+  'EXTRA_APPROVAL_REQUESTED',
+  'PENDING_OVERDUE',
 ] as const;
 export type NotificationTemplateCode = (typeof NOTIFICATION_TEMPLATE_CODES)[number];
 
@@ -48,4 +54,7 @@ export const TEMPLATE_VARIABLES = [
   '방문건수',
   '도착예정',
   '리포트링크',
+  '추가요금',
+  '동의링크',
+  '결과',
 ] as const;

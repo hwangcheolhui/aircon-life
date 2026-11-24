@@ -539,6 +539,23 @@ export const COMMON_CODE_SEED = [
     ['PHOTO', '사진'],
     ['STATUS', '상태 변경'],
   ]),
+  // 단계 5-2 추가요금 (01 §4 "단계 5에서 추가한 그룹")
+  ...g('EXTRA_CHARGE_TYPE', [
+    ['RULE', '사전공개 규칙'],
+    ['MATERIAL', '자재 구매'],
+    ['ETC', '기타(관리자 승인)'],
+    ['DEVICE_ADD', '현장 기기 추가'],
+  ]),
+  ...g('EXTRA_AGREED_METHOD', [
+    ['APP_CONFIRM', '고객 앱 동의'],
+    ['SIGNATURE', '현장 서명'],
+  ]),
+  ...g('EXTRA_APPROVAL_STATUS', [
+    ['NOT_REQUIRED', '승인 불필요'],
+    ['REQUESTED', '승인 대기'],
+    ['APPROVED', '승인'],
+    ['REJECTED', '반려'],
+  ]),
 ];
 
 /** 상담 스크립트 초기값 (01 §2.6.7, F-ADM-CSL-16). 운영 중 문구는 A-CNT-050에서 바꾸며 시드는 덮어쓰지 않는다. 마이그레이션 0005 에도 같은 값이 있다. */
@@ -613,6 +630,42 @@ export const WORK_TEMPLATE_SEED = [
     target: 'CUSTOMER',
     title: '작업 완료 안내',
     body: '#{고객명}님, 에어컨 청소가 끝났습니다.\n작업 전·후 사진과 처리 내용은 작업 리포트에서 확인하세요.\n작업 리포트: #{리포트링크}\n결제 금액: #{금액}\n접수번호: #{접수번호}',
+  },
+  // 단계 5-2
+  {
+    templateCode: 'EXTRA_CHARGE_REQUEST',
+    channel: 'ALIMTALK',
+    target: 'CUSTOMER',
+    title: '추가요금 동의 요청',
+    body: '#{고객명}님, 현장에서 추가 작업이 필요해 동의를 요청드립니다.\n항목: #{추가요금}\n동의하지 않으시면 청구되지 않습니다.\n확인하기: #{동의링크}\n접수번호: #{접수번호}',
+  },
+  {
+    templateCode: 'PENDING_ABSENT',
+    channel: 'ALIMTALK',
+    target: 'CUSTOMER',
+    title: '방문 부재 안내',
+    body: '#{고객명}님, 기사님이 방문했으나 부재 중이셔서 작업하지 못했습니다.\n다시 약속을 잡으려면 연락 주세요.\n접수번호: #{접수번호}\n문의: #{거점전화}',
+  },
+  {
+    templateCode: 'EXTRA_CHARGE_RESULT',
+    channel: 'PUSH',
+    target: 'TECHNICIAN',
+    title: '추가요금 결과',
+    body: '#{접수번호} 추가요금 "#{추가요금}": #{결과}',
+  },
+  {
+    templateCode: 'EXTRA_APPROVAL_REQUESTED',
+    channel: 'PUSH',
+    target: 'ADMIN',
+    title: '추가요금 승인 요청',
+    body: '#{접수번호} 기타 추가요금 "#{추가요금}" 승인을 기다립니다.',
+  },
+  {
+    templateCode: 'PENDING_OVERDUE',
+    channel: 'PUSH',
+    target: 'ADMIN',
+    title: '장기 미처리',
+    body: '#{접수번호} 장기 미처리 건입니다. 재약속 또는 취소를 확인해 주세요.',
   },
 ];
 

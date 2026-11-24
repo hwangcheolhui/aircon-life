@@ -49,6 +49,8 @@ export const SYSTEM_SETTING_SEEDS: readonly SystemSettingSeed[] = [
   // ── 단계 5-1 현장작업 ──
   { key: 'WORK_NOTE_MIN_LENGTH', value: '10', description: '처리 저장(완료) 때 처리 내용 최소 글자 수(공백 제외) F-TEC-WRK-07' },
   { key: 'WORK_PHOTO_CAMERA_ONLY', value: 'N', description: '작업 사진을 카메라 촬영으로만 받을지(Y면 갤러리 선택 제한) F-TEC-WRK-03' },
+  // ── 단계 5-2 추가요금·미처리 ──
+  { key: 'PENDING_OVERDUE_HOURS', value: '48', description: '미처리(PENDING) 후 이 시간이 지나면 장기 미처리(색상 강조·운영자 알림) BR-032 F-SYS-08' },
 ];
 
 export const SETTING_KEYS = {
@@ -85,4 +87,5 @@ export const SETTING_KEYS = {
   REVISIT_MONTHS: 'REVISIT_MONTHS',
   WORK_NOTE_MIN_LENGTH: 'WORK_NOTE_MIN_LENGTH',
   WORK_PHOTO_CAMERA_ONLY: 'WORK_PHOTO_CAMERA_ONLY',
+  PENDING_OVERDUE_HOURS: 'PENDING_OVERDUE_HOURS',
 } as const;

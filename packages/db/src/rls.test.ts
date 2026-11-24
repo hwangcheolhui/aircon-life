@@ -315,4 +315,34 @@ d('RLS (BR-102, F-ADM-SYS-02)', () => {
       expect(codes.map((c) => c.code)).toEqual(['HIGH_PLACE', 'ELECTRIC', 'PROTECTIVE', 'CHEMICAL']);
     });
   });
+
+  describe('단계 5-2 추가요금', () => {
+    beforeAll(async () => {
+      const works = await sql`SELECT w.id FROM work_order w JOIN service_order o ON o.id = w.order_id WHERE o.order_no IN ('2703201000A1', '2703201000A2')`;
+      for (const w of works)
+        await sql`INSERT INTO extra_charge (work_order_id, charge_type, title, amount, reason, approval_status)
+          VALUES (${w.id}, 'ETC', '배관 연장', 30000, '배관 노후', 'REQUESTED')`;
+    });
+
+    it('BR-100 비로그인(anon)은 추가요금을 읽을 수 없다', async () => {
+      expect(await as(null, (tx) => tx`SELECT * FROM extra_charge`)).toHaveLength(0);
+    });
+
+    it('BR-102 거점장은 자기 거점 주문의 추가요금만 조회한다', async () => {
+      expect(await as(ids.branchMgr, (tx) => tx`SELECT id FROM extra_charge`)).toHaveLength(1);
+      expect(await as(ids.cs, (tx) => tx`SELECT id FROM extra_charge`)).toHaveLength(2);
+    });
+
+    it('BR-042 승인은 서버 전용: 브라우저 키(관리자)로는 승인 상태를 바꿀 수 없다', async () => {
+      const updated = await as(ids.super, (tx) => tx`UPDATE extra_charge SET approval_status = 'APPROVED' RETURNING id`);
+      expect(updated).toHaveLength(0);
+    });
+
+    it('BR-032 장기 미처리 기준값·추가요금 코드가 있다', async () => {
+      const [r] = await sql`SELECT setting_value FROM system_setting WHERE setting_key = 'PENDING_OVERDUE_HOURS'`;
+      expect(r?.setting_value).toBe('48');
+      const codes = await sql`SELECT code FROM common_code WHERE group_code = 'EXTRA_CHARGE_TYPE' ORDER BY sort_order`;
+      expect(codes.map((c) => c.code)).toEqual(['RULE', 'MATERIAL', 'ETC', 'DEVICE_ADD']);
+    });
+  });
 });

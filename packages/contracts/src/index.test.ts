@@ -205,4 +205,22 @@ describe('단계 5-1 입력 스키마', () => {
     expect(activityInput.safeParse({ orderNo: 'A1', activityType: 'VISIT_TRY', content: '초인종 응답 없음' }).success).toBe(true);
     expect(activityInput.safeParse({ orderNo: 'A1', activityType: 'STATUS', content: 'x' }).success).toBe(false);
   });
+
+  it('F-TEC-WRK-08 BR-031 미처리 사유는 필수', async () => {
+    const { workPendingInput } = await import('./index');
+    const r = workPendingInput.safeParse({ orderNo: 'A1', pendingCode: '' });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error.issues[0]!.message).toBe('미처리 사유는 필수 입력값입니다.');
+    expect(workPendingInput.safeParse({ orderNo: 'A1', pendingCode: 'CUSTOMER_ABSENT', revisitDate: '' }).success).toBe(true);
+  });
+
+  it('F-ADM-PRC-04 반려 사유 필수 · F-TEC-WRK-05 사유 필수', async () => {
+    const { extraChargeDecisionInput, extraChargeInput } = await import('./index');
+    expect(extraChargeDecisionInput.safeParse({ chargeId: '1', decision: 'REJECT', reason: '' }).success).toBe(false);
+    expect(extraChargeDecisionInput.safeParse({ chargeId: '1', decision: 'APPROVE' }).success).toBe(true);
+    const r = extraChargeInput.safeParse({ orderNo: 'A1', chargeType: 'ETC', title: '배관 연장', amount: '30000', reason: '' });
+    expect(r.success).toBe(false);
+    const ok = extraChargeInput.safeParse({ orderNo: 'A1', chargeType: 'RULE', surchargeRuleId: '2', amount: '', reason: '오염 심함' });
+    expect(ok.success && ok.data).toMatchObject({ surchargeRuleId: 2, amount: null, quantity: null });
+  });
 });

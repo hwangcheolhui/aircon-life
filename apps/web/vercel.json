@@ -38,6 +38,10 @@
     {
       "path": "/api/jobs/location-purge",
       "schedule": "0 19 * * *"
+    },
+    {
+      "path": "/api/jobs/pending-overdue",
+      "schedule": "0 0 * * *"
     }
   ]
 }

@@ -14,6 +14,7 @@ export const ADMIN_ROUTES: Record<string, string> = {
   'A-DSP-040': '/admin/dsp/schedules',
   'A-DSP-050': '/admin/dsp/areas',
   'A-DSP-060': '/admin/dsp/zones',
+  'A-PRC-040': '/admin/prc/extra-charges',
   'A-TEC-010': '/admin/tec/technicians',
   'A-TEC-020': '/admin/tec/technicians',
   'A-CNT-050': '/admin/cnt/scripts',
