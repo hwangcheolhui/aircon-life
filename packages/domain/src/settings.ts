@@ -46,6 +46,9 @@ export const SYSTEM_SETTING_SEEDS: readonly SystemSettingSeed[] = [
   { key: 'SELF_ASSIGN_DAYS_AHEAD', value: '7', description: '기사 관할 지도에 보이는 미배정 작업의 약속 범위(오늘부터 N일) F-TEC-RTE-04' },
   { key: 'ROUTE_BREAK_DEFAULT_MIN', value: '60', description: '코스에 휴식·식사 지점을 넣을 때 기본 시간(분) F-TEC-RTE-01' },
   { key: 'ZONE_DONG_RADIUS_M', value: '600', description: '법정동 경계 데이터가 없을 때 동 중심 둘레로 그리는 근사 경계 반경(m) F-ADM-DSP-08' },
+  // ── 단계 5-1 현장작업 ──
+  { key: 'WORK_NOTE_MIN_LENGTH', value: '10', description: '처리 저장(완료) 때 처리 내용 최소 글자 수(공백 제외) F-TEC-WRK-07' },
+  { key: 'WORK_PHOTO_CAMERA_ONLY', value: 'N', description: '작업 사진을 카메라 촬영으로만 받을지(Y면 갤러리 선택 제한) F-TEC-WRK-03' },
 ];
 
 export const SETTING_KEYS = {
@@ -79,4 +82,7 @@ export const SETTING_KEYS = {
   SELF_ASSIGN_DAYS_AHEAD: 'SELF_ASSIGN_DAYS_AHEAD',
   ROUTE_BREAK_DEFAULT_MIN: 'ROUTE_BREAK_DEFAULT_MIN',
   ZONE_DONG_RADIUS_M: 'ZONE_DONG_RADIUS_M',
+  REVISIT_MONTHS: 'REVISIT_MONTHS',
+  WORK_NOTE_MIN_LENGTH: 'WORK_NOTE_MIN_LENGTH',
+  WORK_PHOTO_CAMERA_ONLY: 'WORK_PHOTO_CAMERA_ONLY',
 } as const;

@@ -24,3 +24,5 @@ export * from './tech/tech-rules';
 export * from './route/geo';
 export * from './route/route-plan';
 export * from './route/self-assign';
+export * from './work/work-status';
+export * from './work/work-rules';

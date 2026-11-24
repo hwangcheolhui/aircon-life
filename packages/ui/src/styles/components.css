@@ -372,3 +372,21 @@ body {
 .ac-map-legend { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); margin: 0; padding: 0; list-style: none; font-size: var(--text-caption-size); color: var(--color-text-secondary); }
 .ac-map-legend li { display: inline-flex; align-items: center; gap: var(--space-1); }
 .ac-map-legend__swatch { width: var(--space-3); height: var(--space-3); border-radius: var(--radius-full); background: var(--swatch, var(--map-dong)); }
+
+/* ---------- 작업 사진 슬롯 · 서명 패드 (단계 5-1: 기사 T-WRK-020·060, 고객 C-ORD-050) ---------- */
+.ac-photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--space-2); }
+.ac-photo-slot { position: relative; aspect-ratio: 1; border-radius: var(--radius-md); overflow: hidden; background: var(--color-bg-subtle); border: 1px solid var(--color-border); }
+.ac-photo-slot img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.ac-photo-slot--pending img { opacity: 0.6; }
+.ac-photo-slot__state { position: absolute; left: var(--space-1); bottom: var(--space-1); padding: 2px var(--space-2); border-radius: var(--radius-full); background: var(--color-surface); color: var(--color-text-secondary); font-size: var(--text-caption-size); font-weight: 600; }
+.ac-photo-slot__state--error { color: var(--color-danger); }
+.ac-photo-slot__remove { position: absolute; top: var(--space-1); right: var(--space-1); background: var(--color-surface); }
+/* 빈 슬롯 = 촬영 버튼(label + 숨긴 file input). 필수 슬롯이 비어 있으면 --required */
+.ac-photo-slot--add { display: grid; place-items: center; align-content: center; gap: var(--space-1); min-height: var(--touch-min); border-style: dashed; border-color: var(--color-border-strong); color: var(--color-text-secondary); font-size: var(--text-caption-size); font-weight: 600; text-align: center; cursor: pointer; }
+.ac-photo-slot--add svg { width: var(--icon-md); height: var(--icon-md); }
+.ac-photo-slot--add:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.ac-photo-slot--add:focus-within { box-shadow: var(--focus-ring); }
+.ac-photo-slot--required { border-color: var(--color-danger); color: var(--color-danger); }
+.ac-photo-slot--add input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.ac-signature { display: block; width: 100%; height: 180px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-surface); touch-action: none; cursor: crosshair; }
+.ac-signature:focus-visible { outline: none; box-shadow: var(--focus-ring); }

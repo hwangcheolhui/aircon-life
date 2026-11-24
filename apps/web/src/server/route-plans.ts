@@ -426,8 +426,8 @@ export async function syncPlan(
   }
   const schedule = computeSchedule(scheduleInput(ctx, start, inputs));
   await db.transaction(async (tx) => {
-    if ((added || removed) && rows.length > 0 && p.status !== 'DRAFT') {
-      // 확정·추천 후 작업이 바뀜 → 다시 작성중 (재확정 필요)
+    if ((added || removed) && rows.length > 0 && (p.status === 'OPTIMIZED' || p.status === 'CONFIRMED')) {
+      // 확정·추천 후 작업이 바뀜 → 다시 작성중 (재확정 필요). 이미 출발한 날(진행중·완료, 단계 5-1)은 상태를 되돌리지 않는다
       await setPlanStatus(tx, p, 'DRAFT', actor);
       p.status = 'DRAFT';
     }
@@ -928,6 +928,8 @@ export async function customerVisitInfo(orderId: number, now = new Date()) {
     .select({ status: serviceOrder.status, promisedAt: serviceOrder.promisedAt })
     .from(serviceOrder)
     .where(eq(serviceOrder.id, orderId));
+  if (o?.status === 'ON_THE_WAY')
+    return customerVisitTime({ orderStatus: o.status, routeStatus: null, notifiedArrival: null, eta: await customerEta(orderId) });
   if (!o || o.status !== 'ASSIGNED' || !o.promisedAt) return null;
   const [main] = await db
     .select({ techId: assignment.technicianId, assignmentId: assignment.id })
@@ -975,3 +977,109 @@ export async function customerVisitInfo(orderId: number, now = new Date()) {
     notifiedArrival: r?.notified ?? null,
   });
 }
+
+/* ---------- 단계 5-1 현장작업 연동 (F-TEC-WRK-01·02·07) ---------- */
+
+/** 확정 코스의 다음 방문지(아직 끝나지 않은 첫 작업)의 접수번호. 코스가 없거나 미확정이면 null */
+export async function nextRouteOrderNo(techId: number, date: string): Promise<string | null> {
+  const syn = await syncPlan(techId, date, { type: 'TECHNICIAN', id: techId });
+  if (!syn || !isConfirmedRoute(syn.plan.status)) return null;
+  const next = syn.rows.find((r) => r.stopType === 'JOB' && r.status !== 'DONE' && r.status !== 'SKIPPED');
+  if (!next?.orderId) return null;
+  return syn.jobs.find((j) => j.orderId === next.orderId)?.orderNo ?? null;
+}
+
+/**
+ * 출발 시 도착 예정시각: 근무 중 마지막 위치(없으면 직전에 끝낸 방문지, 그것도 없으면 코스 출발지) → 방문지 이동시간.
+ * 경로 API 실연동 전이라 직선거리 ÷ 25km/h(F-TEC-RTE-02 예외 규칙). 좌표를 모르면 null.
+ */
+export async function departureEta(
+  techId: number,
+  date: string,
+  addressId: number,
+  current: LatLng | null,
+  now = new Date(),
+): Promise<Date | null> {
+  const dest = (await ensureAddressCoords([addressId])).get(addressId);
+  if (!dest) return null;
+  let origin = current;
+  if (!origin) {
+    const db = getDb();
+    const [plan] = await db
+      .select()
+      .from(routePlan)
+      .where(and(eq(routePlan.technicianId, techId), eq(routePlan.planDate, date)));
+    if (plan) {
+      const done = await db
+        .select({ lat: routeStop.lat, lng: routeStop.lng })
+        .from(routeStop)
+        .where(and(eq(routeStop.routePlanId, plan.id), eq(routeStop.stopType, 'JOB'), eq(routeStop.status, 'DONE')))
+        .orderBy(sql`${routeStop.actualDeparture} DESC NULLS LAST`)
+        .limit(1);
+      origin = toLatLng(done[0]?.lat ?? null, done[0]?.lng ?? null) ?? toLatLng(plan.startLat, plan.startLng);
+    }
+  }
+  if (!origin) return null;
+  return new Date(now.getTime() + travel(origin, dest).minutes * 60_000);
+}
+
+/**
+ * 현장작업 이벤트를 코스 지점에 남긴다: 출발 = 도착 예정(eta)·코스 진행중, 도착 = 실제 도착, 완료 = 실제 출발·지점 완료(모두 끝나면 코스 완료).
+ * 코스 상태 변경은 assertRouteTransition 을 거친다(01 §3.6). 코스가 없으면 아무것도 하지 않는다.
+ */
+export async function markRouteStop(
+  tx: Tx,
+  techId: number,
+  orderId: number,
+  date: string,
+  event: { type: 'DEPART'; eta: Date | null } | { type: 'ARRIVE' } | { type: 'DONE' },
+  at = new Date(),
+) {
+  const [plan] = await tx
+    .select()
+    .from(routePlan)
+    .where(and(eq(routePlan.technicianId, techId), eq(routePlan.planDate, date)));
+  if (!plan) return;
+  const [stop] = await tx
+    .select()
+    .from(routeStop)
+    .where(and(eq(routeStop.routePlanId, plan.id), eq(routeStop.orderId, orderId)));
+  const actor: Actor = { type: 'TECHNICIAN', id: techId };
+  if (stop) {
+    const set =
+      event.type === 'DEPART'
+        ? { eta: event.eta, etaUpdatedAt: event.eta ? at : null }
+        : event.type === 'ARRIVE'
+          ? { actualArrival: at, status: 'ARRIVED' }
+          : { actualDeparture: at, status: 'DONE', actualArrival: stop.actualArrival ?? at };
+    await tx.update(routeStop).set({ ...set, updatedAt: at, updatedBy: techId }).where(eq(routeStop.id, stop.id));
+  }
+  if (event.type === 'DEPART' && plan.status === 'CONFIRMED') await setPlanStatus(tx, plan, 'IN_PROGRESS', actor);
+  if (event.type === 'DONE' && plan.status === 'IN_PROGRESS') {
+    const open = await tx
+      .select({ id: routeStop.id })
+      .from(routeStop)
+      .where(
+        and(
+          eq(routeStop.routePlanId, plan.id),
+          eq(routeStop.stopType, 'JOB'),
+          notInArray(routeStop.status, ['DONE', 'SKIPPED']),
+        ),
+      )
+      .limit(1);
+    if (!open.length) await setPlanStatus(tx, plan, 'DONE', actor);
+  }
+}
+
+/** 이동중 주문의 도착 예정시각 (고객 C-ORD-020, 좌표 없음 BR-115) */
+export async function customerEta(orderId: number): Promise<Date | null> {
+  const [r] = await getDb()
+    .select({ eta: routeStop.eta })
+    .from(routeStop)
+    .innerJoin(routePlan, eq(routePlan.id, routeStop.routePlanId))
+    .where(eq(routeStop.orderId, orderId))
+    .orderBy(sql`${routeStop.etaUpdatedAt} DESC NULLS LAST`)
+    .limit(1);
+  return r?.eta ?? null;
+}
+

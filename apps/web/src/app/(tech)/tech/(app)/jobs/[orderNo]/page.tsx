@@ -1,6 +1,7 @@
 // T-JOB-020 작업 상세 · F-TEC-JOB-02(고객·주소·기기·요청·전달사항·과거 이력·길찾기·전화) · F-TEC-JOB-05(이관 요청)
-// [작업 시작]은 단계 5 현장작업, 안심번호는 단계 9. 연락처·상세주소는 [보기]를 눌러야 보이고 감사 로그를 남긴다(BR-100).
+// 단계 5-1: [작업 시작/이어서] → 현장작업 스텝(T-WRK-010~060), 활동내역(T-WRK-070, F-TEC-WRK-09). 안심번호는 단계 9. 연락처·상세주소는 [보기]를 눌러야 보이고 감사 로그를 남긴다(BR-100).
 import { Alert, Card, Empty, StatusBadge, Tag } from '@aircon/ui';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { formatDateTime, formatVisit } from '@/customer/format';
 import { loadCodes } from '@/server/codes';
@@ -8,6 +9,9 @@ import { getTechJob } from '@/server/tech-jobs';
 import { requireTech } from '@/server/tech-session';
 import { timeLabel } from '@/tech/job-card';
 import { TechTopbar } from '@/tech/topbar';
+import { ActivitySheetButton } from '@/tech/work/activity';
+import { listActivities, workSummary } from '@/server/work';
+import { kstDate } from '@aircon/domain';
 import { ContactReveal, TransferRequest } from './job-actions';
 
 export const metadata = { title: '작업 상세' };
@@ -17,7 +21,13 @@ export default async function TechJobPage({ params }: { params: Promise<{ orderN
   const { orderNo } = await params;
   const j = await getTechJob(me.id, orderNo);
   if (!j) notFound();
-  const codes = await loadCodes(['ASSIGN_ROLE', 'HOUSING_TYPE', 'ORDER_TYPE']);
+  const [codes, work, activities] = await Promise.all([
+    loadCodes(['ASSIGN_ROLE', 'HOUSING_TYPE', 'ORDER_TYPE', 'ACTIVITY_TYPE', 'WORK_STATUS']),
+    workSummary(j.orderId),
+    listActivities(j.orderId),
+  ]);
+  const workOpen = work && ['ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS'].includes(work.status);
+  const canStart = j.status === 'ASSIGNED' && j.role === 'MAIN' && j.promisedAt !== null && kstDate(j.promisedAt) === kstDate(new Date());
   const label = (g: string, v: string | null) =>
     v ? (codes[g]?.find((c) => c.value === v)?.label ?? v) : '';
   return (
@@ -134,6 +144,39 @@ export default async function TechJobPage({ params }: { params: Promise<{ orderN
         </ol>
       </section>
 
+      <section className="tec-section" aria-labelledby="act-title">
+        <h2 id="act-title" className="ac-h3">
+          활동내역
+        </h2>
+        {activities.length ? (
+          <ul className="ac-list">
+            {activities.map((a) => (
+              <li key={a.id} className="ac-list-item">
+                <div className="ac-list-item__body">
+                  <Tag>{label('ACTIVITY_TYPE', a.activityType)}</Tag> <span className="ac-body">{a.content}</span>
+                  <p className="ac-caption ac-num">
+                    {formatDateTime(a.createdAt)}
+                    {a.techName ? ` · ${a.techName}` : ''}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <Empty />
+        )}
+        <ActivitySheetButton orderNo={j.orderNo} types={(codes.ACTIVITY_TYPE ?? []).filter((c) => ['CALL', 'SMS', 'VISIT_TRY', 'NOTE'].includes(c.value))} />
+      </section>
+
+      {workOpen ? (
+        <Link href={`/tech/jobs/${j.orderNo}/work`} className="ac-btn ac-btn--primary ac-btn--xl ac-btn--block">
+          현장작업 이어서 ({label('WORK_STATUS', work!.status)})
+        </Link>
+      ) : canStart ? (
+        <Link href={`/tech/jobs/${j.orderNo}/work`} className="ac-btn ac-btn--primary ac-btn--xl ac-btn--block">
+          작업 시작 (출발)
+        </Link>
+      ) : null}
       {j.status === 'ASSIGNED' && !j.transferRequested ? <TransferRequest orderNo={j.orderNo} /> : null}
       {j.branchPhone ? (
         <a href={`tel:${j.branchPhone}`} className="ac-btn ac-btn--ghost ac-btn--block">

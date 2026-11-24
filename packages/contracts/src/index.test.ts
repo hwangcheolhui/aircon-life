@@ -176,3 +176,33 @@ describe('단계 4-2 입력 스키마', () => {
     ).toBe(false);
   });
 });
+
+describe('단계 5-1 입력 스키마', () => {
+  it('BR-043 안전 체크 항목은 정해진 코드만', async () => {
+    const { workSafetyInput } = await import('./index');
+    expect(workSafetyInput.safeParse({ orderNo: 'A1', checked: ['ELECTRIC'], highPlaceWork: 'on' }).success).toBe(true);
+    expect(workSafetyInput.safeParse({ orderNo: 'A1', checked: ['FOO'] }).success).toBe(false);
+  });
+
+  it('F-TEC-WRK-04 기기별 결과는 완료·일부·작업 불가 중 하나, 차기 권장은 1~36개월', async () => {
+    const { workResultInput } = await import('./index');
+    const unit = { orderItemId: '3', unitNo: '1', result: 'DONE', conditionNote: '', recommendNext: '12' };
+    const r = workResultInput.safeParse({ orderNo: 'A1', dirtLevel: 'HIGH', units: [unit] });
+    expect(r.success && r.data.units[0]).toMatchObject({ orderItemId: 3, unitNo: 1, recommendNext: 12, conditionNote: null });
+    expect(workResultInput.safeParse({ orderNo: 'A1', units: [{ ...unit, result: '' }] }).success).toBe(false);
+    expect(workResultInput.safeParse({ orderNo: 'A1', units: [{ ...unit, recommendNext: '48' }] }).success).toBe(false);
+  });
+
+  it('F-TEC-WRK-07 처리 내용은 필수', async () => {
+    const { workCompleteInput } = await import('./index');
+    const r = workCompleteInput.safeParse({ orderNo: 'A1', workNote: ' ' });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error.issues[0]!.message).toBe('처리 내용은 필수 입력값입니다.');
+  });
+
+  it('F-TEC-WRK-09 활동 유형은 통화·문자·방문 시도·메모', async () => {
+    const { activityInput } = await import('./index');
+    expect(activityInput.safeParse({ orderNo: 'A1', activityType: 'VISIT_TRY', content: '초인종 응답 없음' }).success).toBe(true);
+    expect(activityInput.safeParse({ orderNo: 'A1', activityType: 'STATUS', content: 'x' }).success).toBe(false);
+  });
+});
