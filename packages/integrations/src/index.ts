@@ -5,3 +5,4 @@ export * from './identity';
 export * from './social';
 export * from './notify';
 export * from './push';
+export * from './geo';

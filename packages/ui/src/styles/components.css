@@ -323,3 +323,51 @@ body {
 .ac-modal--form { max-width: 640px; max-height: calc(100vh - var(--space-12)); overflow: auto; text-align: left; }
 .ac-modal__actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-6); }
 
+
+/* ---------- 지도 (단계 4-2: 출동 지도 T-MAP-010 · 코스 T-RTE-010 · 관할 구역 A-DSP-060, 05 §5.13) ----------
+ * 지도 SDK 실연동 전에는 배경 지도 없이 좌표를 도식으로 그린다(모의 지도). 핀은 HTML 버튼(터치 영역 --touch-min).
+ * 핀 색: 주문 상태 배지와 같은 --status-*-fg / 미배정 --map-unassigned / 관할 밖 --map-muted / 내 위치 --map-me.
+ * 관할 구역: --map-zone-1~6, 주 관할은 실선·옅은 채움, 보조 관할(.is-secondary)은 점선. */
+.ac-map { position: relative; width: 100%; aspect-ratio: var(--map-aspect, 4 / 3); background: var(--map-bg); border: 1px solid var(--color-border); border-radius: var(--radius-card); overflow: hidden; touch-action: manipulation; }
+.ac-map--drawing { cursor: crosshair; }
+.ac-map__svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.ac-map__grid { stroke: var(--map-grid); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.ac-map__zone { fill-opacity: 0.14; stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.ac-map__zone.is-secondary { fill-opacity: 0.06; stroke-dasharray: 6 4; }
+.ac-map__zone--1 { fill: var(--map-zone-1); stroke: var(--map-zone-1); }
+.ac-map__zone--2 { fill: var(--map-zone-2); stroke: var(--map-zone-2); }
+.ac-map__zone--3 { fill: var(--map-zone-3); stroke: var(--map-zone-3); }
+.ac-map__zone--4 { fill: var(--map-zone-4); stroke: var(--map-zone-4); }
+.ac-map__zone--5 { fill: var(--map-zone-5); stroke: var(--map-zone-5); }
+.ac-map__zone--6 { fill: var(--map-zone-6); stroke: var(--map-zone-6); }
+.ac-map__route { fill: none; stroke: var(--map-route); stroke-width: 3; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; }
+.ac-map__draft { fill: var(--color-primary); fill-opacity: 0.08; stroke: var(--color-primary); stroke-width: 2; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
+.ac-map__pin { position: absolute; transform: translate(-50%, -50%); min-width: var(--touch-min); min-height: var(--touch-min); display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; background: transparent; cursor: pointer; --pin-color: var(--color-text-secondary); }
+.ac-map__pin:focus-visible { outline: none; }
+.ac-map__pin:focus-visible .ac-map__dot { box-shadow: var(--focus-ring); }
+.ac-map__dot { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: calc(var(--icon-lg) + var(--space-1)); height: calc(var(--icon-lg) + var(--space-1)); padding: 0 var(--space-1); border-radius: var(--radius-full); border: 2px solid var(--color-surface); background: var(--pin-color); color: var(--color-text-inverse); font-size: var(--text-micro-size); font-weight: 700; font-variant-numeric: tabular-nums; box-shadow: var(--shadow-sm); }
+.ac-map__pin.is-selected .ac-map__dot { outline: 3px solid var(--color-primary); outline-offset: 1px; }
+.ac-map__pin--received { --pin-color: var(--status-received-fg); }
+.ac-map__pin--assign-wait { --pin-color: var(--status-assign-wait-fg); }
+.ac-map__pin--assigned { --pin-color: var(--status-assigned-fg); }
+.ac-map__pin--on-the-way { --pin-color: var(--status-on-the-way-fg); }
+.ac-map__pin--in-progress { --pin-color: var(--status-in-progress-fg); }
+.ac-map__pin--pending { --pin-color: var(--status-pending-fg); }
+.ac-map__pin--work-done { --pin-color: var(--status-work-done-fg); }
+.ac-map__pin--completed { --pin-color: var(--status-completed-fg); }
+.ac-map__pin--canceled { --pin-color: var(--status-canceled-fg); }
+.ac-map__pin--unassigned .ac-map__dot { background: var(--color-surface); color: var(--map-unassigned); border-color: var(--map-unassigned); border-style: dashed; }
+.ac-map__pin--muted { --pin-color: var(--map-muted); }
+.ac-map__pin--me .ac-map__dot { min-width: var(--icon-md); height: var(--icon-md); background: var(--map-me); border-width: 3px; }
+.ac-map__pin--break { --pin-color: var(--color-text-tertiary); }
+.ac-map__warn { position: absolute; top: calc(var(--space-2) * -1); right: calc(var(--space-2) * -1); display: inline-flex; align-items: center; justify-content: center; width: var(--icon-sm); height: var(--icon-sm); border-radius: var(--radius-full); background: var(--color-warning); color: var(--color-text-inverse); font-size: var(--text-micro-size); line-height: 1; }
+.ac-map__dong { position: absolute; transform: translate(-50%, -50%); min-height: var(--touch-min); display: inline-flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-2); border: 0; background: transparent; color: var(--color-text-secondary); font-size: var(--text-micro-size); white-space: nowrap; cursor: pointer; }
+.ac-map__dong::before { content: ""; width: var(--space-3); height: var(--space-3); border-radius: var(--radius-full); background: var(--color-surface); border: 2px solid var(--map-dong); }
+.ac-map__dong[aria-pressed="true"]::before { background: var(--color-primary); border-color: var(--color-primary); }
+.ac-map__dong.is-gap::before { border-color: var(--map-gap); border-style: dashed; }
+.ac-map__dong.is-overlap::before { border-color: var(--map-overlap); border-width: 3px; }
+.ac-map__dong:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-sm); }
+.ac-map__dong[disabled] { cursor: default; }
+.ac-map-legend { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); margin: 0; padding: 0; list-style: none; font-size: var(--text-caption-size); color: var(--color-text-secondary); }
+.ac-map-legend li { display: inline-flex; align-items: center; gap: var(--space-1); }
+.ac-map-legend__swatch { width: var(--space-3); height: var(--space-3); border-radius: var(--radius-full); background: var(--swatch, var(--map-dong)); }

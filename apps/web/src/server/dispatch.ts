@@ -251,6 +251,16 @@ async function techDisplayName(id: number) {
 
 const jobLink = (orderNo: string) => `/tech/jobs/${orderNo}`;
 
+/** BR-111 배정 시점에 기사 관할(technician_area) 안이었는지 → assignment.in_zone (운영자 배정은 관할 밖도 가능, 경고만) */
+async function inZoneOf(db: Db | Tx, techId: number, legalDongCode: string | null) {
+  if (!legalDongCode) return false;
+  const [hit] = await db
+    .select({ code: technicianArea.legalDongCode })
+    .from(technicianArea)
+    .where(and(eq(technicianArea.technicianId, techId), eq(technicianArea.legalDongCode, legalDongCode)));
+  return Boolean(hit);
+}
+
 /* ---------- F-ADM-DSP-01·03 배정 ---------- */
 
 export async function assignOrder(
@@ -270,7 +280,9 @@ export async function assignOrder(
   const early = decide(await validatePlan(db, ctx, plan), input.confirmWarnings);
   if (early) return early;
   await db.transaction(async (tx) => {
-    if ((await activeAssignments(tx, ctx.order.id)).length) throw new UserError('이미 배정된 주문입니다. 새로고침 후 다시 확인해 주세요.');
+    const live = await activeAssignments(tx, ctx.order.id);
+    if (live.some((a) => a.status === 'REQUESTED')) throw new UserError('기사가 이 작업의 자가 배정을 요청해 승인 대기 중입니다. 재배정·이관 화면의 [자가 배정 요청] 탭에서 먼저 처리하세요.');
+    if (live.length) throw new UserError('이미 배정된 주문입니다. 새로고침 후 다시 확인해 주세요.');
     const slotId = await slotIdFor(tx, ctx.order);
     for (const p of plan) {
       await tx.insert(assignment).values({
@@ -282,6 +294,7 @@ export async function assignOrder(
         scheduledEnd: ctx.window.end,
         assignMethod: 'MANUAL',
         status: 'ACCEPTED',
+        inZone: await inZoneOf(tx, p.technicianId, ctx.legalDongCode),
         assignedBy: actor.type === 'ADMIN' ? actor.id : null,
         acceptedAt: new Date(),
         createdBy: actor.id,
@@ -359,6 +372,7 @@ async function replaceTech(
       scheduledEnd: old.scheduledEnd ?? ctx.window.end,
       assignMethod: 'MANUAL',
       status: 'ACCEPTED',
+      inZone: await inZoneOf(tx, toTechId, ctx.legalDongCode),
       assignedBy: actor.type === 'ADMIN' ? actor.id : null,
       acceptedAt: new Date(),
       createdBy: actor.id,

@@ -360,7 +360,8 @@ function SkillAreaTab({ d, codes, canUpdate }: { d: Detail; codes: Record<string
         <h2 className="ac-h3">
           활동지역 <span className="ac-caption ac-num">{Object.keys(areas).length}곳</span>
         </h2>
-        <p className="ac-caption">배정 보드에서 활동지역 밖 주문을 배정하면 경고가 뜹니다. 지도 관할 구역은 단계 4-2(A-DSP-060)에서 지정합니다.</p>
+        <p className="ac-caption">배정 보드에서 활동지역 밖 주문을 배정하면 경고가 뜹니다. 주 관할은 기사 앱에서 미배정 작업을 직접 담을 수 있고, 보조 관할은 운영자 승인이 필요합니다.</p>
+        {d.zoneManaged ? <Alert tone="warning">관할 구역을 지정한 기사라 활동지역은 기사 관할 구역 화면(A-DSP-060)에서 정해집니다. 여기서는 볼 수만 있습니다.</Alert> : null}
         {areaSaver.error ? <Alert tone="danger">{areaSaver.error}</Alert> : null}
         {d.branchAreas.length === 0 ? (
           <Empty>소속 거점에 서비스 가능 지역이 없습니다. 관할 지역 관리(A-DSP-050)에서 먼저 등록하세요.</Empty>
@@ -387,7 +388,7 @@ function SkillAreaTab({ d, codes, canUpdate }: { d: Detail; codes: Record<string
                         <Select
                           aria-label={`${a.label} 활동지역`}
                           value={String(areas[a.code] ?? '')}
-                          disabled={!canUpdate}
+                          disabled={!canUpdate || d.zoneManaged}
                           onChange={(e) =>
                             setAreas((s) => {
                               const n = { ...s };
@@ -409,7 +410,7 @@ function SkillAreaTab({ d, codes, canUpdate }: { d: Detail; codes: Record<string
             </div>
           </>
         )}
-        {canUpdate && d.branchAreas.length ? (
+        {canUpdate && !d.zoneManaged && d.branchAreas.length ? (
           <div className="adm-toolbar">
             <span />
             <Button

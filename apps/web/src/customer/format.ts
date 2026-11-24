@@ -35,3 +35,19 @@ export function formatDateTime(at: Date | null | undefined) {
   if (!at) return '';
   return at.toLocaleString('sv-SE', { timeZone: 'Asia/Seoul', hour12: false }).slice(0, 16);
 }
+
+/** 시각(한국 시간) → 오전 10:40 */
+export function formatClock(at: Date) {
+  const [h, m] = at.toLocaleTimeString('en-GB', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false }).split(':').map(Number);
+  const ap = h! < 12 ? '오전' : '오후';
+  const hh = h! % 12 === 0 ? 12 : h! % 12;
+  return `${ap} ${hh}:${String(m).padStart(2, '0')}`;
+}
+
+/** 방문 예정 시각 → 3월 10일(수) 오전 10:40 (코스 확정 안내, 단계 4-2) */
+export function formatVisitTime(at: Date) {
+  return `${formatDateLabel(at.toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' }))} ${formatClock(at)}`;
+}
+
+/** 24시간 표기 10:40 (기사 앱 코스) */
+export const formatHm = (at: Date) => at.toLocaleTimeString('en-GB', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false });

@@ -24,6 +24,7 @@ import { writeAudit } from './audit';
 import { ForbiddenError } from './auth';
 import { getDb } from './db';
 import { decrypt, encrypt, phoneHash } from './pii';
+import { hasZones } from './zones';
 
 async function techInScope(id: number, admin: AdminPrincipal) {
   const [t] = await getDb().select().from(technician).where(and(eq(technician.id, id), isNull(technician.deletedAt)));
@@ -99,6 +100,8 @@ export async function getTechnicianDetail(id: number, admin: AdminPrincipal, now
     },
     skills: skills.map((s) => ({ deviceType: s.deviceType, skillLevel: s.skillLevel, certifiedAt: s.certifiedAt })),
     areas: areas.map((a) => ({ legalDongCode: a.legalDongCode, priority: a.priority })),
+    /** 관할 구역(A-DSP-060)으로 활동지역을 관리하는 기사 (단계 4-2) */
+    zoneManaged: await hasZones(id),
     branchAreas: branchAreas.filter((a): a is typeof a & { code: string } => a.code !== null).map((a) => ({ code: a.code, label: `${a.sigungu} ${a.dong}` })),
     grades: grades.map((g) => ({ id: g.h.id, fromGrade: g.h.fromGrade, toGrade: g.h.toGrade, reason: g.h.reason, effectiveDate: g.h.effectiveDate, approver: g.approver, createdAt: g.h.createdAt })),
     stats: stats[0] ?? { total: 0, month: 0, completed: 0, upcoming: 0, pending: 0 },
@@ -188,6 +191,8 @@ export async function saveTechnicianSkills(id: number, skills: { deviceType: str
 export async function saveTechnicianAreas(id: number, areas: { legalDongCode: string; priority: number }[], admin: AdminPrincipal) {
   const t = await techInScope(id, admin);
   if (!t) throw new UserError('기사를 찾을 수 없습니다.');
+  // 단계 4-2: 관할 구역(A-DSP-060)을 지정한 기사의 활동지역은 구역에서만 정해진다
+  if (await hasZones(id)) throw new UserError('관할 구역을 지정한 기사입니다. 활동지역은 기사 관할 구역 화면(A-DSP-060)에서 바꿔 주세요.');
   const codes = [...new Set(areas.map((a) => a.legalDongCode))];
   if (codes.length) {
     const ok = await getDb()

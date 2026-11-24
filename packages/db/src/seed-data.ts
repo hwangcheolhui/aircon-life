@@ -471,12 +471,30 @@ export const COMMON_CODE_SEED = [
     ['SELF_APPROVE', '자가 배정 승인'],
     ['TRANSFER_REQUEST', '이관 요청'],
     ['TRANSFER_REJECT', '이관 반려'],
+    ['SELF_REJECT', '자가 배정 반려'],
   ]),
   // ── 단계 4-1 ──
   ...g('SKILL_LEVEL', [
     ['CAN_ASSIST', '보조 가능'],
     ['CAN_SOLO', '단독 가능'],
     ['CAN_TEACH', '교육 가능'],
+  ]),
+  // ── 단계 4-2 ──
+  ...g('ZONE_DEFINE_METHOD', [
+    ['DONG_SET', '법정동 선택'],
+    ['DRAWN', '지도에 그림'],
+  ]),
+  ...g('ROUTE_POINT_TYPE', [
+    ['HOME', '자택'],
+    ['BRANCH', '거점'],
+    ['CURRENT', '현재 위치'],
+    ['NONE', '없음'],
+  ]),
+  ...g('STOP_STATUS', [
+    ['PLANNED', '예정'],
+    ['ARRIVED', '도착'],
+    ['DONE', '완료'],
+    ['SKIPPED', '건너뜀'],
   ]),
 ];
 
@@ -513,6 +531,30 @@ export const CONSULT_SCRIPT_SEED = [
  * 알림 템플릿 초기값 (01 §2.12.1). 운영 중 문구는 A-CRM-040에서 바꾸며 시드는 덮어쓰지 않는다.
  * 알림톡은 카카오 검수 후 받은 템플릿 ID를 kakao_template_id 에 넣어야 실제로 발송되고, 비어 있으면 문자(SMS)로 보낸다.
  */
+/** 단계 4-2 코스·자가 배정 알림 (F-TEC-RTE-03·04, F-SYS-15·16, F-ADM-DSP-10) */
+export const ROUTE_TEMPLATE_SEED = [
+  {
+    templateCode: 'VISIT_TIME_NOTICE',
+    channel: 'ALIMTALK',
+    target: 'CUSTOMER',
+    title: '방문 예정 시간 안내',
+    body: '#{고객명}님, 기사님 방문 예정 시간을 알려 드립니다.\n방문 예정: #{방문예정}\n담당 기사: #{기사명}\n접수번호: #{접수번호}\n문의: #{거점전화}',
+  },
+  {
+    templateCode: 'VISIT_TIME_CHANGED',
+    channel: 'ALIMTALK',
+    target: 'CUSTOMER',
+    title: '방문 예정 시간 변경 안내',
+    body: '#{고객명}님, 기사님 방문 예정 시간이 바뀌었습니다.\n바뀐 방문 예정: #{방문예정}\n접수번호: #{접수번호}\n문의: #{거점전화}',
+  },
+  { templateCode: 'ROUTE_DRAFT_READY', channel: 'PUSH', target: 'TECHNICIAN', title: '내일 코스 확인', body: '#{코스일자} 방문 #{방문건수}곳의 코스 초안이 준비되었습니다. 순서를 확인하고 확정해 주세요.' },
+  { templateCode: 'ROUTE_CONFIRM_REMIND', channel: 'PUSH', target: 'TECHNICIAN', title: '코스 확정 마감 임박', body: '#{코스일자} 코스가 아직 확정되지 않았습니다. 마감 시각이 지나면 추천 순서로 자동 확정됩니다.' },
+  { templateCode: 'ROUTE_AUTO_CONFIRMED', channel: 'PUSH', target: 'TECHNICIAN', title: '코스 자동 확정', body: '#{코스일자} 코스가 마감 시각에 추천 순서로 확정되어 고객에게 방문 예정 시간이 안내되었습니다.' },
+  { templateCode: 'SELF_ASSIGN_REQUESTED', channel: 'PUSH', target: 'ADMIN', title: '자가 배정 승인 요청', body: '#{기사명} 기사가 #{접수번호}(#{방문일시}) 작업을 일정에 넣겠다고 요청했습니다.' },
+  { templateCode: 'SELF_ASSIGN_APPROVED', channel: 'PUSH', target: 'TECHNICIAN', title: '작업 담기 승인', body: '#{접수번호}(#{방문일시}) 작업이 내 일정으로 확정되었습니다.' },
+  { templateCode: 'SELF_ASSIGN_REJECTED', channel: 'PUSH', target: 'TECHNICIAN', title: '작업 담기 반려', body: '#{접수번호} 작업 담기 요청이 반려되었습니다.' },
+];
+
 export const NOTIFICATION_TEMPLATE_SEED = [
   {
     templateCode: 'ORDER_CONFIRMED',
@@ -554,6 +596,8 @@ export const NOTIFICATION_TEMPLATE_SEED = [
   { templateCode: 'TECH_JOB_CHANGED', channel: 'PUSH', target: 'TECHNICIAN', title: '배정 변경', body: '#{접수번호} 작업이 다른 기사에게 넘어갔거나 배정이 취소되었습니다.' },
   { templateCode: 'TECH_TRANSFER_REJECTED', channel: 'PUSH', target: 'TECHNICIAN', title: '이관 요청 반려', body: '#{접수번호} 작업의 이관 요청이 반려되었습니다. 예정대로 방문해 주세요.' },
   { templateCode: 'UNASSIGNED_WARNING', channel: 'PUSH', target: 'ADMIN', title: '미지정 건 경고', body: '#{접수번호} 약속(#{방문일시})이 곧 다가오는데 기사가 지정되지 않았습니다.' },
+  // ── 단계 4-2 (마이그레이션 0007 에도 같은 값) ──
+  ...ROUTE_TEMPLATE_SEED,
 ];
 
 /** ERD §0.2 역할. 거점장만 BRANCH 범위이고, 나머지는 소속 거점이 지정되면 BR-102에 따라 그 거점으로 제한된다. */
