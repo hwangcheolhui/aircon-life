@@ -1325,6 +1325,8 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 
 단계 5-2 미처리(F-TEC-WRK-08): 기사가 출발 전·이동중·도착·작업중 어느 때든 [미처리 저장]하면 `work_order.status`=`PENDING`(`pending_code`=`PENDING_REASON`), 주문은 `PENDING`(`order_status_history.reason_code`·`memo`에 사유·재약속 희망일), 코스 정류장은 `SKIPPED`(코스의 남은 정류장이 없으면 코스 `DONE`). 고객부재면 고객에게 `PENDING_ABSENT`를 보냅니다. BR-031 고객부재 연속 횟수(`order_status_history`의 `CUSTOMER_ABSENT` 연속 건수)가 2회 이상이면 "운영자 확인 필요"를 안내하고, 재약속 때 막는 것은 단계 6(A-PRC-050)에서 합니다. BR-032 `PENDING` 진입 후 `PENDING_OVERDUE_HOURS`가 지나면 목록에서 `overdue48h` 배지로 강조하고, F-SYS-08 배치가 운영자에게 1회 알립니다.
 
+단계 6-2 처리 콘솔·미처리 대기열: 관리자가 기사 대신 처리 저장(F-ADM-PRC-02)하면 작업은 전이표를 건너뛰지 않고 `READY → ON_THE_WAY → ARRIVED → IN_PROGRESS → DONE`을 한 칸씩 지나가며(작업 건이 없으면 `READY`로 만든 뒤), 주문 이력 3행(`ON_THE_WAY`·`IN_PROGRESS`·`WORK_DONE`)은 `actor_type`=`ADMIN`, `memo`="관리자 대리 입력"입니다. 완료 검증은 기사와 같습니다(BR-041 전·후 사진, BR-043 안전 확인). 대리 미처리 저장도 기사 미처리와 같은 처리에 메모 "관리자 대리 입력"을 붙입니다. 미처리 대기열(A-PRC-050)의 재약속은 `PENDING → ASSIGNED`(같은 주기사·지원 배정을 유지하고 `assignment.scheduled_start/end`·`time_slot_id`를 새 일정으로 옮김, 슬롯 반환·차감, 작업 `PENDING → READY`, `pending_reason` 비움)이고, BR-031 고객부재 2회 연속이면 운영자 확인 내용이 있어야 저장되며 이력 `memo`에 "재약속 {날짜 시각} / 운영자 확인: …"으로 남습니다. 미처리 취소는 관리자 취소(F-ADM-ORD-04)와 같고 작업은 `PENDING → CANCELED`입니다. 처리 콘솔의 안전관리·서비스 파일은 `attachment.ref_type`=`SAFETY`/`DOC`, `ref_id`=`work_order.id`(종류마다 2개), 관리자 활동내역은 `activity_log.actor_type`=`ADMIN`입니다.
+
 ### 3.3 정산 상태
 `settlement_batch`: `DRAFT → CALCULATED → CONFIRMED → PAID → CLOSED`
 `settlement`(기사별): `CALCULATED → TECH_CONFIRMED | DISPUTED → CONFIRMED → PAID`

@@ -156,7 +156,7 @@ async function busyByTech(db: Db | Tx, techIds: number[], date: string, exceptOr
   return out;
 }
 
-async function orderDeviceTypes(db: Db | Tx, orderIds: number[]) {
+export async function orderDeviceTypes(db: Db | Tx, orderIds: number[]) {
   const out = new Map<number, { deviceType: string; name: string; quantity: number }[]>();
   if (orderIds.length === 0) return out;
   const rows = await db
@@ -229,7 +229,7 @@ function decide(issues: AssignIssue[], confirmWarnings: boolean): AssignOutcome 
   return null;
 }
 
-async function slotIdFor(tx: Tx, o: typeof serviceOrder.$inferSelect) {
+export async function slotIdFor(tx: Tx, o: typeof serviceOrder.$inferSelect) {
   if (!o.requestedDate || !o.requestedTimeFrom) return null;
   const [s] = await tx
     .select({ id: timeSlot.id })

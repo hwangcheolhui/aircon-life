@@ -2,6 +2,9 @@
  * E2E: 04 구현계획 단계별 "완료 기준" 시나리오 (e2e/).
  * 로컬 PostgreSQL(E2E_DATABASE_URL)을 초기화하고 Mock 인증으로 실행한다.
  *   E2E_DATABASE_URL=postgres://aircon:aircon@localhost:5432/aircon_e2e pnpm e2e
+ * E2E_SERVER=start 이면 dev 대신 빌드 결과(next start)로 띄운다. CI는 이 방식을 쓴다:
+ * 전체 46건+을 dev 서버로 돌리면 화면 첫 컴파일이 느리고, 메모리 한도에 닿은 dev 서버가 스스로 재시작해 진행 중 테스트가 끊긴다.
+ * 이때 빌드는 NEXT_PUBLIC_ADDRESS_DRIVER=mock 으로 해야 한다(브라우저 코드에 빌드 때 박힌다).
  */
 import { defineConfig } from '@playwright/test';
 
@@ -31,7 +34,7 @@ export default defineConfig({
   globalSetup: './e2e/global-setup.ts',
   use: { baseURL: `http://localhost:${port}`, viewport: { width: 1440, height: 900 }, trace: 'off' },
   webServer: {
-    command: `pnpm --filter @aircon/web exec next dev -p ${port}`,
+    command: `pnpm --filter @aircon/web exec next ${process.env.E2E_SERVER === 'start' ? 'start' : 'dev'} -p ${port}`,
     port,
     timeout: 120_000,
     reuseExistingServer: false,

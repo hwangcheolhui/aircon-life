@@ -2,6 +2,7 @@
  * 첨부파일 내려받기 (단계 5-1: 작업 사진·고객 서명). 저장소는 비공개이고, 여기서 보는 사람을 확인한 뒤에만 파일을 준다.
  * 기사 = 그 주문에 확정 배정된 기사, 고객 = 본인 주문의 작업 리포트(C-ORD-050) 공개 이후 작업 전·중·후·이상 사진만.
  * 단계 5-2: 추가요금 증빙·서명 — 고객은 동의 요청된 건만, 관리자는 추가요금 승인(A-PRC-040) 조회 권한 + 거점 범위(BR-102).
+ * 단계 6-2: 작업 사진·서명·안전관리·서비스 파일 — 관리자는 처리 콘솔(A-PRC-010) 조회 권한 + 거점 범위(BR-102).
  */
 import { hasPermission } from '@aircon/domain';
 import { getCurrentAdmin } from '@/server/auth';
@@ -9,6 +10,7 @@ import { currentBranchFilter } from '@/server/branch-selection';
 import { readAttachment } from '@/server/attachments';
 import { getCurrentCustomer } from '@/server/customer-session';
 import { isDbConfigured } from '@/server/db';
+import { adminCanViewWorkFile } from '@/server/process-console';
 import { getCurrentTech } from '@/server/tech-session';
 import { adminCanViewExtraFile, canViewAttachment, photoTypeOfFile } from '@/server/work';
 
@@ -25,7 +27,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const allowed =
     (tech && (await canViewAttachment(f.row, { type: 'TECHNICIAN', id: tech.id }, photoType))) ||
     (customer && !customer.demo && (await canViewAttachment(f.row, { type: 'CUSTOMER', id: customer.id }, photoType))) ||
-    (admin && !admin.preview && hasPermission(admin, 'A-PRC-040', 'READ') && (await adminCanViewExtraFile(f.row, await currentBranchFilter(admin))));
+    (admin && !admin.preview && hasPermission(admin, 'A-PRC-040', 'READ') && (await adminCanViewExtraFile(f.row, await currentBranchFilter(admin)))) ||
+    (admin && !admin.preview && hasPermission(admin, 'A-PRC-010', 'READ') && (await adminCanViewWorkFile(f.row, await currentBranchFilter(admin))));
   if (!allowed) return new Response('Not found', { status: 404 });
   return new Response(Buffer.from(f.body), {
     headers: {

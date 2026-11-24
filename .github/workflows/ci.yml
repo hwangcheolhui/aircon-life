@@ -34,7 +34,12 @@ jobs:
       - run: pnpm lint
       - run: pnpm test
       - run: pnpm --filter @aircon/web build
+        env:
+          # E2E가 이 빌드를 그대로 쓴다(주소 검색은 Mock)
+          NEXT_PUBLIC_ADDRESS_DRIVER: mock
       - name: E2E (단계 완료 기준)
+        env:
+          E2E_SERVER: start
         run: |
           PGPASSWORD=aircon psql -h localhost -U aircon -d aircon_test -c "CREATE DATABASE aircon_e2e"
           pnpm exec playwright install --with-deps chromium

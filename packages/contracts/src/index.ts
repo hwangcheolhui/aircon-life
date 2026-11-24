@@ -955,3 +955,81 @@ export const adminCollectInput = z.object({
 
 /** F-ADM-PAY-02 결제 링크 다시 보내기 */
 export const resendPaymentLinkInput = z.object({ orderId: reqId('주문') });
+
+/* ---------- 단계 6-2 처리 콘솔·미처리 대기열 (F-ADM-PRC-01·02·05·06·07) ---------- */
+
+const PENDING_CODES = ['CUSTOMER_ABSENT', 'POSTPONED_CUSTOMER', 'POSTPONED_TECH', 'MATERIAL_SHORT', 'UNSAFE_SITE', 'WEATHER', 'ETC'] as const;
+
+/** F-ADM-PRC-02 대리 처리 저장. 방문 일시는 KST 'YYYY-MM-DDTHH:mm', 검증은 domain checkProxyCompletion */
+export const proxyCompleteInput = z.object({
+  orderId: reqId('주문'),
+  visitedAt: z.preprocess(
+    (v) => blankToNull(v),
+    z
+      .string({ required_error: MSG.required('방문 일시'), invalid_type_error: MSG.required('방문 일시') })
+      .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, MSG.required('방문 일시')),
+  ),
+  workMinutes: reqInt('작업 시간', 1),
+  safetyDone: bool(false),
+  highPlaceWork: bool(false),
+  materialAmount: reqInt('자재 금액', 0),
+  discountAmount: reqInt('할인 금액', 0),
+  workNote: reqStr('처리 내용', 2000),
+  internalNote: optStr(2000),
+  units: z
+    .array(
+      z.object({
+        orderItemId: reqId('기기'),
+        unitNo: reqInt('기기 번호', 1),
+        result: z.enum(['DONE', 'PARTIAL', 'SKIPPED'], { errorMap: () => ({ message: MSG.required('처리 결과') }) }),
+      }),
+    )
+    .min(1, MSG.required('처리 결과')),
+});
+
+/** F-ADM-PRC-02 대리 미처리 저장 (BR-031 사유 필수) */
+export const proxyPendingInput = z.object({
+  orderId: reqId('주문'),
+  pendingCode: z.enum(PENDING_CODES, { errorMap: () => ({ message: MSG.required('미처리 사유') }) }),
+  memo: optStr(500),
+  revisitDate: optDate(),
+});
+
+/** F-ADM-PRC-02 대리 입력 작업 사진 (FormData: 값 + file) — BR-041 전·후 사진 */
+export const proxyPhotoInput = z.object({
+  orderId: reqId('주문'),
+  orderItemId: reqId('기기'),
+  unitNo: reqInt('기기 번호', 1),
+  photoType: z.enum(['BEFORE', 'AFTER'], { errorMap: () => ({ message: MSG.required('사진 종류') }) }),
+});
+
+/** F-ADM-PRC-06 파일 첨부 (FormData: 값 + file) */
+export const consoleFileInput = z.object({
+  orderId: reqId('주문'),
+  kind: z.enum(['SAFETY', 'DOC'], { errorMap: () => ({ message: MSG.required('파일 종류') }) }),
+});
+
+/** F-ADM-PRC-07 활동내역 등록 (관리자) */
+export const adminActivityInput = z.object({
+  orderId: reqId('주문'),
+  activityType: z.enum(['CALL', 'SMS', 'VISIT_TRY', 'NOTE'], { errorMap: () => ({ message: MSG.required('유형') }) }),
+  content: reqStr('내용', 500),
+});
+
+/** F-ADM-PRC-05 재약속 (PENDING → ASSIGNED). BR-031 운영자 확인은 domain checkReschedule */
+export const rescheduleInput = z.object({
+  orderId: reqId('주문'),
+  slotDate: dateStr('재약속 날짜'),
+  slotHour: reqInt('방문 시각', 0),
+  operatorConfirmed: bool(false),
+  confirmMemo: optStr(300),
+});
+
+/** F-ADM-PRC-05 미처리 취소 */
+export const pendingCancelInput = z.object({
+  orderId: reqId('주문'),
+  reasonCode: z.enum(['CUSTOMER_REQUEST', 'NO_TECH', 'DUPLICATE', 'OUT_OF_AREA', 'NO_SHOW', 'PRICE'], {
+    errorMap: () => ({ message: MSG.required('취소 사유') }),
+  }),
+  memo: optStr(300),
+});
