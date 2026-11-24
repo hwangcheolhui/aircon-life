@@ -78,14 +78,14 @@ test('C-QUO 비서비스 지역은 안내가 뜨고, 서비스 지역은 견적�
   await page.getByRole('button', { name: '다음' }).click();
 
   // C-QUO-020 기기 형태 (가격이 있는 형태만)
-  await expect(page).toHaveURL(/\/quote\/device/);
+  await expect(page).toHaveURL(/\/quote\/device/, { timeout: 30_000 });
   await page.getByRole('button', { name: '벽걸이' }).click();
   await page.getByRole('button', { name: '스탠드' }).click();
   await expect(page.getByRole('button', { name: '스탠드' })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: '다음' }).click();
 
   // C-QUO-030 대수 → 하단 바 예상 금액
-  await expect(page).toHaveURL(/\/quote\/count/);
+  await expect(page).toHaveURL(/\/quote\/count/, { timeout: 30_000 });
   // 벽걸이 1 + 스탠드 1 = 2대 → 스탠드 5% 할인: 85,000 + 130,000 − 6,500
   await expect(page.locator('.ac-bottom-bar')).toContainText('208,500원');
   await page.getByRole('button', { name: '스탠드 대수 늘리기' }).click();

@@ -1,4 +1,4 @@
-// A-DSP-010 배정 보드 · F-ADM-DSP-01(수동 배정, 끌어 놓기) · F-ADM-DSP-03(2인·동행 배정) · F-SYS-09(미지정 경고 표시)
+// A-DSP-010 배정 보드 · F-ADM-DSP-01(수동 배정, 끌어 놓기) · F-ADM-DSP-03(2인·동행 배정) · F-SYS-09(미지정 경고 표시) · 자가 배정 승인 대기 표시(F-ADM-DSP-10, 단계 4-2)
 // 좌: 배정 대기 카드(약속 임박 미지정 강조) · 우: 기사 × 시간 간트. BR-102 거점 범위.
 import { hasPermission, kstToday } from '@aircon/domain';
 import { after } from 'next/server';

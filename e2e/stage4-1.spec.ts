@@ -110,7 +110,7 @@ test('A-TEC-010·020 기사 등록(등급 이력·로그인 ID) → 숙련 지�
   // A-TEC-020 상세 → 숙련·지역 탭에서 주기사 벽걸이 '단독 가능'
   await page.goto('/admin/tec/technicians');
   await page.locator('tbody tr').filter({ hasText: MAIN.code }).getByRole('link', { name: '상세' }).click();
-  await expect(page.getByRole('heading', { name: new RegExp(MAIN.name) })).toBeVisible();
+  await expect(page.getByRole('heading', { name: new RegExp(MAIN.name) })).toBeVisible({ timeout: 30_000 }); // 개발 서버 첫 컴파일 대기
   await page.getByRole('tab', { name: '숙련·지역' }).click();
   await page.getByRole('combobox', { name: '벽걸이 숙련' }).selectOption({ label: '단독 가능' });
   await page.getByRole('button', { name: '숙련 저장' }).click();

@@ -6,7 +6,15 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { requestJobTransfer, revealJobContact } from '../../actions';
 
-export function ContactReveal({ orderNo, phoneMasked, roadAddress }: { orderNo: string; phoneMasked: string; roadAddress: string }) {
+export function ContactReveal({
+  orderNo,
+  phoneMasked,
+  roadAddress,
+}: {
+  orderNo: string;
+  phoneMasked: string;
+  roadAddress: string;
+}) {
   const [shown, setShown] = useState<{ name: string; phone: string; detailAddress: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -101,7 +109,17 @@ export function TransferRequest({ orderNo }: { orderNo: string }) {
       >
         {error ? <Alert tone="danger">{error}</Alert> : null}
         <Field label="이관 사유" required>
-          {(id, d, inv) => <Textarea id={id} aria-describedby={d} aria-invalid={inv} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={200} rows={3} />}
+          {(id, d, inv) => (
+            <Textarea
+              id={id}
+              aria-describedby={d}
+              aria-invalid={inv}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              maxLength={200}
+              rows={3}
+            />
+          )}
         </Field>
       </Modal>
     </>

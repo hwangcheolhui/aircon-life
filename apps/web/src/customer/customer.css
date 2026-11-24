@@ -277,3 +277,4 @@
   color: var(--color-danger);
 }
 .cus-tech-intro { margin: var(--space-1) 0 0; white-space: pre-wrap; }
+.cus-visit-time { margin: var(--space-1) 0 0; }

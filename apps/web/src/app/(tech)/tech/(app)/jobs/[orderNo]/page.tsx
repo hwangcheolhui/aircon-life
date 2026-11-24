@@ -18,7 +18,8 @@ export default async function TechJobPage({ params }: { params: Promise<{ orderN
   const j = await getTechJob(me.id, orderNo);
   if (!j) notFound();
   const codes = await loadCodes(['ASSIGN_ROLE', 'HOUSING_TYPE', 'ORDER_TYPE']);
-  const label = (g: string, v: string | null) => (v ? (codes[g]?.find((c) => c.value === v)?.label ?? v) : '');
+  const label = (g: string, v: string | null) =>
+    v ? (codes[g]?.find((c) => c.value === v)?.label ?? v) : '';
   return (
     <main className="tec-page__body">
       <TechTopbar title="작업 상세" back={{ href: '/tech/jobs', label: '작업 목록' }} />
@@ -30,9 +31,14 @@ export default async function TechJobPage({ params }: { params: Promise<{ orderN
           <span className="ac-caption ac-num">{j.orderNo}</span>
         </div>
         <p className="ac-h2 ac-num">
-          {j.promisedAt ? formatVisit(j.promisedAt) : '일정 미정'} <span className="ac-body ac-caption">({timeLabel(j.promisedAt, j.timeTo)})</span>
+          {j.promisedAt ? formatVisit(j.promisedAt) : '일정 미정'}{' '}
+          <span className="ac-body ac-caption">({timeLabel(j.promisedAt, j.timeTo)})</span>
         </p>
-        {j.transferRequested ? <Alert tone="warning">이관을 요청했습니다. 운영자가 확인하기 전까지는 예정대로 방문해 주세요. 사유: {j.transferReason}</Alert> : null}
+        {j.transferRequested ? (
+          <Alert tone="warning">
+            이관을 요청했습니다. 운영자가 확인하기 전까지는 예정대로 방문해 주세요. 사유: {j.transferReason}
+          </Alert>
+        ) : null}
       </section>
 
       <Card>
@@ -63,7 +69,9 @@ export default async function TechJobPage({ params }: { params: Promise<{ orderN
           {j.requiredTechCount > 1 ? (
             <>
               <dt>함께 가는 기사</dt>
-              <dd>{j.team.map((t) => `${t.name}(${label('ASSIGN_ROLE', t.role)})`).join(', ') || '지정 전'}</dd>
+              <dd>
+                {j.team.map((t) => `${t.name}(${label('ASSIGN_ROLE', t.role)})`).join(', ') || '지정 전'}
+              </dd>
             </>
           ) : null}
         </dl>
@@ -93,8 +101,13 @@ export default async function TechJobPage({ params }: { params: Promise<{ orderN
             {j.past.map((p) => (
               <li key={p.orderNo} className="ac-list-item">
                 <div className="ac-list-item__body">
-                  <span className="ac-body ac-num">{p.promisedAt ? formatDateTime(p.promisedAt).slice(0, 10) : '일정 없음'}</span>
-                  <span className="ac-caption"> · {p.devices.map((d) => `${d.name} ${d.quantity}대`).join(', ')}</span>
+                  <span className="ac-body ac-num">
+                    {p.promisedAt ? formatDateTime(p.promisedAt).slice(0, 10) : '일정 없음'}
+                  </span>
+                  <span className="ac-caption">
+                    {' '}
+                    · {p.devices.map((d) => `${d.name} ${d.quantity}대`).join(', ')}
+                  </span>
                 </div>
                 <StatusBadge code={p.status} audience="staff" />
               </li>

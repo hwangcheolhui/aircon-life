@@ -42,6 +42,10 @@ export const SYSTEM_SETTING_SEEDS: readonly SystemSettingSeed[] = [
   { key: 'UNASSIGNED_ALERT_HOURS', value: '4', description: '미지정(긴급) 건을 약속 몇 시간 전부터 경고할지 F-SYS-09·BR-024' },
   { key: 'TECH_LOGIN_MAX_FAIL', value: '5', description: '기사 앱 비밀번호 로그인 실패 잠금 횟수(인증번호 로그인으로 해제) F-TEC-AUTH-01' },
   { key: 'TECH_PASSWORD_MIN_LENGTH', value: '8', description: '기사 앱 비밀번호 최소 길이 F-TEC-MY-01' },
+  // ── 단계 4-2 관할 구역·코스 ──
+  { key: 'SELF_ASSIGN_DAYS_AHEAD', value: '7', description: '기사 관할 지도에 보이는 미배정 작업의 약속 범위(오늘부터 N일) F-TEC-RTE-04' },
+  { key: 'ROUTE_BREAK_DEFAULT_MIN', value: '60', description: '코스에 휴식·식사 지점을 넣을 때 기본 시간(분) F-TEC-RTE-01' },
+  { key: 'ZONE_DONG_RADIUS_M', value: '600', description: '법정동 경계 데이터가 없을 때 동 중심 둘레로 그리는 근사 경계 반경(m) F-ADM-DSP-08' },
 ];
 
 export const SETTING_KEYS = {
@@ -65,4 +69,14 @@ export const SETTING_KEYS = {
   UNASSIGNED_ALERT_HOURS: 'UNASSIGNED_ALERT_HOURS',
   TECH_LOGIN_MAX_FAIL: 'TECH_LOGIN_MAX_FAIL',
   TECH_PASSWORD_MIN_LENGTH: 'TECH_PASSWORD_MIN_LENGTH',
+  ROUTE_CONFIRM_DEADLINE: 'ROUTE_CONFIRM_DEADLINE',
+  ROUTE_TRAVEL_BUFFER_MIN: 'ROUTE_TRAVEL_BUFFER_MIN',
+  ARRIVAL_WINDOW_HOURS: 'ARRIVAL_WINDOW_HOURS',
+  LOCATION_INTERVAL_SEC: 'LOCATION_INTERVAL_SEC',
+  LOCATION_RETENTION_DAYS: 'LOCATION_RETENTION_DAYS',
+  SELF_ASSIGN_ENABLED: 'SELF_ASSIGN_ENABLED',
+  SELF_ASSIGN_NEEDS_APPROVAL: 'SELF_ASSIGN_NEEDS_APPROVAL',
+  SELF_ASSIGN_DAYS_AHEAD: 'SELF_ASSIGN_DAYS_AHEAD',
+  ROUTE_BREAK_DEFAULT_MIN: 'ROUTE_BREAK_DEFAULT_MIN',
+  ZONE_DONG_RADIUS_M: 'ZONE_DONG_RADIUS_M',
 } as const;

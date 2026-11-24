@@ -6,7 +6,8 @@
  * - 기사 이관 요청(F-TEC-JOB-05): ACCEPTED → TRANSFER_REQUESTED (이력 TRANSFER_REQUEST)
  *   승인: TRANSFER_REQUESTED → TRANSFERRED + 새 기사 ACCEPTED (이력 TRANSFER) / 반려: → ACCEPTED (이력 TRANSFER_REJECT)
  * - 배정 취소: → CANCELED (이력 UNASSIGN), 주문은 ASSIGNED → ASSIGN_WAIT
- * - REQUESTED(자가 배정 요청)·PROPOSED(제안)는 단계 4-2·9에서 쓴다.
+ * - 자가 배정(단계 4-2, F-TEC-RTE-04): 기사 요청 REQUESTED(이력 SELF_REQUEST) → 승인 ACCEPTED(SELF_APPROVE) / 반려 REJECTED(SELF_REJECT).
+ *   승인이 필요 없으면 바로 ACCEPTED(SELF_REQUEST + SELF_APPROVE). PROPOSED(제안)는 단계 9.
  */
 import { MSG } from '../messages';
 
@@ -38,7 +39,7 @@ export function assertAssignTransition(from: string, to: AssignStatus): void {
 }
 
 /** 01 §4 ASSIGN_ACTION */
-export type AssignAction = 'ASSIGN' | 'REASSIGN' | 'TRANSFER' | 'UNASSIGN' | 'SELF_REQUEST' | 'SELF_APPROVE' | 'TRANSFER_REQUEST' | 'TRANSFER_REJECT';
+export type AssignAction = 'ASSIGN' | 'REASSIGN' | 'TRANSFER' | 'UNASSIGN' | 'SELF_REQUEST' | 'SELF_APPROVE' | 'SELF_REJECT' | 'TRANSFER_REQUEST' | 'TRANSFER_REJECT';
 
 /** BR-071 동행 완료 건수 표시 "동행 1/3" */
 export const accompanyLabel = (done: number, required: number) => `동행 ${Math.min(done, required)}/${required}`;

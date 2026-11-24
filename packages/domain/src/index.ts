@@ -21,3 +21,6 @@ export * from './consult/console-rules';
 export * from './dispatch/assignment-rules';
 export * from './dispatch/assignment-status';
 export * from './tech/tech-rules';
+export * from './route/geo';
+export * from './route/route-plan';
+export * from './route/self-assign';

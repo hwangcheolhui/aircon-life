@@ -105,6 +105,54 @@ export async function notifyStaff(
   }
 }
 
+/**
+ * 기사·운영자 앱 알림 — 주문이 아닌 대상(코스 등)이나 치환 변수를 직접 넘길 때 (단계 4-2: 코스 초안·마감 임박·자동 확정, 자가 배정).
+ * related 는 notification_log.related_type/related_id (예: ROUTE_PLAN, ORDER).
+ */
+export async function notifyStaffWith(
+  code: NotificationTemplateCode,
+  receiver: { type: 'TECHNICIAN'; id: number } | { type: 'ADMIN'; id: null },
+  related: { type: 'ORDER' | 'ROUTE_PLAN'; id: number },
+  vars: Record<string, string>,
+  link?: string,
+): Promise<void> {
+  if (!isDbConfigured()) return;
+  const db = getDb();
+  try {
+    const [t] = await db.select().from(notificationTemplate).where(eq(notificationTemplate.templateCode, code));
+    if (!t || !t.isActive) return;
+    const r = await createPushSender()
+      .send({ receiverType: receiver.type, receiverId: receiver.id ?? 0, title: t.title, body: renderTemplate(t.body, vars), link })
+      .catch((e: Error) => ({ ok: false, failReason: e.message }));
+    await db.insert(notificationLog).values({
+      templateId: t.id,
+      receiverType: receiver.type,
+      receiverId: receiver.id,
+      channel: 'PUSH',
+      relatedType: related.type,
+      relatedId: related.id,
+      status: r.ok ? 'SENT' : 'FAILED',
+      sentAt: r.ok ? new Date() : null,
+      failReason: r.failReason?.slice(0, 300) ?? null,
+    });
+  } catch (e) {
+    console.error('앱 알림 발송 실패', code, related, e);
+  }
+}
+
+/** 같은 대상에 이 템플릿 알림을 이미 남겼는지 (코스 배치 중복 알림 방지) */
+export async function alreadyNotifiedRelated(code: NotificationTemplateCode, relatedType: string, relatedId: number): Promise<boolean> {
+  const db = getDb();
+  const [t] = await db.select({ id: notificationTemplate.id }).from(notificationTemplate).where(eq(notificationTemplate.templateCode, code));
+  if (!t) return true;
+  const [hit] = await db
+    .select({ id: notificationLog.id })
+    .from(notificationLog)
+    .where(and(eq(notificationLog.templateId, t.id), eq(notificationLog.relatedType, relatedType), eq(notificationLog.relatedId, relatedId)))
+    .limit(1);
+  return Boolean(hit);
+}
+
 /** 같은 주문에 이 템플릿 알림을 이미 남겼는지 (F-SYS-09 중복 경고 방지) */
 export async function alreadyNotified(code: NotificationTemplateCode, orderId: number): Promise<boolean> {
   const db = getDb();

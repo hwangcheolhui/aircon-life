@@ -22,6 +22,22 @@
     {
       "path": "/api/jobs/area-open-notify",
       "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/jobs/route-draft",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/jobs/route-remind",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/jobs/route-autoconfirm",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/jobs/location-purge",
+      "schedule": "0 19 * * *"
     }
   ]
 }

@@ -18,6 +18,15 @@ export const NOTIFICATION_TEMPLATE_CODES = [
   'TECH_JOB_CHANGED',
   'TECH_TRANSFER_REJECTED',
   'UNASSIGNED_WARNING',
+  // 단계 4-2: 코스 확정 고객 안내(F-TEC-RTE-03) · 코스 배치(F-SYS-15·16) · 자가 배정(F-TEC-RTE-04, F-ADM-DSP-10)
+  'VISIT_TIME_NOTICE',
+  'VISIT_TIME_CHANGED',
+  'ROUTE_DRAFT_READY',
+  'ROUTE_CONFIRM_REMIND',
+  'ROUTE_AUTO_CONFIRMED',
+  'SELF_ASSIGN_REQUESTED',
+  'SELF_ASSIGN_APPROVED',
+  'SELF_ASSIGN_REJECTED',
 ] as const;
 export type NotificationTemplateCode = (typeof NOTIFICATION_TEMPLATE_CODES)[number];
 
@@ -26,4 +35,14 @@ export function renderTemplate(body: string, vars: Record<string, string>): stri
 }
 
 /** 화면 템플릿 편집(A-CRM-040)에서 안내하는 치환 변수 */
-export const TEMPLATE_VARIABLES = ['고객명', '접수번호', '방문일시', '금액', '거점전화', '기사명'] as const;
+export const TEMPLATE_VARIABLES = [
+  '고객명',
+  '접수번호',
+  '방문일시',
+  '금액',
+  '거점전화',
+  '기사명',
+  '방문예정',
+  '코스일자',
+  '방문건수',
+] as const;

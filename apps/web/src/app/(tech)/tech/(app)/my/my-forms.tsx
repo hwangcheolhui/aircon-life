@@ -22,7 +22,16 @@ export function IntroForm({ intro }: { intro: string }) {
     >
       {error ? <Alert tone="danger">{error}</Alert> : null}
       <Field label="소개" help="고객 예약 화면에 기사 이름과 함께 보여요. (300자 이내)">
-        {(id, d) => <Textarea id={id} aria-describedby={d} value={value} onChange={(e) => setValue(e.target.value)} maxLength={300} rows={3} />}
+        {(id, d) => (
+          <Textarea
+            id={id}
+            aria-describedby={d}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            maxLength={300}
+            rows={3}
+          />
+        )}
       </Field>
       <Button type="submit" variant="outline" block loading={pending}>
         소개 저장
@@ -61,11 +70,36 @@ export function PasswordForm() {
       }}
     >
       {error ? <Alert tone="danger">{error}</Alert> : null}
-      <Field label="새 비밀번호" required error={errors.newPassword} help="8자 이상, 영문과 숫자를 함께 넣어 주세요.">
-        {(id, d, inv) => <Input id={id} aria-describedby={d} aria-invalid={inv} type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="new-password" />}
+      <Field
+        label="새 비밀번호"
+        required
+        error={errors.newPassword}
+        help="8자 이상, 영문과 숫자를 함께 넣어 주세요."
+      >
+        {(id, d, inv) => (
+          <Input
+            id={id}
+            aria-describedby={d}
+            aria-invalid={inv}
+            type="password"
+            value={pw}
+            onChange={(e) => setPw(e.target.value)}
+            autoComplete="new-password"
+          />
+        )}
       </Field>
       <Field label="새 비밀번호 확인" required error={errors.newPasswordConfirm}>
-        {(id, d, inv) => <Input id={id} aria-describedby={d} aria-invalid={inv} type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} autoComplete="new-password" />}
+        {(id, d, inv) => (
+          <Input
+            id={id}
+            aria-describedby={d}
+            aria-invalid={inv}
+            type="password"
+            value={pw2}
+            onChange={(e) => setPw2(e.target.value)}
+            autoComplete="new-password"
+          />
+        )}
       </Field>
       <Button type="submit" variant="outline" block loading={pending}>
         비밀번호 저장

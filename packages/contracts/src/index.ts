@@ -27,22 +27,51 @@ export const reqInt = (label: string, min = 0) =>
       .min(min, `${label}은(는) ${min} 이상이어야 합니다.`),
   );
 export const optInt = (min = 0) =>
-  z.preprocess((v) => (blankToNull(v ?? null) === null ? null : Number(v)), z.number().int().min(min).nullable());
+  z.preprocess(
+    (v) => (blankToNull(v ?? null) === null ? null : Number(v)),
+    z.number().int().min(min).nullable(),
+  );
 export const optId = () => optInt(1);
 export const reqId = (label: string) => reqInt(label, 1);
 const bool = (def: boolean) =>
-  z.preprocess((v) => (v === undefined || v === null ? def : v === true || v === 'true' || v === 'on' || v === 'Y'), z.boolean());
+  z.preprocess(
+    (v) => (v === undefined || v === null ? def : v === true || v === 'true' || v === 'on' || v === 'Y'),
+    z.boolean(),
+  );
 const dateStr = (label: string) =>
   z.preprocess(
     (v) => (blankToNull(v) === null ? undefined : v),
-    z.string({ required_error: MSG.required(label) }).regex(/^\d{4}-\d{2}-\d{2}$/, `${label} 형식이 올바르지 않습니다.`),
+    z
+      .string({ required_error: MSG.required(label) })
+      .regex(/^\d{4}-\d{2}-\d{2}$/, `${label} 형식이 올바르지 않습니다.`),
   );
 const optDate = () =>
-  z.preprocess((v) => blankToNull(v), z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null));
+  z.preprocess(
+    (v) => blankToNull(v),
+    z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .nullable()
+      .default(null),
+  );
 const optTime = () =>
-  z.preprocess((v) => blankToNull(v), z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, '시각 형식(HH:MM)이 올바르지 않습니다.').nullable().default(null));
+  z.preprocess(
+    (v) => blankToNull(v),
+    z
+      .string()
+      .regex(/^\d{2}:\d{2}(:\d{2})?$/, '시각 형식(HH:MM)이 올바르지 않습니다.')
+      .nullable()
+      .default(null),
+  );
 const optDecimal = (label: string) =>
-  z.preprocess((v) => blankToNull(v), z.string().regex(/^-?\d+(\.\d+)?$/, `${label}은(는) 숫자여야 합니다.`).nullable().default(null));
+  z.preprocess(
+    (v) => blankToNull(v),
+    z
+      .string()
+      .regex(/^-?\d+(\.\d+)?$/, `${label}은(는) 숫자여야 합니다.`)
+      .nullable()
+      .default(null),
+  );
 const code = (label: string, max = 30) =>
   z.preprocess(
     (v) => (v == null ? '' : trimmed(v)),
@@ -53,15 +82,18 @@ const code = (label: string, max = 30) =>
       .regex(/^[A-Z0-9_-]+$/, `${label}은(는) 영문 대문자·숫자·_·- 만 쓸 수 있습니다.`),
   );
 const jsonField = <T extends z.ZodTypeAny>(label: string, schema: T) =>
-  z.preprocess((v) => {
-    const b = blankToNull(v ?? null);
-    if (b === null || typeof b !== 'string') return b;
-    try {
-      return JSON.parse(b);
-    } catch {
-      return Symbol.for('invalid-json');
-    }
-  }, z.union([schema, z.null()], { errorMap: () => ({ message: `${label} JSON 형식이 올바르지 않습니다.` }) }));
+  z.preprocess(
+    (v) => {
+      const b = blankToNull(v ?? null);
+      if (b === null || typeof b !== 'string') return b;
+      try {
+        return JSON.parse(b);
+      } catch {
+        return Symbol.for('invalid-json');
+      }
+    },
+    z.union([schema, z.null()], { errorMap: () => ({ message: `${label} JSON 형식이 올바르지 않습니다.` }) }),
+  );
 
 /* ---------- A-AUTH ---------- */
 export const loginInput = z.object({ loginId: reqStr('ID', 50), password: reqStr('비밀번호', 200) });
@@ -100,7 +132,11 @@ export const serviceAreaInput = z.object({
   eupmyeondong: reqStr('읍면동', 30),
   legalDongCode: z.preprocess(
     (v) => blankToNull(trimmed(v)),
-    z.string().regex(/^\d{10}$/, '법정동 코드는 숫자 10자리입니다.').nullable().default(null),
+    z
+      .string()
+      .regex(/^\d{10}$/, '법정동 코드는 숫자 10자리입니다.')
+      .nullable()
+      .default(null),
   ),
   isServiceable: bool(true),
   travelFee: reqInt('원거리 출장비'),
@@ -109,7 +145,10 @@ export const serviceAreaInput = z.object({
 /* ---------- A-SYS-010 관리자 계정 ---------- */
 const adminBase = {
   name: reqStr('이름', 30),
-  email: z.preprocess((v) => trimmed(v), z.string().min(1, MSG.required('이메일')).email('이메일 형식이 올바르지 않습니다.').max(100)),
+  email: z.preprocess(
+    (v) => trimmed(v),
+    z.string().min(1, MSG.required('이메일')).email('이메일 형식이 올바르지 않습니다.').max(100),
+  ),
   phone: optStr(20),
   roleId: reqId('역할'),
   branchId: optId(),
@@ -117,12 +156,20 @@ const adminBase = {
 export const adminUserCreateInput = z.object({
   loginId: z.preprocess(
     (v) => trimmed(v),
-    z.string().min(1, MSG.required('ID')).max(50).regex(/^[a-zA-Z0-9._-]+$/, 'ID는 영문·숫자·._- 만 쓸 수 있습니다.'),
+    z
+      .string()
+      .min(1, MSG.required('ID'))
+      .max(50)
+      .regex(/^[a-zA-Z0-9._-]+$/, 'ID는 영문·숫자·._- 만 쓸 수 있습니다.'),
   ),
   initialPassword: reqStr('초기 비밀번호', 200),
   ...adminBase,
 });
-export const adminUserUpdateInput = z.object({ id: reqId('ID'), ...adminBase, status: reqStr('계정 상태', 20) });
+export const adminUserUpdateInput = z.object({
+  id: reqId('ID'),
+  ...adminBase,
+  status: reqStr('계정 상태', 20),
+});
 
 /* ---------- A-SYS-020 역할·권한 ---------- */
 export const rolePermissionUpdateInput = z.object({
@@ -132,7 +179,9 @@ export const rolePermissionUpdateInput = z.object({
 export const roleInput = z.object({
   roleCode: code('역할 코드'),
   name: reqStr('역할명', 50),
-  dataScope: z.enum(['ALL', 'BRANCH', 'SELF'], { errorMap: () => ({ message: MSG.required('데이터 범위') }) }),
+  dataScope: z.enum(['ALL', 'BRANCH', 'SELF'], {
+    errorMap: () => ({ message: MSG.required('데이터 범위') }),
+  }),
 });
 
 /* ---------- A-SYS-040 공통 코드 ---------- */
@@ -225,7 +274,10 @@ export const surchargeRuleInput = z
     customerNotice: optStr(300),
     isActive: bool(true),
   })
-  .refine((v) => v.amountType !== 'RATE' || v.amount <= 100, { path: ['amount'], message: '정률은 100% 이하로 입력하세요.' });
+  .refine((v) => v.amountType !== 'RATE' || v.amount <= 100, {
+    path: ['amount'],
+    message: '정률은 100% 이하로 입력하세요.',
+  });
 
 /* ---------- A-PRD-040 옵션·자재 ---------- */
 export const serviceOptionInput = z.object({
@@ -308,12 +360,21 @@ export type QuoteSimulationInput = z.output<typeof quoteSimulationInput>;
 export const phoneInput = (label = '휴대폰 번호') =>
   z.preprocess(
     (v) => (typeof v === 'string' ? v.replace(/[^0-9]/g, '') : ''),
-    z.string().min(1, MSG.required(label)).regex(/^01[016789]\d{7,8}$/, `${label} 형식이 올바르지 않습니다.`),
+    z
+      .string()
+      .min(1, MSG.required(label))
+      .regex(/^01[016789]\d{7,8}$/, `${label} 형식이 올바르지 않습니다.`),
   );
 export const phoneStartInput = z.object({ name: reqStr('이름', 30), phone: phoneInput() });
 export const phoneConfirmInput = z.object({
   phone: phoneInput(),
-  code: z.preprocess((v) => trimmed(v ?? ''), z.string().min(1, MSG.required('인증번호')).regex(/^\d{6}$/, '인증번호 6자리를 입력하세요.')),
+  code: z.preprocess(
+    (v) => trimmed(v ?? ''),
+    z
+      .string()
+      .min(1, MSG.required('인증번호'))
+      .regex(/^\d{6}$/, '인증번호 6자리를 입력하세요.'),
+  ),
 });
 export const signupConsentInput = z.object({
   TERMS: bool(false),
@@ -324,7 +385,11 @@ export const signupConsentInput = z.object({
 });
 export const consentSettingInput = signupConsentInput.omit({ TERMS: true, PRIVACY_REQUIRED: true });
 
-const slotHour = z.coerce.number({ invalid_type_error: MSG.required('방문 시간') }).int().min(0).max(23);
+const slotHour = z.coerce
+  .number({ invalid_type_error: MSG.required('방문 시간') })
+  .int()
+  .min(0)
+  .max(23);
 export const reservationAddressInput = z.object({
   zipcode: reqStr('우편번호', 10),
   roadAddress: reqStr('도로명 주소', 200),
@@ -354,9 +419,14 @@ export type ReservationInput = z.output<typeof reservationInput>;
 export const changeRequestInput = z
   .object({
     orderNo: reqStr('접수번호', 20),
-    requestType: z.enum(['RESCHEDULE', 'CANCEL'], { errorMap: () => ({ message: MSG.required('요청 유형') }) }),
+    requestType: z.enum(['RESCHEDULE', 'CANCEL'], {
+      errorMap: () => ({ message: MSG.required('요청 유형') }),
+    }),
     requestedDate: optDate(),
-    requestedHour: z.preprocess((v) => (blankToNull(v ?? null) === null ? null : Number(v)), z.number().int().min(0).max(23).nullable()),
+    requestedHour: z.preprocess(
+      (v) => (blankToNull(v ?? null) === null ? null : Number(v)),
+      z.number().int().min(0).max(23).nullable(),
+    ),
     reason: optStr(500),
   })
   .refine((v) => v.requestType === 'CANCEL' || (v.requestedDate !== null && v.requestedHour !== null), {
@@ -364,7 +434,10 @@ export const changeRequestInput = z
     message: MSG.required('새 일정'),
   });
 
-export const withdrawInput = z.object({ reason: optStr(300), agreed: z.literal(true, { errorMap: () => ({ message: '유의사항을 확인해 주세요.' }) }) });
+export const withdrawInput = z.object({
+  reason: optStr(300),
+  agreed: z.literal(true, { errorMap: () => ({ message: '유의사항을 확인해 주세요.' }) }),
+});
 
 /* ---------- 단계 2 관리자 (A-TEC-010, A-DSP-030·040, A-ORD-010~040, A-CRM-040) ---------- */
 export const technicianInput = z.object({
@@ -392,10 +465,15 @@ export const scheduleBulkInput = z
     note: optStr(200),
   })
   .refine((v) => v.dateFrom <= v.dateTo, { path: ['dateTo'], message: '종료일은 시작일 이후여야 합니다.' })
-  .refine((v) => (v.startTime === null) === (v.endTime === null) && (!v.startTime || !v.endTime || v.startTime < v.endTime), {
-    path: ['endTime'],
-    message: '근무 시간은 시작·종료를 함께, 종료가 시작보다 늦게 입력하세요.',
-  });
+  .refine(
+    (v) =>
+      (v.startTime === null) === (v.endTime === null) &&
+      (!v.startTime || !v.endTime || v.startTime < v.endTime),
+    {
+      path: ['endTime'],
+      message: '근무 시간은 시작·종료를 함께, 종료가 시작보다 늦게 입력하세요.',
+    },
+  );
 
 export const slotUpdateInput = z.object({
   id: reqId('슬롯'),
@@ -414,7 +492,10 @@ export const orderCancelInput = z.object({
 export const orderUpdateInput = z.object({
   orderId: reqId('주문'),
   slotDate: optDate(),
-  slotHour: z.preprocess((v) => (blankToNull(v ?? null) === null ? null : Number(v)), z.number().int().min(0).max(23).nullable()),
+  slotHour: z.preprocess(
+    (v) => (blankToNull(v ?? null) === null ? null : Number(v)),
+    z.number().int().min(0).max(23).nullable(),
+  ),
   customerRequest: optStr(500),
   internalNote: optStr(1000),
   detailAddress: optStr(200),
@@ -475,7 +556,10 @@ const optPhone = (label: string) =>
       const d = typeof v === 'string' ? v.replace(/[^0-9]/g, '') : '';
       return d === '' ? null : d;
     },
-    z.string().regex(/^0\d{8,10}$/, `${label} 형식이 올바르지 않습니다.`).nullable(),
+    z
+      .string()
+      .regex(/^0\d{8,10}$/, `${label} 형식이 올바르지 않습니다.`)
+      .nullable(),
   );
 /** A-CSL-012 4단계 주소(주소검색 → 주소선택 → 상세주소 → 주소정제) 결과 */
 export const consoleAddressInput = z.object({
@@ -505,7 +589,9 @@ export const consoleCustomerUpdateInput = z.object({
 export const consentAnswerInput = z.object({
   customerId: reqId('고객'),
   callLogId: optId(),
-  action: z.enum(['AGREE', 'DISAGREE', 'NOT_ASKED', 'WITHDRAW'], { errorMap: () => ({ message: MSG.required('동의 여부') }) }),
+  action: z.enum(['AGREE', 'DISAGREE', 'NOT_ASKED', 'WITHDRAW'], {
+    errorMap: () => ({ message: MSG.required('동의 여부') }),
+  }),
 });
 /** A-CSL-020 출장접수 */
 export const phoneOrderInput = z.object({
@@ -544,7 +630,10 @@ export const consultRecordInput = z.object({
 export const customerGradeInput = z.object({
   customerId: reqId('고객'),
   grade: reqStr('고객 등급', 20),
-  tags: z.array(z.string().regex(/^[A-Z0-9_]+$/)).max(20).default([]),
+  tags: z
+    .array(z.string().regex(/^[A-Z0-9_]+$/))
+    .max(20)
+    .default([]),
 });
 export const customerMemoInput = z.object({ customerId: reqId('고객'), memo: optStr(4000) });
 /** A-CNT-050 상담 스크립트 */
@@ -565,9 +654,15 @@ export const techPasswordSetInput = z
     newPassword: reqStr('새 비밀번호', 200),
     newPasswordConfirm: reqStr('새 비밀번호 확인', 200),
   })
-  .refine((v) => v.newPassword === v.newPasswordConfirm, { path: ['newPasswordConfirm'], message: '새 비밀번호가 일치하지 않습니다.' });
+  .refine((v) => v.newPassword === v.newPasswordConfirm, {
+    path: ['newPasswordConfirm'],
+    message: '새 비밀번호가 일치하지 않습니다.',
+  });
 export const techProfileInput = z.object({ intro: optStr(300) });
-export const transferRequestInput = z.object({ orderNo: reqStr('접수번호', 20), reason: reqStr('이관 사유', 200) });
+export const transferRequestInput = z.object({
+  orderNo: reqStr('접수번호', 20),
+  reason: reqStr('이관 사유', 200),
+});
 
 /* ---------- 단계 4-1 관리자 기사 상세 (A-TEC-020, F-ADM-TEC-02·03) ---------- */
 export const technicianProfileInput = z.object({
@@ -592,10 +687,22 @@ export const technicianProfileInput = z.object({
   intro: optStr(300),
   accompanyRequiredCount: reqInt('초기 동행 건수'),
 });
-const skillRow = z.object({ deviceType: reqStr('기기 유형', 20), skillLevel: z.enum(['CAN_ASSIST', 'CAN_SOLO', 'CAN_TEACH']) });
-export const technicianSkillsInput = z.object({ technicianId: reqId('기사'), skills: z.array(skillRow).max(30) });
-const areaRow = z.object({ legalDongCode: z.string().regex(/^\d{10}$/, '법정동 코드 형식이 올바르지 않습니다.'), priority: z.coerce.number().int().min(1).max(2) });
-export const technicianAreasInput = z.object({ technicianId: reqId('기사'), areas: z.array(areaRow).max(300) });
+const skillRow = z.object({
+  deviceType: reqStr('기기 유형', 20),
+  skillLevel: z.enum(['CAN_ASSIST', 'CAN_SOLO', 'CAN_TEACH']),
+});
+export const technicianSkillsInput = z.object({
+  technicianId: reqId('기사'),
+  skills: z.array(skillRow).max(30),
+});
+const areaRow = z.object({
+  legalDongCode: z.string().regex(/^\d{10}$/, '법정동 코드 형식이 올바르지 않습니다.'),
+  priority: z.coerce.number().int().min(1).max(2),
+});
+export const technicianAreasInput = z.object({
+  technicianId: reqId('기사'),
+  areas: z.array(areaRow).max(300),
+});
 export const gradeChangeInput = z.object({
   technicianId: reqId('기사'),
   toGrade: reqStr('변경 등급', 20),
@@ -625,4 +732,68 @@ export const transferDecisionInput = z.object({
   toTechId: optId(),
   reason: optStr(200),
   confirmWarnings: bool(false),
+});
+
+/* ---------- 단계 4-2 관할 구역·코스·자가 배정·위치 (A-DSP-060·020, T-RTE-010·020, T-HOM-010) ---------- */
+const position = z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90)]);
+/** F-ADM-DSP-08 관할 구역 저장 */
+export const zoneInput = z
+  .object({
+    id: optId(),
+    technicianId: reqId('기사'),
+    zoneName: reqStr('구역명', 50),
+    zoneType: z.enum(['PRIMARY', 'SECONDARY'], { errorMap: () => ({ message: MSG.required('구역 구분') }) }),
+    defineMethod: z.enum(['DONG_SET', 'DRAWN'], { errorMap: () => ({ message: MSG.required('지정 방식') }) }),
+    dongCodes: z
+      .array(z.string().regex(/^\d{10}$/))
+      .max(300)
+      .default([]),
+    points: z.array(position).max(200).default([]),
+    color: z.enum(['1', '2', '3', '4', '5', '6']).default('1'),
+    validFrom: optDate(),
+    validTo: optDate(),
+  })
+  .refine((v) => !v.validFrom || !v.validTo || v.validFrom <= v.validTo, {
+    message: '적용 종료일이 시작일보다 빠릅니다.',
+    path: ['validTo'],
+  });
+export const zoneDeleteInput = z.object({ id: reqId('관할 구역') });
+
+/** F-ADM-DSP-10 자가 배정 승인·거절 (거절은 사유 필수) */
+export const selfAssignDecisionInput = z
+  .object({
+    assignmentId: reqId('자가 배정 요청'),
+    decision: z.enum(['APPROVE', 'REJECT']),
+    reason: optStr(200),
+  })
+  .refine((v) => v.decision === 'APPROVE' || Boolean(v.reason), {
+    message: MSG.required('거절 사유'),
+    path: ['reason'],
+  });
+
+/** F-TEC-RTE-01 코스 편집 (순서대로) */
+export const routeEditInput = z.object({
+  date: dateStr('코스 일자'),
+  stops: z
+    .array(
+      z.object({
+        key: z.string().min(1).max(40),
+        type: z.enum(['JOB', 'BREAK', 'MATERIAL']),
+        locked: z.boolean().default(false),
+        workMin: z.number().int().min(5).max(240).optional(),
+      }),
+    )
+    .max(60),
+});
+export const routeDateInput = z.object({ date: dateStr('코스 일자') });
+
+/** F-TEC-RTE-04 내 일정에 넣기 */
+export const selfAssignRequestInput = z.object({ orderNo: reqStr('접수번호', 20) });
+
+/** F-TEC-MAP-05 근무 중 위치 1건 */
+export const locationInput = z.object({
+  lat: z.number().min(33).max(39),
+  lng: z.number().min(124).max(132),
+  accuracyM: z.number().min(0).max(100000).nullable().default(null),
+  speedKmh: z.number().min(0).max(400).nullable().default(null),
 });
