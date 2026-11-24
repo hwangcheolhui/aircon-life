@@ -112,7 +112,7 @@ export async function notifyStaff(
 export async function notifyStaffWith(
   code: NotificationTemplateCode,
   receiver: { type: 'TECHNICIAN'; id: number } | { type: 'ADMIN'; id: null },
-  related: { type: 'ORDER' | 'ROUTE_PLAN'; id: number },
+  related: { type: 'ORDER' | 'ROUTE_PLAN' | 'SETTLEMENT'; id: number },
   vars: Record<string, string>,
   link?: string,
 ): Promise<void> {

@@ -10,8 +10,8 @@ import {
 } from '@aircon/domain';
 import { eq, sql } from 'drizzle-orm';
 import type { Db } from './client';
-import { adminUser, commonCode, consultScript, holiday, notificationTemplate, permission, role, rolePermission, systemSetting } from './schema';
-import { COMMON_CODE_SEED, CONSULT_SCRIPT_SEED, HOLIDAY_SEED, NOTIFICATION_TEMPLATE_SEED, ROLE_SEED } from './seed-data';
+import { adminUser, commissionPolicy, commonCode, consultScript, holiday, notificationTemplate, permission, role, rolePermission, systemSetting } from './schema';
+import { COMMISSION_POLICY_SEED, COMMON_CODE_SEED, CONSULT_SCRIPT_SEED, HOLIDAY_SEED, NOTIFICATION_TEMPLATE_SEED, ROLE_SEED } from './seed-data';
 
 export interface SuperAdminSeed {
   loginId: string;
@@ -32,6 +32,9 @@ export async function seedBaseData(db: Db, superAdmin?: SuperAdminSeed) {
   await db.insert(holiday).values(HOLIDAY_SEED).onConflictDoNothing();
   await db.insert(notificationTemplate).values(NOTIFICATION_TEMPLATE_SEED).onConflictDoNothing();
   await db.insert(consultScript).values(CONSULT_SCRIPT_SEED).onConflictDoNothing();
+  // 단계 7: 수수료 정책이 하나도 없을 때만 기본 정책
+  const [policyCount] = await db.select({ count: sql<number>`count(*)::int` }).from(commissionPolicy);
+  if ((policyCount?.count ?? 0) === 0) await db.insert(commissionPolicy).values(COMMISSION_POLICY_SEED);
 
   // 역할별 권한: 아직 권한이 하나도 없는 역할에만 03 §4.4 매트릭스를 넣는다(관리자가 바꾼 권한 보존)
   const roles = await db.select().from(role);

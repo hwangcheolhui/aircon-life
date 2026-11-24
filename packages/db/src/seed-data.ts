@@ -569,6 +569,33 @@ export const COMMON_CODE_SEED = [
     ['FAILED', '발행 실패'],
     ['CANCELED', '취소'],
   ]),
+  // 단계 7 정산 (01 §4 "단계 7에서 추가한 그룹", 마이그레이션 0011 에도 같은 값)
+  ...g('COMMISSION_CALC_TYPE', [
+    ['RATE', '매출 × 배분율'],
+    ['PER_UNIT', '대당 고정'],
+    ['MIXED', '배분율 + 대당'],
+  ]),
+  ...g('SETTLEMENT_BATCH_STATUS', [
+    ['DRAFT', '작성'],
+    ['CALCULATED', '계산 완료'],
+    ['CONFIRMED', '확정'],
+    ['PAID', '지급 완료'],
+    ['CLOSED', '마감'],
+  ]),
+  ...g('SETTLEMENT_STATUS', [
+    ['CALCULATED', '확인 대기'],
+    ['TECH_CONFIRMED', '기사 확인'],
+    ['DISPUTED', '이의 제기'],
+    ['CONFIRMED', '확정'],
+    ['PAID', '지급 완료'],
+  ]),
+  ...g('SETTLEMENT_ITEM_TYPE', [
+    ['JOB', '작업 배분'],
+    ['EXTRA', '추가요금 배분'],
+    ['INCENTIVE', '인센티브'],
+    ['DEDUCTION', '공제'],
+    ['ADJUST', '조정'],
+  ]),
 ];
 
 /** 상담 스크립트 초기값 (01 §2.6.7, F-ADM-CSL-16). 운영 중 문구는 A-CNT-050에서 바꾸며 시드는 덮어쓰지 않는다. 마이그레이션 0005 에도 같은 값이 있다. */
@@ -702,6 +729,28 @@ export const WORK_TEMPLATE_SEED = [
     title: '결제 완료 안내',
     body: '#{고객명}님, 결제가 완료되었습니다.\n결제 금액: #{결제금액}\n접수번호: #{접수번호}\n현금영수증·세금계산서는 예약 상세에서 신청할 수 있습니다.',
   },
+  // 단계 7 정산 (마이그레이션 0011 에도 같은 값)
+  {
+    templateCode: 'STL_CONFIRM_REQUEST',
+    channel: 'PUSH',
+    target: 'TECHNICIAN',
+    title: '정산 확인 요청',
+    body: '#{정산회차} 정산서가 나왔습니다.\n실지급액: #{실지급액}\n정산 화면에서 확인하거나 이의를 남겨 주세요.',
+  },
+  {
+    templateCode: 'STL_DISPUTED',
+    channel: 'PUSH',
+    target: 'ADMIN',
+    title: '정산 이의 제기',
+    body: '#{기사명} 기사가 #{정산회차} 정산에 이의를 제기했습니다.',
+  },
+  {
+    templateCode: 'STL_PAID',
+    channel: 'PUSH',
+    target: 'TECHNICIAN',
+    title: '정산 지급 완료',
+    body: '#{정산회차} 정산금이 지급되었습니다.\n실지급액: #{실지급액}',
+  },
 ];
 
 export const NOTIFICATION_TEMPLATE_SEED = [
@@ -775,3 +824,17 @@ export const HOLIDAY_SEED = [
   { holidayDate: '2027-10-09', name: '한글날' },
   { holidayDate: '2027-12-25', name: '성탄절' },
 ];
+
+/**
+ * 단계 7 기본 수수료 정책 (01 §2.11.1 예시값). 정책이 하나도 없을 때만 넣는다 — 운영 중 값은 A-STL-010에서 바꾼다.
+ * 기사 배분 55%, 추가요금 70%, 2인 작업 지원기사 30%, 도급 원천징수 3.3%(BR-083).
+ */
+export const COMMISSION_POLICY_SEED = {
+  policyName: '기본 정책(전체)',
+  calcType: 'RATE',
+  techShareRate: '55.00',
+  extraChargeShareRate: '70.00',
+  supportRoleRate: '30.00',
+  withholdingRate: '3.30',
+  validFrom: '2026-01-01',
+};

@@ -30,3 +30,4 @@ export * from './work/extra-charge';
 export * from './work/pending';
 export * from './work/process-console';
 export * from './payment/payment-rules';
+export * from './settlement/settlement-rules';
