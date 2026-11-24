@@ -235,6 +235,14 @@ function itemsAsSnapshot(items: (typeof orderItem.$inferSelect)[], ruleCodeOf: (
  */
 async function rescheduleInTx(tx: Tx, o: OrderRow, slotDate: string, slotHour: number, actor: Actor) {
   if (!RESCHEDULABLE_STATUSES.includes(o.status)) throw new UserError('기사 출발 이후에는 일정을 바꿀 수 없습니다.');
+  await moveScheduleInTx(tx, o, slotDate, slotHour, actor);
+}
+
+/**
+ * 방문 일정 옮기기 공통: 기존 슬롯 반환 → 새 슬롯 차감(BR-021) → 일정 컬럼, 미결제면 야간·휴일 할증 다시 계산.
+ * 상태 확인은 부르는 쪽(일정 변경 = 출발 전, 단계 6-2 재약속 = 미처리)에서 한다.
+ */
+export async function moveScheduleInTx(tx: Tx, o: OrderRow, slotDate: string, slotHour: number, actor: Actor) {
   const old = orderSlotTarget(o);
   const durationHours = old ? old.hours.length : 1;
   if (old) await releaseSlots(tx, old);

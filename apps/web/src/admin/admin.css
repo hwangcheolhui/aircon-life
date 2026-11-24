@@ -120,3 +120,16 @@
 .adm-zones__item p { margin: 0; }
 .adm-zones__main { display: grid; gap: var(--space-2); min-width: 0; }
 @media (max-width: 1280px) { .adm-zones { grid-template-columns: 1fr; } }
+
+/* A-PRC-010 처리 콘솔 (단계 6-2): 상단 조회, 좌 기사 접수 목록 · 우 처리 정보, 하단 탭 (03 §4.3) */
+.adm-prc-search { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)) auto; gap: var(--space-3); align-items: end; }
+.adm-prc { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: var(--space-4); align-items: start; margin-top: var(--space-4); }
+.adm-prc__list, .adm-prc__detail { min-width: 0; }
+.adm-prc-form { display: grid; gap: var(--space-2); }
+.adm-prc-photos { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; white-space: normal; }
+.adm-prc-thumb { display: inline-flex; flex-direction: column; align-items: center; gap: var(--space-1); }
+.adm-prc-thumb img { display: block; width: 48px; height: 48px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--color-border); }
+.adm-prc-files { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.adm-kv .adm-kv__wide { grid-column: 2 / -1; }
+.adm-link { padding: 0; border: 0; background: none; color: var(--color-primary); font: inherit; text-decoration: underline; cursor: pointer; }
+@media (max-width: 1280px) { .adm-prc { grid-template-columns: 1fr; } .adm-prc-search { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

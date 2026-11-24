@@ -28,4 +28,5 @@ export * from './work/work-status';
 export * from './work/work-rules';
 export * from './work/extra-charge';
 export * from './work/pending';
+export * from './work/process-console';
 export * from './payment/payment-rules';

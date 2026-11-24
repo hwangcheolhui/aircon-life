@@ -11,6 +11,7 @@ import 'server-only';
  */
 import {
   activityLog,
+  adminUser,
   assignment,
   attachment,
   extraCharge,
@@ -93,6 +94,7 @@ export async function transitionWork(
   actor: Actor,
   set: Partial<typeof workOrder.$inferInsert> = {},
   orderSet: Partial<typeof serviceOrder.$inferInsert> = {},
+  memo: string | null = null,
 ) {
   assertWorkTransition(w.status, to);
   const rows = await tx
@@ -102,7 +104,7 @@ export async function transitionWork(
     .returning({ id: workOrder.id });
   if (!rows.length) throw new UserError('다른 곳에서 먼저 처리된 작업입니다. 새로고침 후 다시 확인해 주세요.');
   const os = orderStatusForWork(to);
-  if (os && os !== o.status) await transitionOrder(tx, o, os, actor, { set: orderSet });
+  if (os && os !== o.status) await transitionOrder(tx, o, os, actor, { set: orderSet, memo });
 }
 
 /** 현장에 가는 인원 = 확정 배정 수 (주기사·지원·동행) — BR-043 고소작업 2인 권장 */
@@ -458,12 +460,28 @@ export async function savePending(
   now = new Date(),
 ) {
   const m = await mainOnly(techId, v.orderNo);
+  return applyPending(m.o, techId, v, { type: 'TECHNICIAN', id: techId }, now);
+}
+
+/**
+ * 미처리 저장 공통 (기사 F-TEC-WRK-08 · 관리자 대리 입력 F-ADM-PRC-02): 작업 PENDING(작업 건이 없으면 READY로 만든 뒤),
+ * 주문 PENDING + 이력(사유·메모), 응답 전 추가요금 철회, 주기사 코스 정류장 SKIPPED, 고객부재 안내. BR-031 연속 부재 횟수로 운영자 확인 필요 여부.
+ */
+export async function applyPending(
+  o: OrderRow,
+  mainTechId: number,
+  v: { pendingCode: string; memo: string | null; revisitDate: string | null },
+  actor: Actor,
+  now = new Date(),
+) {
   const errors = checkPendingInput({ pendingCode: v.pendingCode, memo: v.memo ?? '', revisitDate: v.revisitDate, today: kstDate(now) });
   if (Object.keys(errors).length) throw new ValidationFailed(errors);
-  const o = m.o;
   if (!['ASSIGNED', 'ON_THE_WAY', 'IN_PROGRESS'].includes(o.status)) throw new UserError('지금 상태에서는 미처리로 저장할 수 없습니다.');
-  const actor: Actor = { type: 'TECHNICIAN', id: techId };
-  const memo = [v.memo, v.revisitDate ? `재약속 희망일 ${v.revisitDate}` : null].filter(Boolean).join(' / ').slice(0, 500) || null;
+  const memo =
+    [actor.type === 'ADMIN' ? '관리자 대리 입력' : null, v.memo, v.revisitDate ? `재약속 희망일 ${v.revisitDate}` : null]
+      .filter(Boolean)
+      .join(' / ')
+      .slice(0, 500) || null;
   const db = getDb();
   await db.transaction(async (tx) => {
     let w = await workOf(tx, o.id);
@@ -471,23 +489,23 @@ export async function savePending(
       assertWorkTransition(null, 'READY');
       const [created] = await tx
         .insert(workOrder)
-        .values({ orderId: o.id, mainTechnicianId: techId, status: 'READY', createdBy: techId, updatedBy: techId })
+        .values({ orderId: o.id, mainTechnicianId: mainTechId, status: 'READY', createdBy: actor.id, updatedBy: actor.id })
         .returning();
       w = created!;
     }
     assertWorkTransition(w.status, 'PENDING');
     const rows = await tx
       .update(workOrder)
-      .set({ status: 'PENDING', pendingCode: v.pendingCode, finishedAt: now, updatedAt: now, updatedBy: techId })
+      .set({ status: 'PENDING', pendingCode: v.pendingCode, finishedAt: now, updatedAt: now, updatedBy: actor.id })
       .where(and(eq(workOrder.id, w.id), eq(workOrder.status, w.status)))
       .returning({ id: workOrder.id });
     if (!rows.length) throw new UserError('다른 곳에서 먼저 처리된 작업입니다. 새로고침 후 다시 확인해 주세요.');
     await transitionOrder(tx, o, 'PENDING', actor, { reasonCode: v.pendingCode, memo, set: { pendingReason: v.pendingCode } });
     await tx
       .update(extraCharge)
-      .set({ deletedAt: now, updatedAt: now, updatedBy: techId })
+      .set({ deletedAt: now, updatedAt: now, updatedBy: actor.id })
       .where(and(eq(extraCharge.workOrderId, w.id), isNull(extraCharge.agreedAt), isNull(extraCharge.deletedAt)));
-    await markRouteStop(tx, techId, o.id, kstDate(now), { type: 'SKIP' }, now);
+    await markRouteStop(tx, mainTechId, o.id, kstDate(now), { type: 'SKIP' }, now);
   });
   if (v.pendingCode === 'CUSTOMER_ABSENT') await notifyOrder('PENDING_ABSENT', o.id);
   return { operatorConfirm: needsOperatorConfirm(await absentStreakOf(o.id)) };
@@ -525,9 +543,11 @@ export async function listActivities(orderId: number) {
       actorType: activityLog.actorType,
       createdAt: activityLog.createdAt,
       techName: technician.name,
+      adminName: adminUser.name,
     })
     .from(activityLog)
     .leftJoin(technician, and(eq(activityLog.actorType, 'TECHNICIAN'), eq(technician.id, activityLog.actorId)))
+    .leftJoin(adminUser, and(eq(activityLog.actorType, 'ADMIN'), eq(adminUser.id, activityLog.actorId)))
     .where(eq(activityLog.orderId, orderId))
     .orderBy(desc(activityLog.createdAt))
     .limit(100);
