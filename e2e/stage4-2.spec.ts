@@ -50,6 +50,8 @@ test.beforeAll(async () => {
     await sql`INSERT INTO service_area (branch_id, sido, sigungu, eupmyeondong, legal_dong_code, is_serviceable)
       VALUES (${branchId}, '서울특별시', '은평구', ${dong}, ${code}, true) ON CONFLICT (legal_dong_code) DO NOTHING`;
   }
+  // 앞 단계 E2E(지역 오픈 알림)가 대조동을 서비스 불가로 바꿔 두었을 수 있다
+  await sql`UPDATE service_area SET is_serviceable = true, branch_id = ${branchId} WHERE legal_dong_code IN (${DONG.BULGWANG}, ${DONG.DAEJO}, ${DONG.YEOKCHON})`;
   await sql`INSERT INTO service_category (code, name) VALUES ('AIRCON_CLEAN', '에어컨 청소') ON CONFLICT (code) DO NOTHING`;
   const [c] = await sql<{ id: string }[]>`SELECT id FROM service_category WHERE code = 'AIRCON_CLEAN'`;
   await sql`INSERT INTO service_product (category_id, product_code, name, device_type, clean_level, base_duration_min)
