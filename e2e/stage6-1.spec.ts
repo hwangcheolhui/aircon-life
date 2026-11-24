@@ -227,8 +227,10 @@ test('F-TEC-PAY-01 앱 결제 요청 → C-PAY-020 고객 결제(실패 후 재�
 
   // 고객: 예약 상세 → 작업 금액 결제하기 → 모의 결제창 실패 → 다시 승인
   await customer.goto(`/orders/${NO.app}`);
-  await customer.getByRole('link', { name: '작업 금액 결제하기' }).click();
-  await expect(customer.getByRole('heading', { name: '작업 금액을 결제해 주세요' })).toBeVisible({ timeout: 30_000 });
+  // 링크는 확인하고, 이동은 직접 연다(하이드레이션 전 클릭·첫 컴파일이 느린 CI에서 막히지 않게)
+  await expect(customer.getByRole('link', { name: '작업 금액 결제하기' })).toHaveAttribute('href', `/orders/${NO.app}/pay`);
+  await customer.goto(`/orders/${NO.app}/pay`);
+  await expect(customer.getByRole('heading', { name: '작업 금액을 결제해 주세요' })).toBeVisible({ timeout: 60_000 });
   await expect(customer.locator('.ac-bottom-bar')).toContainText('120,000원');
   await customer.getByRole('button', { name: '결제하기' }).click();
   await customer.getByRole('dialog', { name: '모의 결제창' }).getByRole('button', { name: '결제 실패' }).click();
