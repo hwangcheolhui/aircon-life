@@ -24,6 +24,8 @@ export const E2E_ENV = {
 export default defineConfig({
   testDir: './e2e',
   timeout: 90_000,
+  // dev 서버는 화면을 처음 열 때 컴파일하므로 CI에서 5초(기본값)를 넘길 수 있다
+  expect: { timeout: 15_000 },
   fullyParallel: false,
   workers: 1,
   globalSetup: './e2e/global-setup.ts',
