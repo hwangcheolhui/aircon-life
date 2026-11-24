@@ -15,7 +15,13 @@ import {
 const at = (hhmm: string) => new Date(`2026-12-01T${hhmm}:00+09:00`);
 // 동서로 늘어선 가상 지점 (경도 0.01° ≈ 880m)
 const P = (i: number): LatLng => ({ lat: 37.6, lng: 126.9 + i * 0.01 });
-const job = (key: string, i: number, win: [string, string] | null, workMin = 60, locked = false): RouteStopInput => ({
+const job = (
+  key: string,
+  i: number,
+  win: [string, string] | null,
+  workMin = 60,
+  locked = false,
+): RouteStopInput => ({
   key,
   type: 'JOB',
   point: P(i),
@@ -24,7 +30,13 @@ const job = (key: string, i: number, win: [string, string] | null, workMin = 60,
   workMin,
   locked,
 });
-const base = { start: P(0), startAt: at('09:00'), travel: estimateTravel, bufferMin: 10, workEnd: at('18:00') };
+const base = {
+  start: P(0),
+  startAt: at('09:00'),
+  travel: estimateTravel,
+  bufferMin: 10,
+  workEnd: at('18:00'),
+};
 
 describe('BR-114 도착 예정시각 = 직전 출발 + 이동시간 + 버퍼', () => {
   it('구간 이동시간·버퍼를 더해 지점별 도착·출발과 합계를 낸다', () => {
@@ -57,7 +69,19 @@ describe('BR-114 도착 예정시각 = 직전 출발 + 이동시간 + 버퍼', (
   it('휴식 지점은 좌표가 없으면 직전 위치에서 쉬며 이동·버퍼가 없다', () => {
     const s = computeSchedule({
       ...base,
-      stops: [job('A', 1, null, 60), { key: 'BRK', type: 'BREAK', point: null, windowStart: null, windowEnd: null, workMin: 60, locked: false }, job('B', 1, null, 30)],
+      stops: [
+        job('A', 1, null, 60),
+        {
+          key: 'BRK',
+          type: 'BREAK',
+          point: null,
+          windowStart: null,
+          windowEnd: null,
+          workMin: 60,
+          locked: false,
+        },
+        job('B', 1, null, 30),
+      ],
     });
     expect(s.stops[1]!.travelMin).toBe(0);
     expect(s.stops[1]!.arrival).toEqual(s.stops[0]!.departure);
@@ -71,7 +95,11 @@ describe('BR-112 시간창 위반 시 확정 불가', () => {
     const s = computeSchedule({ ...base, stops: [job('A', 1, null, 240), job('B', 2, ['09:00', '11:00'])] });
     expect(s.stops[1]!.violation).toBe(true);
     expect(s.violations).toBe(1);
-    expect(canConfirmRoute(s)).toEqual({ ok: false, message: '도착 허용 시간을 벗어난 방문지가 1곳 있어 확정할 수 없습니다. 순서를 바꾸거나 거점에 일정 조정을 요청하세요.' });
+    expect(canConfirmRoute(s)).toEqual({
+      ok: false,
+      message:
+        '도착 허용 시간을 벗어난 방문지가 1곳 있어 확정할 수 없습니다. 순서를 바꾸거나 거점에 일정 조정을 요청하세요.',
+    });
   });
 
   it('위반이 없으면 확정할 수 있다', () => {
@@ -84,15 +112,29 @@ describe('BR-112 시간창 위반 시 확정 불가', () => {
   });
 
   it('도착 허용 시간창 = 약속 시각부터 ARRIVAL_WINDOW_HOURS 시간 (이미 안내한 시간창이 있으면 그대로)', () => {
-    expect(arrivalWindowOf({ promisedAt: at('10:00'), arrivalWindowStart: null, arrivalWindowEnd: null }, 2)).toEqual({ start: at('10:00'), end: at('12:00') });
-    expect(arrivalWindowOf({ promisedAt: at('10:00'), arrivalWindowStart: at('10:30'), arrivalWindowEnd: at('11:30') }, 2)).toEqual({ start: at('10:30'), end: at('11:30') });
-    expect(arrivalWindowOf({ promisedAt: null, arrivalWindowStart: null, arrivalWindowEnd: null }, 2)).toBeNull();
+    expect(
+      arrivalWindowOf({ promisedAt: at('10:00'), arrivalWindowStart: null, arrivalWindowEnd: null }, 2),
+    ).toEqual({ start: at('10:00'), end: at('12:00') });
+    expect(
+      arrivalWindowOf(
+        { promisedAt: at('10:00'), arrivalWindowStart: at('10:30'), arrivalWindowEnd: at('11:30') },
+        2,
+      ),
+    ).toEqual({ start: at('10:30'), end: at('11:30') });
+    expect(
+      arrivalWindowOf({ promisedAt: null, arrivalWindowStart: null, arrivalWindowEnd: null }, 2),
+    ).toBeNull();
   });
 });
 
 describe('F-TEC-RTE-02 코스 자동 추천', () => {
   it('지그재그 순서를 이동시간이 가장 짧은 순서로 바꾸고 전/후 절감량을 낸다', () => {
-    const stops = [job('C', 3, null, 30), job('A', 1, null, 30), job('D', 4, null, 30), job('B', 2, null, 30)];
+    const stops = [
+      job('C', 3, null, 30),
+      job('A', 1, null, 30),
+      job('D', 4, null, 30),
+      job('B', 2, null, 30),
+    ];
     const r = optimizeRoute({ ...base, stops });
     expect(r.after.stops.map((s) => s.key)).toEqual(['A', 'B', 'C', 'D']);
     expect(r.after.totalTravelMin).toBeLessThan(r.before.totalTravelMin);
@@ -132,15 +174,24 @@ describe('F-TEC-RTE-02 코스 자동 추천', () => {
 
 describe('F-TEC-RTE-04 코스 삽입 위치', () => {
   it('이동시간 증가가 가장 작은 위치에 넣는다', () => {
-    const r = bestInsertion({ ...base, stops: [job('A', 1, null, 30), job('C', 3, null, 30)] }, job('B', 2, null, 30));
+    const r = bestInsertion(
+      { ...base, stops: [job('A', 1, null, 30), job('C', 3, null, 30)] },
+      job('B', 2, null, 30),
+    );
     expect(r.position).toBe(1);
     expect(r.schedule.stops.map((s) => s.key)).toEqual(['A', 'B', 'C']);
-    expect(r.addedTravelMin).toBe(r.schedule.totalTravelMin - computeSchedule({ ...base, stops: [job('A', 1, null, 30), job('C', 3, null, 30)] }).totalTravelMin);
+    expect(r.addedTravelMin).toBe(
+      r.schedule.totalTravelMin -
+        computeSchedule({ ...base, stops: [job('A', 1, null, 30), job('C', 3, null, 30)] }).totalTravelMin,
+    );
     expect(r.ok).toBe(true);
   });
 
   it('어디에 넣어도 시간창을 어기면 ok=false', () => {
-    const r = bestInsertion({ ...base, stops: [job('A', 1, ['09:00', '09:20'], 480)] }, job('B', 2, ['09:00', '09:20'], 30));
+    const r = bestInsertion(
+      { ...base, stops: [job('A', 1, ['09:00', '09:20'], 480)] },
+      job('B', 2, ['09:00', '09:20'], 30),
+    );
     expect(r.ok).toBe(false);
   });
 });

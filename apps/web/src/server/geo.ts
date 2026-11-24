@@ -28,7 +28,13 @@ export async function ensureAddressCoords(addressIds: number[]): Promise<Map<num
   if (addressIds.length === 0) return out;
   const db = getDb();
   const rows = await db
-    .select({ id: customerAddress.id, lat: customerAddress.lat, lng: customerAddress.lng, road: customerAddress.roadAddress, code: customerAddress.legalDongCode })
+    .select({
+      id: customerAddress.id,
+      lat: customerAddress.lat,
+      lng: customerAddress.lng,
+      road: customerAddress.roadAddress,
+      code: customerAddress.legalDongCode,
+    })
     .from(customerAddress)
     .where(inArray(customerAddress.id, [...new Set(addressIds)]));
   const geo = createGeoAdapter();
@@ -40,7 +46,10 @@ export async function ensureAddressCoords(addressIds: number[]): Promise<Map<num
     }
     const p = await geo.geocode({ roadAddress: r.road, legalDongCode: r.code });
     if (!p) continue;
-    await db.update(customerAddress).set({ lat: p.lat.toFixed(7), lng: p.lng.toFixed(7) }).where(eq(customerAddress.id, r.id));
+    await db
+      .update(customerAddress)
+      .set({ lat: p.lat.toFixed(7), lng: p.lng.toFixed(7) })
+      .where(eq(customerAddress.id, r.id));
     out.set(r.id, p);
   }
   return out;
@@ -55,7 +64,12 @@ export interface BranchDong {
 /** 거점의 서비스 법정동과 중심 좌표 */
 export async function branchDongs(branchId: number): Promise<BranchDong[]> {
   const rows = await getDb()
-    .select({ code: serviceArea.legalDongCode, sido: serviceArea.sido, sigungu: serviceArea.sigungu, dong: serviceArea.eupmyeondong })
+    .select({
+      code: serviceArea.legalDongCode,
+      sido: serviceArea.sido,
+      sigungu: serviceArea.sigungu,
+      dong: serviceArea.eupmyeondong,
+    })
     .from(serviceArea)
     .where(and(eq(serviceArea.branchId, branchId), eq(serviceArea.isServiceable, true)))
     .orderBy(asc(serviceArea.sigungu), asc(serviceArea.eupmyeondong));
@@ -71,12 +85,18 @@ export async function branchDongs(branchId: number): Promise<BranchDong[]> {
 
 /** 거점 중심 좌표(코스 출발지). 거점에 좌표가 없으면 서비스 법정동 중심의 평균(저장하지 않음), 그것도 없으면 null */
 export async function branchCenter(branchId: number): Promise<LatLng | null> {
-  const [b] = await getDb().select({ lat: branch.centerLat, lng: branch.centerLng }).from(branch).where(and(eq(branch.id, branchId), isNull(branch.deletedAt)));
+  const [b] = await getDb()
+    .select({ lat: branch.centerLat, lng: branch.centerLng })
+    .from(branch)
+    .where(and(eq(branch.id, branchId), isNull(branch.deletedAt)));
   const known = b ? toLatLng(b.lat, b.lng) : null;
   if (known) return known;
   const dongs = await branchDongs(branchId);
   if (!dongs.length) return null;
-  return { lat: dongs.reduce((s, d) => s + d.center.lat, 0) / dongs.length, lng: dongs.reduce((s, d) => s + d.center.lng, 0) / dongs.length };
+  return {
+    lat: dongs.reduce((s, d) => s + d.center.lat, 0) / dongs.length,
+    lng: dongs.reduce((s, d) => s + d.center.lng, 0) / dongs.length,
+  };
 }
 
 export const dongRadius = () => getSettingNumber(SETTING_KEYS.ZONE_DONG_RADIUS_M);

@@ -26,10 +26,16 @@ export interface AreaRow {
   priority: number;
 }
 
-const addDays = (ymd: string, n: number) => new Date(new Date(`${ymd}T00:00:00Z`).getTime() + n * 86_400_000).toISOString().slice(0, 10);
+const addDays = (ymd: string, n: number) =>
+  new Date(new Date(`${ymd}T00:00:00Z`).getTime() + n * 86_400_000).toISOString().slice(0, 10);
 
 /** BR-110 미배정 작업 표시 여부 */
-export function isUnassignedVisible(o: SelfAssignOrder, areas: readonly AreaRow[], today: string, daysAhead: number): boolean {
+export function isUnassignedVisible(
+  o: SelfAssignOrder,
+  areas: readonly AreaRow[],
+  today: string,
+  daysAhead: number,
+): boolean {
   if (!(UNASSIGNED_ORDER_STATUSES as readonly string[]).includes(o.status)) return false;
   if (!o.legalDongCode || !areas.some((a) => a.code === o.legalDongCode)) return false;
   if (!o.date || o.date < today || o.date > addDays(today, daysAhead)) return false;
@@ -49,7 +55,13 @@ export function checkSelfAssign(i: {
   /** SELF_ASSIGN_NEEDS_APPROVAL */
   needsApprovalSetting: boolean;
   order: SelfAssignOrder;
-  tech: { status: string; grade: string; accompanyDoneCount: number; accompanyRequiredCount: number; skills: readonly { deviceType: string; skillLevel: string }[] };
+  tech: {
+    status: string;
+    grade: string;
+    accompanyDoneCount: number;
+    accompanyRequiredCount: number;
+    skills: readonly { deviceType: string; skillLevel: string }[];
+  };
   areas: readonly AreaRow[];
   today: string;
   daysAhead: number;
@@ -59,12 +71,24 @@ export function checkSelfAssign(i: {
   insertionOk: boolean;
 }): SelfAssignCheck {
   const visible = isUnassignedVisible(i.order, i.areas, i.today, i.daysAhead);
-  if (!visible) return { visible, canRequest: false, needsApproval: true, reasons: ['내 관할 구역의 배정 전 작업이 아닙니다.'] };
+  if (!visible)
+    return {
+      visible,
+      canRequest: false,
+      needsApproval: true,
+      reasons: ['내 관할 구역의 배정 전 작업이 아닙니다.'],
+    };
   const reasons: string[] = [];
   if (!i.enabled) reasons.push('거점에서 자가 배정을 사용하지 않습니다.');
-  if (i.tech.status !== 'ACTIVE' || needsAccompany(i.tech)) reasons.push('교육·동행 중에는 직접 작업을 담을 수 없습니다.');
+  if (i.tech.status !== 'ACTIVE' || needsAccompany(i.tech))
+    reasons.push('교육·동행 중에는 직접 작업을 담을 수 없습니다.');
   const solo = new Set(['CAN_SOLO', 'CAN_TEACH']);
-  if (new Set(i.order.deviceTypes).size === 0 || [...new Set(i.order.deviceTypes)].some((d) => !i.tech.skills.some((s) => s.deviceType === d && solo.has(s.skillLevel))))
+  if (
+    new Set(i.order.deviceTypes).size === 0 ||
+    [...new Set(i.order.deviceTypes)].some(
+      (d) => !i.tech.skills.some((s) => s.deviceType === d && solo.has(s.skillLevel)),
+    )
+  )
     reasons.push('이 기기를 단독으로 작업할 숙련이 없습니다.');
   if (!i.working) reasons.push('그날은 근무일이 아닙니다.');
   if (!i.insertionOk) reasons.push('코스에 넣으면 도착 허용 시간을 지킬 수 없습니다.');
@@ -75,7 +99,10 @@ export function checkSelfAssign(i: {
 
 /* ---------- BR-115 ---------- */
 
-export function canCollectLocation(t: { locationAgreedAt: Date | null; dutyStartedAt: Date | null }): boolean {
+export function canCollectLocation(t: {
+  locationAgreedAt: Date | null;
+  dutyStartedAt: Date | null;
+}): boolean {
   return t.locationAgreedAt !== null && t.dutyStartedAt !== null;
 }
 
@@ -83,7 +110,11 @@ export function canCollectLocation(t: { locationAgreedAt: Date | null; dutyStart
  * 고객 예약 상세(C-ORD-020) 방문 예정 시간: 코스가 확정되어 안내가 나간 배정완료 주문만 시각을 보여 준다.
  * 이동중(ON_THE_WAY) 도착 예정시각은 단계 5(출발)에서 붙인다. 좌표는 어떤 경우에도 돌려주지 않는다.
  */
-export function customerVisitTime(i: { orderStatus: string; routeStatus: string | null; notifiedArrival: Date | null }): { kind: 'PLANNED'; at: Date } | null {
+export function customerVisitTime(i: {
+  orderStatus: string;
+  routeStatus: string | null;
+  notifiedArrival: Date | null;
+}): { kind: 'PLANNED'; at: Date } | null {
   if (i.orderStatus !== 'ASSIGNED' || !i.notifiedArrival) return null;
   if (i.routeStatus !== 'CONFIRMED' && i.routeStatus !== 'IN_PROGRESS') return null;
   return { kind: 'PLANNED', at: i.notifiedArrival };

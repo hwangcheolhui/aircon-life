@@ -230,6 +230,12 @@ test('준비: 기사 2명 등록·숙련·근무 + 고객 예약 1건', async ({
   await cu.getByRole('radio', { name: '현장 결제' }).check();
   await cu.getByRole('checkbox', { name: '취소 규정을 확인했어요 (필수)' }).check();
   await cu.getByRole('button', { name: '예약 확정' }).click();
+  // 다른 단계 E2E가 같은 예시 주소로 예약해 두었으면 중복 확인 창이 뜬다(BR-022)
+  const dup = cu.getByRole('dialog', { name: '이미 진행 중인 예약이 있어요' });
+  await expect(cu.getByRole('heading', { name: '예약이 접수됐어요' }).or(dup)).toBeVisible({
+    timeout: 30_000,
+  });
+  if (await dup.isVisible()) await dup.getByRole('button', { name: '새로 예약' }).click();
   await expect(cu).toHaveURL(/\/reserve\/done\/\d{10}[A-Z]\d$/, { timeout: 30_000 });
   srcOrderNo = cu.url().split('/').pop()!;
   // 원본은 시나리오에서 쓰지 않도록 취소 상태로 둔다(복제만 사용)
@@ -296,24 +302,26 @@ test('A-DSP-060 관할 구역 지정(법정동 선택·지도에 그리기) → 
 test('T-MAP-010 기사 지도에 관할 경계가 보이고, 관할 밖 미배정 작업은 보이지 않는다(BR-110)', async ({
   browser,
 }) => {
-  await cloneOrder('E42U1', { dong: DONG.BULGWANG, lat: 37.6181, lng: 126.9301, date: D1, hm: '11:00' });
-  await cloneOrder('E42U2', { dong: DONG.DAEJO, lat: 37.6139, lng: 126.9205, date: D1, hm: '13:00' });
-  await cloneOrder('E42U3', { dong: DONG.YEOKCHON, lat: 37.6108, lng: 126.9158, date: D1, hm: '11:00' });
+  await cloneOrder('E42U1', { dong: DONG.BULGWANG, lat: 37.6181, lng: 126.9301, date: D1, hm: '11:07' });
+  await cloneOrder('E42U2', { dong: DONG.DAEJO, lat: 37.6139, lng: 126.9205, date: D1, hm: '13:13' });
+  await cloneOrder('E42U3', { dong: DONG.YEOKCHON, lat: 37.6108, lng: 126.9158, date: D1, hm: '11:23' });
 
   const a = await techLogin(browser, TA);
   await a.goto(`/tech/map?date=${D1}`);
   await expect(a.locator('.ac-map__zone')).toHaveCount(1);
-  await expect(a.getByRole('button', { name: /^미배정/ })).toHaveCount(2); // 불광·대조만 (역촌은 관할 밖)
-  await a
-    .getByRole('button', { name: /^미배정/ })
-    .first()
-    .click();
+  // 불광(11:07)·대조(13:13)는 보이고 역촌(11:23)은 관할 밖이라 안 보인다 (다른 단계 E2E 주문이 섞여 있어 시각으로 구분)
+  await expect(a.getByRole('button', { name: /^미배정 .*11:07/ })).toHaveCount(1);
+  await expect(a.getByRole('button', { name: /^미배정 .*13:13/ })).toHaveCount(1);
+  await expect(a.getByRole('button', { name: /^미배정 .*11:23/ })).toHaveCount(0);
+  await a.getByRole('button', { name: /^미배정 .*11:07/ }).click();
   await expect(a.getByRole('region', { name: '선택한 미배정 작업' })).toBeVisible();
 
   const b = await techLogin(browser, TB);
   await b.goto(`/tech/map?date=${D1}`);
   await expect(b.locator('.ac-map__zone')).toHaveCount(2); // 주(그림) + 보조
-  await expect(b.getByRole('button', { name: /^미배정/ })).toHaveCount(2); // 역촌(주) + 대조(보조)
+  await expect(b.getByRole('button', { name: /^미배정 .*11:23/ })).toHaveCount(1); // 역촌(주)
+  await expect(b.getByRole('button', { name: /^미배정 .*13:13/ })).toHaveCount(1); // 대조(보조)
+  await expect(b.getByRole('button', { name: /^미배정 .*11:07/ })).toHaveCount(0); // 불광은 관할 밖
 });
 
 test('F-TEC-RTE-04 자가 배정: 두 기사가 같은 작업을 동시에 담으면 한 명만 성공 → A-DSP-020 승인/거절(BR-111)', async ({
@@ -328,7 +336,7 @@ test('F-TEC-RTE-04 자가 배정: 두 기사가 같은 작업을 동시에 담�
     await expect(
       t
         .locator('li.tec-open-job')
-        .filter({ hasText: '13:00' })
+        .filter({ hasText: '13:13' })
         .getByRole('button', { name: '내 일정에 넣기' }),
     ).toBeVisible();
   }
@@ -336,7 +344,7 @@ test('F-TEC-RTE-04 자가 배정: 두 기사가 같은 작업을 동시에 담�
     t.locator('li.tec-open-job').filter({ has: t.getByRole('button', { name: '내 일정에 넣기' }) });
   // E42U2 = 오후 1시 카드
   const pick = async (t: Page) => {
-    await card(t).filter({ hasText: '13:00' }).getByRole('button', { name: '내 일정에 넣기' }).click();
+    await card(t).filter({ hasText: '13:13' }).getByRole('button', { name: '내 일정에 넣기' }).click();
   };
   await Promise.all([pick(a), pick(b)]);
   await Promise.all([
@@ -366,14 +374,14 @@ test('F-TEC-RTE-04 자가 배정: 두 기사가 같은 작업을 동시에 담�
 
   // 기사 가: 불광동(E42U1) 담기 → 승인 대기, 기사 나: 역촌동(E42U3) 담기 → 승인 대기
   await a.goto(`/tech/route/unassigned?date=${D1}`);
-  await card(a).filter({ hasText: '11:00' }).getByRole('button', { name: '내 일정에 넣기' }).click();
+  await card(a).filter({ hasText: '11:07' }).getByRole('button', { name: '내 일정에 넣기' }).click();
   await a
     .getByRole('dialog', { name: '내 일정에 넣으시겠습니까?' })
     .getByRole('button', { name: '넣기' })
     .click();
   await expect(a.locator('.ac-toast').filter({ hasText: '승인을 요청했습니다' }).last()).toBeVisible();
   await b.goto(`/tech/route/unassigned?date=${D1}`);
-  await card(b).filter({ hasText: '11:00' }).getByRole('button', { name: '내 일정에 넣기' }).click();
+  await card(b).filter({ hasText: '11:23' }).getByRole('button', { name: '내 일정에 넣기' }).click();
   await b
     .getByRole('dialog', { name: '내 일정에 넣으시겠습니까?' })
     .getByRole('button', { name: '넣기' })

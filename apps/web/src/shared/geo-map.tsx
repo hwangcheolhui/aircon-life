@@ -1,6 +1,6 @@
 'use client';
 /**
- * 지도 (단계 4-2: T-MAP-010 · T-RTE-010 · T-RTE-020 · A-DSP-060). 디자인 시스템 .ac-map 을 쓴다(05 §5.13).
+ * 지도 (단계 4-2: T-MAP-010 · T-RTE-010 · T-RTE-020 · A-DSP-060). 디자인 시스템 .ac-map 을 쓴다(05 §6.9).
  * 지도 SDK(카카오맵) 실연동 전의 모의 지도: 배경 타일 없이 위경도를 화면 비율에 맞춰 도식으로 그린다.
  * - 관할 구역(GeoJSON)·코스 경로선·작성 중 다각형은 SVG, 핀·법정동 점은 터치 가능한 HTML 버튼(aria-label 필수).
  * - onMapClick 을 주면 클릭한 지점의 위경도를 돌려준다(관할 구역 직접 그리기).
@@ -119,8 +119,14 @@ export function GeoMap({
   const viewH = VIEW_W / ratio;
   const sx = (p: LatLng) => (fx(p) / 100) * VIEW_W;
   const sy = (p: LatLng) => (fy(p) / 100) * viewH;
-  const ringPath = (ring: Position[]) => ring.map(([lng, lat], i) => `${i ? 'L' : 'M'}${sx({ lat, lng }).toFixed(1)},${sy({ lat, lng }).toFixed(1)}`).join('') + 'Z';
-  const shapePath = (s: GeoShape) => (s.type === 'Polygon' ? [s.coordinates] : s.coordinates).map((poly) => poly.map(ringPath).join('')).join('');
+  const ringPath = (ring: Position[]) =>
+    ring
+      .map(([lng, lat], i) => `${i ? 'L' : 'M'}${sx({ lat, lng }).toFixed(1)},${sy({ lat, lng }).toFixed(1)}`)
+      .join('') + 'Z';
+  const shapePath = (s: GeoShape) =>
+    (s.type === 'Polygon' ? [s.coordinates] : s.coordinates)
+      .map((poly) => poly.map(ringPath).join(''))
+      .join('');
 
   const click = (e: MouseEvent<HTMLDivElement>) => {
     if (!onMapClick) return;
@@ -139,7 +145,13 @@ export function GeoMap({
       aria-label={ariaLabel}
       onClick={click}
     >
-      <svg className="ac-map__svg" viewBox={`0 0 ${VIEW_W} ${viewH.toFixed(1)}`} preserveAspectRatio="none" aria-hidden focusable="false">
+      <svg
+        className="ac-map__svg"
+        viewBox={`0 0 ${VIEW_W} ${viewH.toFixed(1)}`}
+        preserveAspectRatio="none"
+        aria-hidden
+        focusable="false"
+      >
         {[1, 2, 3].map((i) => (
           <g key={i}>
             <line className="ac-map__grid" x1={(VIEW_W * i) / 4} y1={0} x2={(VIEW_W * i) / 4} y2={viewH} />
@@ -147,16 +159,31 @@ export function GeoMap({
           </g>
         ))}
         {shapes.map((s) => (
-          <path key={s.id} className={`ac-map__zone ac-map__zone--${s.palette}${s.secondary ? ' is-secondary' : ''}`} d={shapePath(s.shape)} fillRule="evenodd">
+          <path
+            key={s.id}
+            className={`ac-map__zone ac-map__zone--${s.palette}${s.secondary ? ' is-secondary' : ''}`}
+            d={shapePath(s.shape)}
+            fillRule="evenodd"
+          >
             {s.title ? <title>{s.title}</title> : null}
           </path>
         ))}
-        {route && route.length > 1 ? <polyline className="ac-map__route" points={route.map((p) => `${sx(p).toFixed(1)},${sy(p).toFixed(1)}`).join(' ')} /> : null}
+        {route && route.length > 1 ? (
+          <polyline
+            className="ac-map__route"
+            points={route.map((p) => `${sx(p).toFixed(1)},${sy(p).toFixed(1)}`).join(' ')}
+          />
+        ) : null}
         {draft && draft.length ? (
           draft.length > 2 ? (
             <path className="ac-map__draft" d={ringPath(draft)} />
           ) : (
-            <polyline className="ac-map__draft" points={draft.map(([lng, lat]) => `${sx({ lat, lng }).toFixed(1)},${sy({ lat, lng }).toFixed(1)}`).join(' ')} />
+            <polyline
+              className="ac-map__draft"
+              points={draft
+                .map(([lng, lat]) => `${sx({ lat, lng }).toFixed(1)},${sy({ lat, lng }).toFixed(1)}`)
+                .join(' ')}
+            />
           )
         ) : null}
       </svg>
@@ -175,7 +202,12 @@ export function GeoMap({
         </button>
       ))}
       {draft?.map(([lng, lat], i) => (
-        <span key={`v${i}`} className="ac-map__pin ac-map__pin--break" style={{ left: `${fx({ lat, lng })}%`, top: `${fy({ lat, lng })}%`, pointerEvents: 'none' }} aria-hidden>
+        <span
+          key={`v${i}`}
+          className="ac-map__pin ac-map__pin--break"
+          style={{ left: `${fx({ lat, lng })}%`, top: `${fy({ lat, lng })}%`, pointerEvents: 'none' }}
+          aria-hidden
+        >
           <span className="ac-map__dot">{i + 1}</span>
         </span>
       ))}
@@ -211,7 +243,11 @@ export function MapLegend({ items }: { items: { label: string; color: string; da
     <ul className="ac-map-legend" aria-label="지도 범례">
       {items.map((i) => (
         <li key={i.label}>
-          <span className="ac-map-legend__swatch" style={{ '--swatch': i.color } as CSSProperties} aria-hidden />
+          <span
+            className="ac-map-legend__swatch"
+            style={{ '--swatch': i.color } as CSSProperties}
+            aria-hidden
+          />
           {i.label}
         </li>
       ))}

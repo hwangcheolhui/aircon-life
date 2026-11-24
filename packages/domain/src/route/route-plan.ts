@@ -110,7 +110,10 @@ export function computeSchedule(i: ScheduleInput): RouteSchedule {
 export function canConfirmRoute(s: RouteSchedule): { ok: true } | { ok: false; message: string } {
   if (!s.stops.some((x) => x.type === 'JOB')) return { ok: false, message: '확정할 방문지가 없습니다.' };
   if (s.violations > 0)
-    return { ok: false, message: `도착 허용 시간을 벗어난 방문지가 ${s.violations}곳 있어 확정할 수 없습니다. 순서를 바꾸거나 거점에 일정 조정을 요청하세요.` };
+    return {
+      ok: false,
+      message: `도착 허용 시간을 벗어난 방문지가 ${s.violations}곳 있어 확정할 수 없습니다. 순서를 바꾸거나 거점에 일정 조정을 요청하세요.`,
+    };
   return { ok: true };
 }
 
@@ -119,7 +122,8 @@ export function arrivalWindowOf(
   o: { promisedAt: Date | null; arrivalWindowStart: Date | null; arrivalWindowEnd: Date | null },
   hours: number,
 ): { start: Date; end: Date } | null {
-  if (o.arrivalWindowStart && o.arrivalWindowEnd) return { start: o.arrivalWindowStart, end: o.arrivalWindowEnd };
+  if (o.arrivalWindowStart && o.arrivalWindowEnd)
+    return { start: o.arrivalWindowStart, end: o.arrivalWindowEnd };
   if (!o.promisedAt) return null;
   return { start: o.promisedAt, end: new Date(o.promisedAt.getTime() + hours * 3600_000) };
 }
@@ -128,7 +132,8 @@ export function arrivalWindowOf(
 
 type Score = [number, number, number];
 const scoreOf = (s: RouteSchedule): Score => [s.violations, s.totalTravelMin, s.totalDistanceM];
-const better = (a: Score, b: Score) => a[0] !== b[0] ? a[0] < b[0] : a[1] !== b[1] ? a[1] < b[1] : a[2] < b[2];
+const better = (a: Score, b: Score) =>
+  a[0] !== b[0] ? a[0] < b[0] : a[1] !== b[1] ? a[1] < b[1] : a[2] < b[2];
 
 /* ---------- F-TEC-RTE-02 자동 추천 ---------- */
 
@@ -250,7 +255,12 @@ export function bestInsertion(i: ScheduleInput, stop: RouteStopInput): Insertion
   for (let p = 0; p <= i.stops.length; p++) {
     const stops = [...i.stops.slice(0, p), stop, ...i.stops.slice(p)];
     const s = computeSchedule({ ...i, stops });
-    const cand: InsertionResult = { position: p, schedule: s, addedTravelMin: s.totalTravelMin - baseTravel, ok: s.violations === 0 };
+    const cand: InsertionResult = {
+      position: p,
+      schedule: s,
+      addedTravelMin: s.totalTravelMin - baseTravel,
+      ok: s.violations === 0,
+    };
     if (!best || better(scoreOf(cand.schedule), scoreOf(best.schedule))) best = cand;
   }
   return best!;
@@ -291,4 +301,5 @@ export function assertRouteTransition(from: string, to: RouteStatus): void {
 }
 
 /** 확정된(고객 안내가 나간) 코스 */
-export const isConfirmedRoute = (status: string) => status === 'CONFIRMED' || status === 'IN_PROGRESS' || status === 'DONE';
+export const isConfirmedRoute = (status: string) =>
+  status === 'CONFIRMED' || status === 'IN_PROGRESS' || status === 'DONE';

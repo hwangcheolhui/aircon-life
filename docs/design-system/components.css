@@ -324,7 +324,7 @@ body {
 .ac-modal__actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-6); }
 
 
-/* ---------- 지도 (단계 4-2: 출동 지도 T-MAP-010 · 코스 T-RTE-010 · 관할 구역 A-DSP-060, 05 §5.13) ----------
+/* ---------- 지도 (단계 4-2: 출동 지도 T-MAP-010 · 코스 T-RTE-010 · 관할 구역 A-DSP-060, 05 §6.9) ----------
  * 지도 SDK 실연동 전에는 배경 지도 없이 좌표를 도식으로 그린다(모의 지도). 핀은 HTML 버튼(터치 영역 --touch-min).
  * 핀 색: 주문 상태 배지와 같은 --status-*-fg / 미배정 --map-unassigned / 관할 밖 --map-muted / 내 위치 --map-me.
  * 관할 구역: --map-zone-1~6, 주 관할은 실선·옅은 채움, 보조 관할(.is-secondary)은 점선. */

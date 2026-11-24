@@ -2,13 +2,35 @@ import { describe, expect, it } from 'vitest';
 import { canCollectLocation, checkSelfAssign, customerVisitTime, isUnassignedVisible } from './self-assign';
 
 const today = '2026-12-01';
-const order = { status: 'ASSIGN_WAIT', legalDongCode: 'D1', date: '2026-12-02', deviceTypes: ['WALL'], requiredTechCount: 1 };
-const tech = { status: 'ACTIVE', grade: 'REGULAR', accompanyDoneCount: 0, accompanyRequiredCount: 3, skills: [{ deviceType: 'WALL', skillLevel: 'CAN_SOLO' }] };
+const order = {
+  status: 'ASSIGN_WAIT',
+  legalDongCode: 'D1',
+  date: '2026-12-02',
+  deviceTypes: ['WALL'],
+  requiredTechCount: 1,
+};
+const tech = {
+  status: 'ACTIVE',
+  grade: 'REGULAR',
+  accompanyDoneCount: 0,
+  accompanyRequiredCount: 3,
+  skills: [{ deviceType: 'WALL', skillLevel: 'CAN_SOLO' }],
+};
 const areas = [
   { code: 'D1', priority: 1 },
   { code: 'D2', priority: 2 },
 ];
-const ok = { enabled: true, needsApprovalSetting: false, order, tech, areas, today, daysAhead: 7, working: true, insertionOk: true };
+const ok = {
+  enabled: true,
+  needsApprovalSetting: false,
+  order,
+  tech,
+  areas,
+  today,
+  daysAhead: 7,
+  working: true,
+  insertionOk: true,
+};
 
 describe('BR-110 관할 밖 미배정 작업은 보이지 않는다', () => {
   it('내 관할 법정동 + 배정 전 + 오늘~7일 이내만 보인다', () => {
@@ -24,7 +46,12 @@ describe('BR-110 관할 밖 미배정 작업은 보이지 않는다', () => {
 
 describe('BR-111 자가 배정은 주 관할만 바로, 보조 관할은 운영자 승인', () => {
   it('주 관할 + 승인 불필요 설정이면 즉시 확정', () => {
-    expect(checkSelfAssign(ok)).toEqual({ visible: true, canRequest: true, needsApproval: false, reasons: [] });
+    expect(checkSelfAssign(ok)).toEqual({
+      visible: true,
+      canRequest: true,
+      needsApproval: false,
+      reasons: [],
+    });
   });
 
   it('승인 필요 설정이면 주 관할도 승인 대기', () => {
@@ -37,17 +64,26 @@ describe('BR-111 자가 배정은 주 관할만 바로, 보조 관할은 운영�
   });
 
   it('2인 작업은 요청만 가능(승인 필요)', () => {
-    expect(checkSelfAssign({ ...ok, order: { ...order, requiredTechCount: 2 } })).toMatchObject({ canRequest: true, needsApproval: true });
+    expect(checkSelfAssign({ ...ok, order: { ...order, requiredTechCount: 2 } })).toMatchObject({
+      canRequest: true,
+      needsApproval: true,
+    });
   });
 
   it('관할 밖이면 보이지도 않고 요청할 수 없다', () => {
-    expect(checkSelfAssign({ ...ok, order: { ...order, legalDongCode: 'D9' } })).toMatchObject({ visible: false, canRequest: false });
+    expect(checkSelfAssign({ ...ok, order: { ...order, legalDongCode: 'D9' } })).toMatchObject({
+      visible: false,
+      canRequest: false,
+    });
   });
 });
 
 describe('F-TEC-RTE-04 [내 일정에 넣기] 활성 조건', () => {
   it('숙련이 단독 가능 이상이 아니면 막는다', () => {
-    const r = checkSelfAssign({ ...ok, tech: { ...tech, skills: [{ deviceType: 'WALL', skillLevel: 'CAN_ASSIST' }] } });
+    const r = checkSelfAssign({
+      ...ok,
+      tech: { ...tech, skills: [{ deviceType: 'WALL', skillLevel: 'CAN_ASSIST' }] },
+    });
     expect(r.canRequest).toBe(false);
     expect(r.reasons).toContain('이 기기를 단독으로 작업할 숙련이 없습니다.');
     expect(checkSelfAssign({ ...ok, tech: { ...tech, skills: [] } }).canRequest).toBe(false);
@@ -58,16 +94,22 @@ describe('F-TEC-RTE-04 [내 일정에 넣기] 활성 조건', () => {
   });
 
   it('코스에 넣으면 시간창을 어기면 막는다', () => {
-    expect(checkSelfAssign({ ...ok, insertionOk: false }).reasons).toContain('코스에 넣으면 도착 허용 시간을 지킬 수 없습니다.');
+    expect(checkSelfAssign({ ...ok, insertionOk: false }).reasons).toContain(
+      '코스에 넣으면 도착 허용 시간을 지킬 수 없습니다.',
+    );
   });
 
   it('자가 배정을 끄면 막는다', () => {
-    expect(checkSelfAssign({ ...ok, enabled: false }).reasons).toContain('거점에서 자가 배정을 사용하지 않습니다.');
+    expect(checkSelfAssign({ ...ok, enabled: false }).reasons).toContain(
+      '거점에서 자가 배정을 사용하지 않습니다.',
+    );
   });
 
   it('교육중·동행 미완료 견습 기사는 주기사로 담을 수 없다(BR-070·071)', () => {
     expect(checkSelfAssign({ ...ok, tech: { ...tech, status: 'TRAINING' } }).canRequest).toBe(false);
-    expect(checkSelfAssign({ ...ok, tech: { ...tech, grade: 'TRAINEE', accompanyDoneCount: 1 } }).canRequest).toBe(false);
+    expect(
+      checkSelfAssign({ ...ok, tech: { ...tech, grade: 'TRAINEE', accompanyDoneCount: 1 } }).canRequest,
+    ).toBe(false);
   });
 });
 
@@ -84,8 +126,14 @@ describe('BR-115 위치는 동의 후 근무 중에만, 고객에게는 시각�
     const v = customerVisitTime({ orderStatus: 'ASSIGNED', routeStatus: 'CONFIRMED', notifiedArrival: t });
     expect(v).toEqual({ kind: 'PLANNED', at: t });
     expect(Object.keys(v!)).not.toContain('lat');
-    expect(customerVisitTime({ orderStatus: 'ASSIGNED', routeStatus: 'DRAFT', notifiedArrival: t })).toBeNull();
-    expect(customerVisitTime({ orderStatus: 'COMPLETED', routeStatus: 'CONFIRMED', notifiedArrival: t })).toBeNull();
-    expect(customerVisitTime({ orderStatus: 'ASSIGNED', routeStatus: 'CONFIRMED', notifiedArrival: null })).toBeNull();
+    expect(
+      customerVisitTime({ orderStatus: 'ASSIGNED', routeStatus: 'DRAFT', notifiedArrival: t }),
+    ).toBeNull();
+    expect(
+      customerVisitTime({ orderStatus: 'COMPLETED', routeStatus: 'CONFIRMED', notifiedArrival: t }),
+    ).toBeNull();
+    expect(
+      customerVisitTime({ orderStatus: 'ASSIGNED', routeStatus: 'CONFIRMED', notifiedArrival: null }),
+    ).toBeNull();
   });
 });

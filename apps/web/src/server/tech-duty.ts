@@ -17,10 +17,18 @@ import { getSettingNumber } from './settings';
 
 export async function getDutyState(techId: number) {
   const [[t], interval] = await Promise.all([
-    getDb().select({ agreed: technician.locationAgreedAt, since: technician.dutyStartedAt }).from(technician).where(eq(technician.id, techId)),
+    getDb()
+      .select({ agreed: technician.locationAgreedAt, since: technician.dutyStartedAt })
+      .from(technician)
+      .where(eq(technician.id, techId)),
     getSettingNumber(SETTING_KEYS.LOCATION_INTERVAL_SEC),
   ]);
-  return { locationAgreed: Boolean(t?.agreed), onDuty: Boolean(t?.since), since: t?.since?.toISOString() ?? null, intervalSec: interval };
+  return {
+    locationAgreed: Boolean(t?.agreed),
+    onDuty: Boolean(t?.since),
+    since: t?.since?.toISOString() ?? null,
+    intervalSec: interval,
+  };
 }
 
 /** 위치정보 수집 동의 (최초 1회) */
@@ -30,24 +38,49 @@ export async function agreeLocation(techId: number) {
     .set({ locationAgreedAt: new Date(), updatedAt: new Date(), updatedBy: techId })
     .where(and(eq(technician.id, techId), sql`${technician.locationAgreedAt} IS NULL`))
     .returning({ id: technician.id });
-  if (rows.length) await writeAudit({ actorType: 'TECHNICIAN', actorId: techId, action: 'UPDATE', targetTable: 'technician', targetId: techId, detail: { consent: 'LOCATION', agree: true } });
+  if (rows.length)
+    await writeAudit({
+      actorType: 'TECHNICIAN',
+      actorId: techId,
+      action: 'UPDATE',
+      targetTable: 'technician',
+      targetId: techId,
+      detail: { consent: 'LOCATION', agree: true },
+    });
 }
 
 export async function startDuty(techId: number) {
-  const [t] = await getDb().select({ agreed: technician.locationAgreedAt }).from(technician).where(eq(technician.id, techId));
+  const [t] = await getDb()
+    .select({ agreed: technician.locationAgreedAt })
+    .from(technician)
+    .where(eq(technician.id, techId));
   if (!t?.agreed) throw new UserError('위치정보 수집에 동의해야 근무를 시작할 수 있습니다.');
-  await getDb().update(technician).set({ dutyStartedAt: new Date(), updatedAt: new Date(), updatedBy: techId }).where(eq(technician.id, techId));
+  await getDb()
+    .update(technician)
+    .set({ dutyStartedAt: new Date(), updatedAt: new Date(), updatedBy: techId })
+    .where(eq(technician.id, techId));
 }
 
 export async function endDuty(techId: number) {
-  await getDb().update(technician).set({ dutyStartedAt: null, updatedAt: new Date(), updatedBy: techId }).where(eq(technician.id, techId));
+  await getDb()
+    .update(technician)
+    .set({ dutyStartedAt: null, updatedAt: new Date(), updatedBy: techId })
+    .where(eq(technician.id, techId));
 }
 
 /** 근무 중 위치 1건 (BR-115: 동의 + 근무 중이 아니면 받지 않음). 너무 잦은 전송은 간격의 절반 이내면 버린다 */
-export async function recordLocation(techId: number, p: { lat: number; lng: number; accuracyM: number | null; speedKmh: number | null }, now = new Date()) {
+export async function recordLocation(
+  techId: number,
+  p: { lat: number; lng: number; accuracyM: number | null; speedKmh: number | null },
+  now = new Date(),
+) {
   const db = getDb();
-  const [t] = await db.select({ agreed: technician.locationAgreedAt, since: technician.dutyStartedAt }).from(technician).where(eq(technician.id, techId));
-  if (!t || !canCollectLocation({ locationAgreedAt: t.agreed, dutyStartedAt: t.since })) return { saved: false as const, reason: 'OFF_DUTY' };
+  const [t] = await db
+    .select({ agreed: technician.locationAgreedAt, since: technician.dutyStartedAt })
+    .from(technician)
+    .where(eq(technician.id, techId));
+  if (!t || !canCollectLocation({ locationAgreedAt: t.agreed, dutyStartedAt: t.since }))
+    return { saved: false as const, reason: 'OFF_DUTY' };
   const interval = await getSettingNumber(SETTING_KEYS.LOCATION_INTERVAL_SEC);
   const [last] = await db
     .select({ at: technicianLocation.recordedAt })
@@ -55,7 +88,8 @@ export async function recordLocation(techId: number, p: { lat: number; lng: numb
     .where(eq(technicianLocation.technicianId, techId))
     .orderBy(desc(technicianLocation.recordedAt))
     .limit(1);
-  if (last && now.getTime() - last.at.getTime() < (interval * 1000) / 2) return { saved: false as const, reason: 'TOO_SOON' };
+  if (last && now.getTime() - last.at.getTime() < (interval * 1000) / 2)
+    return { saved: false as const, reason: 'TOO_SOON' };
   const [plan] = await db
     .select({ id: routePlan.id })
     .from(routePlan)
@@ -75,7 +109,10 @@ export async function recordLocation(techId: number, p: { lat: number; lng: numb
 /** 지도에 보일 내 위치 (근무 중일 때 오늘 마지막 위치만) */
 export async function myLatestLocation(techId: number, now = new Date()) {
   const db = getDb();
-  const [t] = await db.select({ since: technician.dutyStartedAt }).from(technician).where(eq(technician.id, techId));
+  const [t] = await db
+    .select({ since: technician.dutyStartedAt })
+    .from(technician)
+    .where(eq(technician.id, techId));
   if (!t?.since) return null;
   const [l] = await db
     .select()
@@ -99,7 +136,12 @@ export async function purgeLocations(now = new Date()) {
   const today = kstDate(now);
   const todayStart = new Date(`${today}T00:00:00+09:00`);
   const rows = await db
-    .select({ technicianId: technicianLocation.technicianId, lat: technicianLocation.lat, lng: technicianLocation.lng, at: technicianLocation.recordedAt })
+    .select({
+      technicianId: technicianLocation.technicianId,
+      lat: technicianLocation.lat,
+      lng: technicianLocation.lng,
+      at: technicianLocation.recordedAt,
+    })
     .from(technicianLocation)
     .where(
       and(
@@ -109,10 +151,25 @@ export async function purgeLocations(now = new Date()) {
       ),
     )
     .orderBy(asc(technicianLocation.technicianId), asc(technicianLocation.recordedAt));
-  const agg = new Map<string, { technicianId: number; workDate: string; distanceM: number; pointCount: number; last: { lat: number; lng: number } | null }>();
+  const agg = new Map<
+    string,
+    {
+      technicianId: number;
+      workDate: string;
+      distanceM: number;
+      pointCount: number;
+      last: { lat: number; lng: number } | null;
+    }
+  >();
   for (const r of rows) {
     const key = `${r.technicianId}|${kstDate(r.at)}`;
-    const cur = agg.get(key) ?? { technicianId: r.technicianId, workDate: kstDate(r.at), distanceM: 0, pointCount: 0, last: null };
+    const cur = agg.get(key) ?? {
+      technicianId: r.technicianId,
+      workDate: kstDate(r.at),
+      distanceM: 0,
+      pointCount: 0,
+      last: null,
+    };
     const p = toLatLng(r.lat, r.lng)!;
     if (cur.last) cur.distanceM += haversineMeters(cur.last, p);
     cur.last = p;
@@ -122,10 +179,20 @@ export async function purgeLocations(now = new Date()) {
   if (agg.size) {
     await db
       .insert(technicianDailyDistance)
-      .values([...agg.values()].map((a) => ({ technicianId: a.technicianId, workDate: a.workDate, distanceM: Math.round(a.distanceM), pointCount: a.pointCount })))
+      .values(
+        [...agg.values()].map((a) => ({
+          technicianId: a.technicianId,
+          workDate: a.workDate,
+          distanceM: Math.round(a.distanceM),
+          pointCount: a.pointCount,
+        })),
+      )
       .onConflictDoNothing();
   }
   const cutoff = new Date(todayStart.getTime() - days * DAY);
-  const deleted = await db.delete(technicianLocation).where(lt(technicianLocation.recordedAt, cutoff)).returning({ id: technicianLocation.id });
+  const deleted = await db
+    .delete(technicianLocation)
+    .where(lt(technicianLocation.recordedAt, cutoff))
+    .returning({ id: technicianLocation.id });
   return { aggregatedDays: agg.size, deleted: deleted.length };
 }

@@ -112,7 +112,8 @@ export function createKakaoGeoAdapter(restKey: string, fetchImpl: typeof fetch =
 
 export function createGeoAdapter(env: NodeJS.ProcessEnv = process.env): GeoAdapter {
   if (resolveGeoDriver(env.GEO_DRIVER) === 'kakao') {
-    if (!env.KAKAO_REST_API_KEY) throw new Error('GEO_DRIVER=kakao 이면 KAKAO_REST_API_KEY 환경변수가 필요합니다.');
+    if (!env.KAKAO_REST_API_KEY)
+      throw new Error('GEO_DRIVER=kakao 이면 KAKAO_REST_API_KEY 환경변수가 필요합니다.');
     return createKakaoGeoAdapter(env.KAKAO_REST_API_KEY);
   }
   return createMockGeoAdapter();

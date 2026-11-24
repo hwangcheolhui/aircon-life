@@ -60,9 +60,11 @@ const dayRange = (date: string) => {
   const from = new Date(`${date}T00:00:00+09:00`);
   return { from, to: new Date(from.getTime() + DAY) };
 };
-export const addDays = (ymd: string, n: number) => new Date(new Date(`${ymd}T00:00:00Z`).getTime() + n * DAY).toISOString().slice(0, 10);
+export const addDays = (ymd: string, n: number) =>
+  new Date(new Date(`${ymd}T00:00:00Z`).getTime() + n * DAY).toISOString().slice(0, 10);
 const atTime = (date: string, hhmm: string) => new Date(`${date}T${hhmm.slice(0, 5)}:00+09:00`);
-const sameMinute = (a: Date | null, b: Date | null) => Boolean(a && b && Math.floor(a.getTime() / 60_000) === Math.floor(b.getTime() / 60_000));
+const sameMinute = (a: Date | null, b: Date | null) =>
+  Boolean(a && b && Math.floor(a.getTime() / 60_000) === Math.floor(b.getTime() / 60_000));
 
 /* ---------- 재료 ---------- */
 
@@ -86,10 +88,20 @@ interface DayJob {
 
 /** 주문별 예상 작업시간(상품 표준 소요시간 × 대수 + 옵션 소요시간) */
 async function workInfo(db: Db | Tx, orderIds: number[]) {
-  const out = new Map<number, { workMin: number; devices: { name: string; quantity: number; deviceType: string }[] }>();
+  const out = new Map<
+    number,
+    { workMin: number; devices: { name: string; quantity: number; deviceType: string }[] }
+  >();
   if (!orderIds.length) return out;
   const rows = await db
-    .select({ orderId: orderItem.orderId, quantity: orderItem.quantity, pName: serviceProduct.name, deviceType: serviceProduct.deviceType, pMin: serviceProduct.baseDurationMin, oMin: serviceOption.durationMin })
+    .select({
+      orderId: orderItem.orderId,
+      quantity: orderItem.quantity,
+      pName: serviceProduct.name,
+      deviceType: serviceProduct.deviceType,
+      pMin: serviceProduct.baseDurationMin,
+      oMin: serviceOption.durationMin,
+    })
     .from(orderItem)
     .leftJoin(serviceProduct, eq(serviceProduct.id, orderItem.productId))
     .leftJoin(serviceOption, eq(serviceOption.id, orderItem.optionId))
@@ -97,7 +109,8 @@ async function workInfo(db: Db | Tx, orderIds: number[]) {
   for (const r of rows) {
     const cur = out.get(r.orderId) ?? { workMin: 0, devices: [] };
     cur.workMin += ((r.pMin ?? 0) + (r.oMin ?? 0)) * r.quantity;
-    if (r.pName && r.deviceType) cur.devices.push({ name: r.pName, quantity: r.quantity, deviceType: r.deviceType });
+    if (r.pName && r.deviceType)
+      cur.devices.push({ name: r.pName, quantity: r.quantity, deviceType: r.deviceType });
     out.set(r.orderId, cur);
   }
   return out;
@@ -123,7 +136,13 @@ async function loadDayJobs(db: Db | Tx, techId: number, date: string): Promise<D
       ),
     )
     .orderBy(asc(serviceOrder.promisedAt));
-  const [coords, info] = await Promise.all([ensureAddressCoords(rows.map((r) => r.o.addressId)), workInfo(db, rows.map((r) => r.o.id))]);
+  const [coords, info] = await Promise.all([
+    ensureAddressCoords(rows.map((r) => r.o.addressId)),
+    workInfo(
+      db,
+      rows.map((r) => r.o.id),
+    ),
+  ]);
   return rows.map((r) => ({
     assignmentId: r.a.id,
     role: r.a.role,
@@ -159,7 +178,10 @@ interface DayContext {
 async function dayContext(db: Db | Tx, techId: number, date: string): Promise<DayContext> {
   const [[t], [s], bufferMin, windowHours, deadlineHm, defStart, defEnd] = await Promise.all([
     db.select({ branchId: technician.branchId }).from(technician).where(eq(technician.id, techId)),
-    db.select().from(workSchedule).where(and(eq(workSchedule.technicianId, techId), eq(workSchedule.workDate, date))),
+    db
+      .select()
+      .from(workSchedule)
+      .where(and(eq(workSchedule.technicianId, techId), eq(workSchedule.workDate, date))),
     getSettingNumber(SETTING_KEYS.ROUTE_TRAVEL_BUFFER_MIN),
     getSettingNumber(SETTING_KEYS.ARRIVAL_WINDOW_HOURS),
     getSettingString(SETTING_KEYS.ROUTE_CONFIRM_DEADLINE),
@@ -191,7 +213,15 @@ const stopKey = (id: number) => `S${id}`;
 function jobInput(j: DayJob, ctx: DayContext, locked: boolean): RouteStopInput | null {
   if (!j.point) return null;
   const w = arrivalWindowOf(j, ctx.windowHours);
-  return { key: jobKey(j.assignmentId), type: 'JOB', point: j.point, windowStart: w?.start ?? null, windowEnd: w?.end ?? null, workMin: j.workMin, locked };
+  return {
+    key: jobKey(j.assignmentId),
+    type: 'JOB',
+    point: j.point,
+    windowStart: w?.start ?? null,
+    windowEnd: w?.end ?? null,
+    workMin: j.workMin,
+    locked,
+  };
 }
 
 function rowInput(r: StopRow, ctx: DayContext): RouteStopInput {
@@ -223,7 +253,15 @@ const scheduleInput = (ctx: DayContext, start: LatLng, stops: RouteStopInput[]):
 /* ---------- 저장 ---------- */
 
 /** 계산 결과를 route_stop 에 반영(순서 UK 충돌을 피하려고 기존 순번을 음수로 비운 뒤 다시 매김) */
-async function persistStops(tx: Tx, plan: PlanRow, s: RouteSchedule, jobs: DayJob[], existing: StopRow[], actor: Actor, extra: { notified?: Map<string, Date> } = {}) {
+async function persistStops(
+  tx: Tx,
+  plan: PlanRow,
+  s: RouteSchedule,
+  jobs: DayJob[],
+  existing: StopRow[],
+  actor: Actor,
+  extra: { notified?: Map<string, Date> } = {},
+) {
   const byAssign = new Map(existing.filter((r) => r.assignmentId).map((r) => [jobKey(r.assignmentId!), r]));
   const byId = new Map(existing.map((r) => [stopKey(r.id), r]));
   const keep = new Set<number>();
@@ -233,7 +271,10 @@ async function persistStops(tx: Tx, plan: PlanRow, s: RouteSchedule, jobs: DayJo
   }
   const drop = existing.filter((r) => !keep.has(r.id)).map((r) => r.id);
   if (drop.length) await tx.delete(routeStop).where(inArray(routeStop.id, drop));
-  await tx.update(routeStop).set({ stopSeq: sql`-${routeStop.stopSeq}` }).where(eq(routeStop.routePlanId, plan.id));
+  await tx
+    .update(routeStop)
+    .set({ stopSeq: sql`-${routeStop.stopSeq}` })
+    .where(eq(routeStop.routePlanId, plan.id));
   let pos: LatLng | null = toLatLng(plan.startLat, plan.startLng);
   const jobByKey = new Map(jobs.map((j) => [jobKey(j.assignmentId), j]));
   for (const st of s.stops) {
@@ -262,7 +303,10 @@ async function persistStops(tx: Tx, plan: PlanRow, s: RouteSchedule, jobs: DayJo
       ...(extra.notified?.has(st.key) ? { notifiedArrival: extra.notified.get(st.key)! } : {}),
     };
     if (r) await tx.update(routeStop).set(values).where(eq(routeStop.id, r.id));
-    else await tx.insert(routeStop).values({ ...values, routePlanId: plan.id, status: 'PLANNED', createdBy: actor.id });
+    else
+      await tx
+        .insert(routeStop)
+        .values({ ...values, routePlanId: plan.id, status: 'PLANNED', createdBy: actor.id });
   }
   await tx
     .update(routePlan)
@@ -277,14 +321,23 @@ async function persistStops(tx: Tx, plan: PlanRow, s: RouteSchedule, jobs: DayJo
     .where(eq(routePlan.id, plan.id));
 }
 
-async function setPlanStatus(tx: Tx, plan: PlanRow, to: RouteStatus, actor: Actor, set: Partial<typeof routePlan.$inferInsert> = {}) {
+async function setPlanStatus(
+  tx: Tx,
+  plan: PlanRow,
+  to: RouteStatus,
+  actor: Actor,
+  set: Partial<typeof routePlan.$inferInsert> = {},
+) {
   if (plan.status !== to) assertRouteTransition(plan.status, to);
   const rows = await tx
     .update(routePlan)
     .set({ ...set, status: to, updatedAt: new Date(), updatedBy: actor.id })
-    .where(and(eq(routePlan.id, plan.id), eq(routePlan.status, plan.status), eq(routePlan.version, plan.version)))
+    .where(
+      and(eq(routePlan.id, plan.id), eq(routePlan.status, plan.status), eq(routePlan.version, plan.version)),
+    )
     .returning({ id: routePlan.id });
-  if (!rows.length) throw new UserError('다른 곳에서 먼저 코스를 바꿨습니다. 새로고침 후 다시 확인해 주세요.');
+  if (!rows.length)
+    throw new UserError('다른 곳에서 먼저 코스를 바꿨습니다. 새로고침 후 다시 확인해 주세요.');
 }
 
 /* ---------- 코스 맞추기 ---------- */
@@ -300,11 +353,18 @@ interface Synced {
 }
 
 /** 배정 변화를 코스에 반영하고 다시 계산해 저장한다. 그날 작업도 코스도 없으면 null */
-export async function syncPlan(techId: number, date: string, actor: Actor = { type: 'SYSTEM', id: null }): Promise<Synced | null> {
+export async function syncPlan(
+  techId: number,
+  date: string,
+  actor: Actor = { type: 'SYSTEM', id: null },
+): Promise<Synced | null> {
   const db = getDb();
   const ctx = await dayContext(db, techId, date);
   const jobs = await loadDayJobs(db, techId, date);
-  let [plan] = await db.select().from(routePlan).where(and(eq(routePlan.technicianId, techId), eq(routePlan.planDate, date)));
+  let [plan] = await db
+    .select()
+    .from(routePlan)
+    .where(and(eq(routePlan.technicianId, techId), eq(routePlan.planDate, date)));
   if (!plan && jobs.length === 0) return null;
   const start = startOf(plan ?? null, ctx, jobs);
   if (!start) return null; // 좌표를 하나도 모름 (지오코딩 실패)
@@ -325,10 +385,17 @@ export async function syncPlan(techId: number, date: string, actor: Actor = { ty
         updatedBy: actor.id,
       })
       .onConflictDoNothing();
-    [plan] = await db.select().from(routePlan).where(and(eq(routePlan.technicianId, techId), eq(routePlan.planDate, date)));
+    [plan] = await db
+      .select()
+      .from(routePlan)
+      .where(and(eq(routePlan.technicianId, techId), eq(routePlan.planDate, date)));
   }
   const p = plan!;
-  const rows = await db.select().from(routeStop).where(eq(routeStop.routePlanId, p.id)).orderBy(asc(routeStop.stopSeq));
+  const rows = await db
+    .select()
+    .from(routeStop)
+    .where(eq(routeStop.routePlanId, p.id))
+    .orderBy(asc(routeStop.stopSeq));
   const jobByKey = new Map(jobs.map((j) => [jobKey(j.assignmentId), j]));
   // 1) 기존 순서 유지 (빠진 작업 제거)
   let inputs: RouteStopInput[] = [];
@@ -343,14 +410,17 @@ export async function syncPlan(techId: number, date: string, actor: Actor = { ty
       }
     } else inputs.push(rowInput(r, ctx));
   }
-  const removed = rows.filter((r) => r.stopType === 'JOB' && !(r.assignmentId && present.has(jobKey(r.assignmentId)))).length;
+  const removed = rows.filter(
+    (r) => r.stopType === 'JOB' && !(r.assignmentId && present.has(jobKey(r.assignmentId))),
+  ).length;
   // 2) 새 작업은 이동시간이 가장 덜 느는 자리에 (첫 생성이면 약속 시각 순)
   let added = 0;
   for (const j of jobs) {
     const inp = jobInput(j, ctx, false);
     if (!inp || present.has(inp.key)) continue;
     if (rows.length === 0) inputs.push(inp);
-    else inputs = [...bestInsertion(scheduleInput(ctx, start, inputs), inp).schedule.stops.map(stripSchedule)];
+    else
+      inputs = [...bestInsertion(scheduleInput(ctx, start, inputs), inp).schedule.stops.map(stripSchedule)];
     present.add(inp.key);
     added++;
   }
@@ -363,9 +433,21 @@ export async function syncPlan(techId: number, date: string, actor: Actor = { ty
     }
     await persistStops(tx, p, schedule, jobs, rows, actor);
   });
-  const fresh = await db.select().from(routeStop).where(eq(routeStop.routePlanId, p.id)).orderBy(asc(routeStop.stopSeq));
+  const fresh = await db
+    .select()
+    .from(routeStop)
+    .where(eq(routeStop.routePlanId, p.id))
+    .orderBy(asc(routeStop.stopSeq));
   const [reloaded] = await db.select().from(routePlan).where(eq(routePlan.id, p.id));
-  return { plan: reloaded!, ctx, jobs, rows: fresh, start, inputs: rekey(schedule.stops.map(stripSchedule), fresh, jobs), schedule };
+  return {
+    plan: reloaded!,
+    ctx,
+    jobs,
+    rows: fresh,
+    start,
+    inputs: rekey(schedule.stops.map(stripSchedule), fresh, jobs),
+    schedule,
+  };
 }
 
 const stripSchedule = (s: RouteStopInput): RouteStopInput => ({
@@ -436,7 +518,11 @@ export interface RouteView {
   missing: string[];
 }
 
-function toView(syn: Pick<Synced, 'plan' | 'ctx' | 'jobs' | 'rows' | 'start'>, s: RouteSchedule, now = new Date()): RouteView {
+function toView(
+  syn: Pick<Synced, 'plan' | 'ctx' | 'jobs' | 'rows' | 'start'>,
+  s: RouteSchedule,
+  now = new Date(),
+): RouteView {
   const jobByKey = new Map(syn.jobs.map((j) => [jobKey(j.assignmentId), j]));
   const rowByKey = new Map(syn.rows.map((r) => [r.assignmentId ? jobKey(r.assignmentId) : stopKey(r.id), r]));
   const after = isAfterDeadline(now, syn.ctx.deadline);
@@ -450,7 +536,12 @@ function toView(syn: Pick<Synced, 'plan' | 'ctx' | 'jobs' | 'rows' | 'start'>, s
     afterDeadline: after,
     locked: after && isConfirmedRoute(syn.plan.status),
     start: syn.start,
-    totals: { travelMin: s.totalTravelMin, distanceM: s.totalDistanceM, workMin: s.totalWorkMin, jobs: s.stops.filter((x) => x.type === 'JOB').length },
+    totals: {
+      travelMin: s.totalTravelMin,
+      distanceM: s.totalDistanceM,
+      workMin: s.totalWorkMin,
+      jobs: s.stops.filter((x) => x.type === 'JOB').length,
+    },
     violations: s.violations,
     overWorkEnd: s.overWorkEnd,
     workEnd: syn.ctx.workEnd.toISOString(),
@@ -487,7 +578,11 @@ function toView(syn: Pick<Synced, 'plan' | 'ctx' | 'jobs' | 'rows' | 'start'>, s
 }
 
 /** 코스 화면 데이터. 마감이 지난 미확정 코스는 먼저 자동 확정한다(배치가 늦게 돌아도 같은 결과) */
-export async function getRouteView(techId: number, date: string, now = new Date()): Promise<RouteView | null> {
+export async function getRouteView(
+  techId: number,
+  date: string,
+  now = new Date(),
+): Promise<RouteView | null> {
   let syn = await syncPlan(techId, date, { type: 'TECHNICIAN', id: techId });
   if (!syn) return null;
   if (date >= kstDate(now) && isAfterDeadline(now, syn.ctx.deadline) && !isConfirmedRoute(syn.plan.status)) {
@@ -510,9 +605,16 @@ export interface RouteEditStop {
 /** 편집안 → 계산 입력 (작업 목록이 지금 배정과 같아야 함) */
 function editInputs(syn: Synced, edit: RouteEditStop[]): RouteStopInput[] {
   const current = new Map(syn.inputs.map((i) => [i.key, i]));
-  const jobKeys = syn.inputs.filter((i) => i.type === 'JOB').map((i) => i.key).sort();
-  const editJobs = edit.filter((e) => e.type === 'JOB').map((e) => e.key).sort();
-  if (jobKeys.join() !== editJobs.join()) throw new UserError('그사이 작업이 바뀌었습니다. 새로고침 후 다시 편집해 주세요.');
+  const jobKeys = syn.inputs
+    .filter((i) => i.type === 'JOB')
+    .map((i) => i.key)
+    .sort();
+  const editJobs = edit
+    .filter((e) => e.type === 'JOB')
+    .map((e) => e.key)
+    .sort();
+  if (jobKeys.join() !== editJobs.join())
+    throw new UserError('그사이 작업이 바뀌었습니다. 새로고침 후 다시 편집해 주세요.');
   return edit.map((e) => {
     const cur = current.get(e.key);
     if (e.type === 'JOB') return { ...cur!, locked: e.locked };
@@ -540,7 +642,8 @@ export async function previewRoute(techId: number, date: string, edit: RouteEdit
 function assertEditable(syn: Synced, now = new Date()) {
   if (isAfterDeadline(now, syn.ctx.deadline) && isConfirmedRoute(syn.plan.status))
     throw new UserError('확정 마감이 지나 코스를 바꿀 수 없습니다. 바꿔야 하면 거점에 요청해 주세요.');
-  if (syn.plan.status === 'IN_PROGRESS' || syn.plan.status === 'DONE') throw new UserError('진행 중이거나 끝난 코스는 바꿀 수 없습니다.');
+  if (syn.plan.status === 'IN_PROGRESS' || syn.plan.status === 'DONE')
+    throw new UserError('진행 중이거나 끝난 코스는 바꿀 수 없습니다.');
 }
 
 /** 편집 저장 → 작성중(DRAFT). 확정 코스를 마감 전에 바꾸면 다시 확정해야 고객 안내가 나간다 */
@@ -573,7 +676,11 @@ export async function recommendRoute(techId: number, date: string) {
 }
 
 /** 추천 순서 적용 → OPTIMIZED */
-export async function applyRecommendation(techId: number, date: string, actor: Actor = { type: 'TECHNICIAN', id: techId }) {
+export async function applyRecommendation(
+  techId: number,
+  date: string,
+  actor: Actor = { type: 'TECHNICIAN', id: techId },
+) {
   const syn = await syncPlan(techId, date, actor);
   if (!syn) throw new UserError('그날 코스가 없습니다.');
   if (actor.type === 'TECHNICIAN') assertEditable(syn);
@@ -592,7 +699,11 @@ export async function applyRecommendation(techId: number, date: string, actor: A
 
 /* ---------- F-TEC-RTE-03 확정 ---------- */
 
-export async function confirmRoute(techId: number, date: string, actor: Actor = { type: 'TECHNICIAN', id: techId }) {
+export async function confirmRoute(
+  techId: number,
+  date: string,
+  actor: Actor = { type: 'TECHNICIAN', id: techId },
+) {
   const syn = await syncPlan(techId, date, actor);
   if (!syn) throw new UserError('그날 코스가 없습니다.');
   if (isConfirmedRoute(syn.plan.status)) throw new UserError('이미 확정된 코스입니다.');
@@ -608,7 +719,11 @@ export async function confirmRoute(techId: number, date: string, actor: Actor = 
     if (!j || j.role !== 'MAIN' || j.orderStatus !== 'ASSIGNED') continue;
     const prev = rowByKey.get(st.key)?.notifiedArrival ?? null;
     if (sameMinute(prev, st.arrival)) continue;
-    notices.push({ orderId: j.orderId, code: prev ? 'VISIT_TIME_CHANGED' : 'VISIT_TIME_NOTICE', at: st.arrival });
+    notices.push({
+      orderId: j.orderId,
+      code: prev ? 'VISIT_TIME_CHANGED' : 'VISIT_TIME_NOTICE',
+      at: st.arrival,
+    });
     notified.set(st.key, st.arrival);
   }
   await getDb().transaction(async (tx) => {
@@ -620,22 +735,40 @@ export async function confirmRoute(techId: number, date: string, actor: Actor = 
     for (const st of s.stops) {
       const j = jobByKey.get(st.key);
       if (!j) continue;
-      await tx.update(assignment).set({ routeOrder: st.seq, updatedAt: new Date(), updatedBy: actor.id }).where(eq(assignment.id, j.assignmentId));
+      await tx
+        .update(assignment)
+        .set({ routeOrder: st.seq, updatedAt: new Date(), updatedBy: actor.id })
+        .where(eq(assignment.id, j.assignmentId));
       // 고객에게 안내한 도착 허용 시간창을 주문에 남긴다 (처음 확정 때)
       if (j.role === 'MAIN' && !j.arrivalWindowStart && st.windowStart && st.windowEnd)
         await tx
           .update(serviceOrder)
-          .set({ arrivalWindowStart: st.windowStart, arrivalWindowEnd: st.windowEnd, updatedAt: new Date(), updatedBy: actor.id })
+          .set({
+            arrivalWindowStart: st.windowStart,
+            arrivalWindowEnd: st.windowEnd,
+            updatedAt: new Date(),
+            updatedBy: actor.id,
+          })
           .where(and(eq(serviceOrder.id, j.orderId), isNull(serviceOrder.arrivalWindowStart)));
     }
   });
-  const [t] = await getDb().select({ name: technician.name, displayName: technician.displayName }).from(technician).where(eq(technician.id, techId));
-  for (const n of notices) await notifyOrder(n.code, n.orderId, { 방문예정: `${formatVisitTime(n.at)} 전후`, 기사명: t ? t.displayName || t.name : '' });
+  const [t] = await getDb()
+    .select({ name: technician.name, displayName: technician.displayName })
+    .from(technician)
+    .where(eq(technician.id, techId));
+  for (const n of notices)
+    await notifyOrder(n.code, n.orderId, {
+      방문예정: `${formatVisitTime(n.at)} 전후`,
+      기사명: t ? t.displayName || t.name : '',
+    });
   return { notified: notices.length };
 }
 
 /** 마감 시 자동 확정: 추천 순서 적용 후 시간창 위반이 없으면 확정 (위반이 있으면 추천 순서만 적용하고 남김) */
-export async function autoConfirm(techId: number, date: string): Promise<'CONFIRMED' | 'BLOCKED' | 'SKIPPED'> {
+export async function autoConfirm(
+  techId: number,
+  date: string,
+): Promise<'CONFIRMED' | 'BLOCKED' | 'SKIPPED'> {
   const sys: Actor = { type: 'SYSTEM', id: null };
   const syn = await syncPlan(techId, date, sys);
   if (!syn || isConfirmedRoute(syn.plan.status)) return 'SKIPPED';
@@ -643,7 +776,13 @@ export async function autoConfirm(techId: number, date: string): Promise<'CONFIR
   const r = await applyRecommendation(techId, date, sys);
   if (r.after.violations > 0) return 'BLOCKED';
   await confirmRoute(techId, date, sys);
-  await notifyStaffWith('ROUTE_AUTO_CONFIRMED', { type: 'TECHNICIAN', id: techId }, { type: 'ROUTE_PLAN', id: syn.plan.id }, { 코스일자: formatDateLabel(date) }, `/tech/route?date=${date}`);
+  await notifyStaffWith(
+    'ROUTE_AUTO_CONFIRMED',
+    { type: 'TECHNICIAN', id: techId },
+    { type: 'ROUTE_PLAN', id: syn.plan.id },
+    { 코스일자: formatDateLabel(date) },
+    `/tech/route?date=${date}`,
+  );
   return 'CONFIRMED';
 }
 
@@ -676,13 +815,17 @@ export async function createRouteDrafts(now = new Date()) {
     try {
       const syn = await syncPlan(techId, date);
       if (!syn) continue;
-      if (syn.plan.status === 'DRAFT' && !syn.plan.optimizedAt) await applyRecommendation(techId, date, { type: 'SYSTEM', id: null });
+      if (syn.plan.status === 'DRAFT' && !syn.plan.optimizedAt)
+        await applyRecommendation(techId, date, { type: 'SYSTEM', id: null });
       if (!isConfirmedRoute(syn.plan.status)) {
         await notifyStaffWith(
           'ROUTE_DRAFT_READY',
           { type: 'TECHNICIAN', id: techId },
           { type: 'ROUTE_PLAN', id: syn.plan.id },
-          { 코스일자: formatDateLabel(date), 방문건수: String(syn.schedule.stops.filter((s) => s.type === 'JOB').length) },
+          {
+            코스일자: formatDateLabel(date),
+            방문건수: String(syn.schedule.stops.filter((s) => s.type === 'JOB').length),
+          },
           `/tech/route?date=${date}`,
         );
         drafted++;
@@ -701,7 +844,13 @@ export async function remindUnconfirmed(now = new Date()) {
   for (const techId of await techsWithJobs(date)) {
     const syn = await syncPlan(techId, date).catch(() => null);
     if (!syn || isConfirmedRoute(syn.plan.status) || isAfterDeadline(now, syn.ctx.deadline)) continue;
-    await notifyStaffWith('ROUTE_CONFIRM_REMIND', { type: 'TECHNICIAN', id: techId }, { type: 'ROUTE_PLAN', id: syn.plan.id }, { 코스일자: formatDateLabel(date) }, `/tech/route?date=${date}`);
+    await notifyStaffWith(
+      'ROUTE_CONFIRM_REMIND',
+      { type: 'TECHNICIAN', id: techId },
+      { type: 'ROUTE_PLAN', id: syn.plan.id },
+      { 코스일자: formatDateLabel(date) },
+      `/tech/route?date=${date}`,
+    );
     reminded++;
   }
   return { date, reminded };
@@ -711,7 +860,9 @@ export async function remindUnconfirmed(now = new Date()) {
 export async function autoConfirmDue(now = new Date()) {
   const today = kstDate(now);
   const deadlineHm = await getSettingString(SETTING_KEYS.ROUTE_CONFIRM_DEADLINE);
-  const dates = [today, addDays(today, 1)].filter((d) => isAfterDeadline(now, routeConfirmDeadline(d, deadlineHm)));
+  const dates = [today, addDays(today, 1)].filter((d) =>
+    isAfterDeadline(now, routeConfirmDeadline(d, deadlineHm)),
+  );
   const out = { confirmed: 0, blocked: 0 };
   for (const date of dates) {
     for (const techId of await techsWithJobs(date)) {
@@ -730,7 +881,17 @@ export async function autoConfirmDue(now = new Date()) {
 /* ---------- 자가 배정 미리보기용 (F-TEC-RTE-04) ---------- */
 
 /** 그날 코스에 작업 하나를 넣을 때의 삽입 위치·이동시간 증가 (저장하지 않음) */
-export async function insertionPreview(techId: number, date: string, job: { id: number; addressId: number; promisedAt: Date | null; arrivalWindowStart: Date | null; arrivalWindowEnd: Date | null }) {
+export async function insertionPreview(
+  techId: number,
+  date: string,
+  job: {
+    id: number;
+    addressId: number;
+    promisedAt: Date | null;
+    arrivalWindowStart: Date | null;
+    arrivalWindowEnd: Date | null;
+  },
+) {
   const db = getDb();
   const ctx = await dayContext(db, techId, date);
   const syn = await syncPlan(techId, date).catch(() => null);
@@ -738,10 +899,24 @@ export async function insertionPreview(techId: number, date: string, job: { id: 
   const point = coords.get(job.addressId);
   if (!point) return null;
   const w = arrivalWindowOf(job, ctx.windowHours);
-  const stop: RouteStopInput = { key: `O${job.id}`, type: 'JOB', point, windowStart: w?.start ?? null, windowEnd: w?.end ?? null, workMin: info.get(job.id)?.workMin || 60, locked: false };
+  const stop: RouteStopInput = {
+    key: `O${job.id}`,
+    type: 'JOB',
+    point,
+    windowStart: w?.start ?? null,
+    windowEnd: w?.end ?? null,
+    workMin: info.get(job.id)?.workMin || 60,
+    locked: false,
+  };
   const start = syn?.start ?? ctx.branchPoint ?? point;
   const r = bestInsertion(scheduleInput(ctx, start, syn?.inputs ?? []), stop);
-  return { position: r.position + 1, addedTravelMin: r.addedTravelMin, ok: r.ok, working: ctx.working, arrival: r.schedule.stops[r.position]!.arrival.toISOString() };
+  return {
+    position: r.position + 1,
+    addedTravelMin: r.addedTravelMin,
+    ok: r.ok,
+    working: ctx.working,
+    arrival: r.schedule.stops[r.position]!.arrival.toISOString(),
+  };
 }
 
 /* ---------- C-ORD-020 방문 예정 시간 ---------- */
@@ -749,27 +924,54 @@ export async function insertionPreview(techId: number, date: string, job: { id: 
 /** 고객 화면: 확정 코스의 안내 시각만 (좌표 없음, BR-115). 마감이 지났는데 미확정이면 먼저 자동 확정 */
 export async function customerVisitInfo(orderId: number, now = new Date()) {
   const db = getDb();
-  const [o] = await db.select({ status: serviceOrder.status, promisedAt: serviceOrder.promisedAt }).from(serviceOrder).where(eq(serviceOrder.id, orderId));
+  const [o] = await db
+    .select({ status: serviceOrder.status, promisedAt: serviceOrder.promisedAt })
+    .from(serviceOrder)
+    .where(eq(serviceOrder.id, orderId));
   if (!o || o.status !== 'ASSIGNED' || !o.promisedAt) return null;
   const [main] = await db
     .select({ techId: assignment.technicianId, assignmentId: assignment.id })
     .from(assignment)
-    .where(and(eq(assignment.orderId, orderId), eq(assignment.role, 'MAIN'), inArray(assignment.status, [...CONFIRMED_ASSIGN_STATUSES])));
+    .where(
+      and(
+        eq(assignment.orderId, orderId),
+        eq(assignment.role, 'MAIN'),
+        inArray(assignment.status, [...CONFIRMED_ASSIGN_STATUSES]),
+      ),
+    );
   if (!main?.techId) return null;
   const date = kstDate(o.promisedAt);
   const read = async () => {
     const [r] = await db
-      .select({ status: routePlan.status, deadline: routePlan.confirmDeadline, notified: routeStop.notifiedArrival })
+      .select({
+        status: routePlan.status,
+        deadline: routePlan.confirmDeadline,
+        notified: routeStop.notifiedArrival,
+      })
       .from(routeStop)
       .innerJoin(routePlan, eq(routePlan.id, routeStop.routePlanId))
-      .where(and(eq(routeStop.assignmentId, main.assignmentId), eq(routePlan.technicianId, main.techId!), eq(routePlan.planDate, date)));
+      .where(
+        and(
+          eq(routeStop.assignmentId, main.assignmentId),
+          eq(routePlan.technicianId, main.techId!),
+          eq(routePlan.planDate, date),
+        ),
+      );
     return r ?? null;
   };
   let r = await read();
   const deadlineHm = await getSettingString(SETTING_KEYS.ROUTE_CONFIRM_DEADLINE);
-  if ((!r || !isConfirmedRoute(r.status)) && date >= kstDate(now) && isAfterDeadline(now, routeConfirmDeadline(date, deadlineHm))) {
+  if (
+    (!r || !isConfirmedRoute(r.status)) &&
+    date >= kstDate(now) &&
+    isAfterDeadline(now, routeConfirmDeadline(date, deadlineHm))
+  ) {
     await autoConfirm(main.techId, date).catch((e) => console.error('코스 자동 확정 실패', e));
     r = await read();
   }
-  return customerVisitTime({ orderStatus: o.status, routeStatus: r?.status ?? null, notifiedArrival: r?.notified ?? null });
+  return customerVisitTime({
+    orderStatus: o.status,
+    routeStatus: r?.status ?? null,
+    notifiedArrival: r?.notified ?? null,
+  });
 }

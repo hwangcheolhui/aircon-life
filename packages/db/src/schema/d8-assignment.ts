@@ -4,7 +4,20 @@
  * 단계 4-2: 코스(route_plan·route_stop, §2.8.4·2.8.5)와 기사 위치(technician_location, §2.8.6).
  */
 import { sql } from 'drizzle-orm';
-import { bigint, boolean, date, decimal, index, integer, numeric, pgTable, smallint, timestamp, uniqueIndex, varchar } from 'drizzle-orm/pg-core';
+import {
+  bigint,
+  boolean,
+  date,
+  decimal,
+  index,
+  integer,
+  numeric,
+  pgTable,
+  smallint,
+  timestamp,
+  uniqueIndex,
+  varchar,
+} from 'drizzle-orm/pg-core';
 import { adminUser } from './d1-org';
 import { serviceOrder, timeSlot } from './d5-order';
 import { technician } from './d7-technician';
@@ -86,7 +99,10 @@ export const routePlan = pgTable(
     version: integer('version').notNull().default(1),
     ...auditColumns,
   },
-  (t) => [uniqueIndex('route_plan_tech_date_uk').on(t.technicianId, t.planDate), index('route_plan_date_status_idx').on(t.planDate, t.status)],
+  (t) => [
+    uniqueIndex('route_plan_tech_date_uk').on(t.technicianId, t.planDate),
+    index('route_plan_date_status_idx').on(t.planDate, t.status),
+  ],
 );
 
 /** 2.8.5 코스의 방문 지점 */
@@ -121,7 +137,10 @@ export const routeStop = pgTable(
     status: varchar('status', { length: 20 }).notNull(), // STOP_STATUS
     ...auditColumns,
   },
-  (t) => [uniqueIndex('route_stop_plan_seq_uk').on(t.routePlanId, t.stopSeq), index('route_stop_order_idx').on(t.orderId)],
+  (t) => [
+    uniqueIndex('route_stop_plan_seq_uk').on(t.routePlanId, t.stopSeq),
+    index('route_stop_order_idx').on(t.orderId),
+  ],
 );
 
 /** 2.8.6 기사 위치 기록 — 위치정보 동의 후 근무 시작~종료에만 수집(BR-115), 원본은 LOCATION_RETENTION_DAYS 후 삭제(F-SYS-18) */
@@ -136,7 +155,9 @@ export const technicianLocation = pgTable(
     lng: numeric('lng', { precision: 10, scale: 7 }).notNull(),
     accuracyM: integer('accuracy_m'),
     speedKmh: decimal('speed_kmh', { precision: 5, scale: 1 }),
-    routePlanId: bigint('route_plan_id', { mode: 'number' }).references(() => routePlan.id, { onDelete: 'set null' }),
+    routePlanId: bigint('route_plan_id', { mode: 'number' }).references(() => routePlan.id, {
+      onDelete: 'set null',
+    }),
     recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull(),
   },
   (t) => [index('technician_location_tech_time_idx').on(t.technicianId, t.recordedAt)],

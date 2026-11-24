@@ -71,11 +71,20 @@ async function deviceTypes(orderIds: number[]) {
   const out = new Map<number, { deviceType: string; name: string; quantity: number }[]>();
   if (!orderIds.length) return out;
   const rows = await getDb()
-    .select({ orderId: orderItem.orderId, deviceType: serviceProduct.deviceType, name: serviceProduct.name, quantity: orderItem.quantity })
+    .select({
+      orderId: orderItem.orderId,
+      deviceType: serviceProduct.deviceType,
+      name: serviceProduct.name,
+      quantity: orderItem.quantity,
+    })
     .from(orderItem)
     .innerJoin(serviceProduct, eq(serviceProduct.id, orderItem.productId))
     .where(and(inArray(orderItem.orderId, orderIds), eq(orderItem.itemType, 'PRODUCT')));
-  for (const r of rows) out.set(r.orderId, [...(out.get(r.orderId) ?? []), { deviceType: r.deviceType, name: r.name, quantity: r.quantity }]);
+  for (const r of rows)
+    out.set(r.orderId, [
+      ...(out.get(r.orderId) ?? []),
+      { deviceType: r.deviceType, name: r.name, quantity: r.quantity },
+    ]);
   return out;
 }
 
@@ -100,7 +109,11 @@ export interface UnassignedPin {
 }
 
 /** BR-110 내 관할 안의 배정 전 주문 (date 를 주면 그날만, 삽입 미리보기 포함) */
-export async function listUnassignedInZone(techId: number, opts: { date?: string | null; withInsertion?: boolean } = {}, now = new Date()): Promise<UnassignedPin[]> {
+export async function listUnassignedInZone(
+  techId: number,
+  opts: { date?: string | null; withInsertion?: boolean } = {},
+  now = new Date(),
+): Promise<UnassignedPin[]> {
   const db = getDb();
   const [{ t, areas, skills }, set] = await Promise.all([techContext(techId), selfAssignSettings()]);
   const codes = areas.map((a) => a.code);
@@ -109,7 +122,12 @@ export async function listUnassignedInZone(techId: number, opts: { date?: string
   const from = new Date(`${opts.date ?? today}T00:00:00+09:00`);
   const to = new Date(`${addDays(opts.date ?? today, opts.date ? 1 : set.days + 1)}T00:00:00+09:00`);
   const rows = await db
-    .select({ o: serviceOrder, code: customerAddress.legalDongCode, road: customerAddress.roadAddress, name: customer.name })
+    .select({
+      o: serviceOrder,
+      code: customerAddress.legalDongCode,
+      road: customerAddress.roadAddress,
+      name: customer.name,
+    })
     .from(serviceOrder)
     .innerJoin(customerAddress, eq(customerAddress.id, serviceOrder.addressId))
     .innerJoin(customer, eq(customer.id, serviceOrder.customerId))
@@ -131,7 +149,13 @@ export async function listUnassignedInZone(techId: number, opts: { date?: string
       ? db
           .select({ orderId: assignment.orderId })
           .from(assignment)
-          .where(and(inArray(assignment.orderId, ids), eq(assignment.role, 'MAIN'), inArray(assignment.status, ['REQUESTED', 'PROPOSED', 'ACCEPTED', 'TRANSFER_REQUESTED'])))
+          .where(
+            and(
+              inArray(assignment.orderId, ids),
+              eq(assignment.role, 'MAIN'),
+              inArray(assignment.status, ['REQUESTED', 'PROPOSED', 'ACCEPTED', 'TRANSFER_REQUESTED']),
+            ),
+          )
       : Promise.resolve([]),
     ensureAddressCoords(rows.map((r) => r.o.addressId)),
   ]);
@@ -141,14 +165,26 @@ export async function listUnassignedInZone(techId: number, opts: { date?: string
     if (takenIds.has(r.o.id)) continue; // 다른 기사가 승인 대기 중
     const date = r.o.promisedAt ? kstDate(r.o.promisedAt) : null;
     const d = devs.get(r.o.id) ?? [];
-    const order = { status: r.o.status, legalDongCode: r.code, date, deviceTypes: d.map((x) => x.deviceType), requiredTechCount: r.o.requiredTechCount };
+    const order = {
+      status: r.o.status,
+      legalDongCode: r.code,
+      date,
+      deviceTypes: d.map((x) => x.deviceType),
+      requiredTechCount: r.o.requiredTechCount,
+    };
     if (!isUnassignedVisible(order, areas, today, set.days)) continue;
     const ins = opts.withInsertion && date ? await insertionPreview(techId, date, r.o) : null;
     const check = checkSelfAssign({
       enabled: set.enabled,
       needsApprovalSetting: set.needsApproval,
       order,
-      tech: { status: t.status, grade: t.grade, accompanyDoneCount: t.accompanyDoneCount, accompanyRequiredCount: t.accompanyRequiredCount, skills },
+      tech: {
+        status: t.status,
+        grade: t.grade,
+        accompanyDoneCount: t.accompanyDoneCount,
+        accompanyRequiredCount: t.accompanyRequiredCount,
+        skills,
+      },
       areas,
       today,
       daysAhead: set.days,
@@ -170,7 +206,9 @@ export async function listUnassignedInZone(techId: number, opts: { date?: string
       canRequest: opts.withInsertion ? check.canRequest : false,
       needsApproval: check.needsApproval,
       reasons: opts.withInsertion ? check.reasons : [],
-      insertion: ins ? { position: ins.position, addedTravelMin: ins.addedTravelMin, arrival: ins.arrival } : null,
+      insertion: ins
+        ? { position: ins.position, addedTravelMin: ins.addedTravelMin, arrival: ins.arrival }
+        : null,
     });
   }
   return out;
@@ -178,7 +216,11 @@ export async function listUnassignedInZone(techId: number, opts: { date?: string
 
 /* ---------- F-TEC-RTE-04 [내 일정에 넣기] ---------- */
 
-export async function requestSelfAssign(techId: number, orderNo: string, now = new Date()): Promise<{ status: 'REQUESTED' | 'ACCEPTED' }> {
+export async function requestSelfAssign(
+  techId: number,
+  orderNo: string,
+  now = new Date(),
+): Promise<{ status: 'REQUESTED' | 'ACCEPTED' }> {
   const db = getDb();
   const [{ t, areas, skills }, set] = await Promise.all([techContext(techId), selfAssignSettings()]);
   const [o] = await db
@@ -187,7 +229,8 @@ export async function requestSelfAssign(techId: number, orderNo: string, now = n
     .innerJoin(customerAddress, eq(customerAddress.id, serviceOrder.addressId))
     .where(and(eq(serviceOrder.orderNo, orderNo), isNull(serviceOrder.deletedAt)));
   if (!o || o.o.branchId !== t.branchId) throw new UserError('작업을 찾을 수 없습니다.');
-  if (!(UNASSIGNED_ORDER_STATUSES as readonly string[]).includes(o.o.status)) throw new UserError('이미 배정된 작업입니다.');
+  if (!(UNASSIGNED_ORDER_STATUSES as readonly string[]).includes(o.o.status))
+    throw new UserError('이미 배정된 작업입니다.');
   const date = o.o.promisedAt ? kstDate(o.o.promisedAt) : null;
   const w = orderWindow(o.o);
   if (!date || !w) throw new UserError('약속 일시가 없는 작업은 담을 수 없습니다.');
@@ -196,8 +239,20 @@ export async function requestSelfAssign(techId: number, orderNo: string, now = n
   const check = checkSelfAssign({
     enabled: set.enabled,
     needsApprovalSetting: set.needsApproval,
-    order: { status: o.o.status, legalDongCode: o.code, date, deviceTypes: devs.map((d) => d.deviceType), requiredTechCount: o.o.requiredTechCount },
-    tech: { status: t.status, grade: t.grade, accompanyDoneCount: t.accompanyDoneCount, accompanyRequiredCount: t.accompanyRequiredCount, skills },
+    order: {
+      status: o.o.status,
+      legalDongCode: o.code,
+      date,
+      deviceTypes: devs.map((d) => d.deviceType),
+      requiredTechCount: o.o.requiredTechCount,
+    },
+    tech: {
+      status: t.status,
+      grade: t.grade,
+      accompanyDoneCount: t.accompanyDoneCount,
+      accompanyRequiredCount: t.accompanyRequiredCount,
+      skills,
+    },
     areas,
     today: kstDate(now),
     daysAhead: set.days,
@@ -212,20 +267,36 @@ export async function requestSelfAssign(techId: number, orderNo: string, now = n
   try {
     await db.transaction(async (tx) => {
       // 같은 주문을 동시에 담으면 먼저 잠근 쪽만 진행
-      const locked = await tx.execute<{ status: string }>(sql`SELECT status FROM service_order WHERE id = ${o.o.id} FOR UPDATE`);
+      const locked = await tx.execute<{ status: string }>(
+        sql`SELECT status FROM service_order WHERE id = ${o.o.id} FOR UPDATE`,
+      );
       const cur = (locked as unknown as { status: string }[])[0];
-      if (!cur || !(UNASSIGNED_ORDER_STATUSES as readonly string[]).includes(cur.status)) throw new UserError('이미 배정된 작업입니다.');
+      if (!cur || !(UNASSIGNED_ORDER_STATUSES as readonly string[]).includes(cur.status))
+        throw new UserError('이미 배정된 작업입니다.');
       const live = await tx
         .select({ id: assignment.id })
         .from(assignment)
-        .where(and(eq(assignment.orderId, o.o.id), inArray(assignment.status, ['REQUESTED', 'PROPOSED', 'ACCEPTED', 'TRANSFER_REQUESTED'])));
+        .where(
+          and(
+            eq(assignment.orderId, o.o.id),
+            inArray(assignment.status, ['REQUESTED', 'PROPOSED', 'ACCEPTED', 'TRANSFER_REQUESTED']),
+          ),
+        );
       if (live.length) throw new UserError('이미 배정된 작업입니다.');
-      const [slot] = o.o.requestedDate && o.o.requestedTimeFrom
-        ? await tx
-            .select({ id: timeSlot.id })
-            .from(timeSlot)
-            .where(and(eq(timeSlot.branchId, o.o.branchId), eq(timeSlot.slotDate, o.o.requestedDate), eq(timeSlot.slotHour, Number(o.o.requestedTimeFrom.slice(0, 2))), eq(timeSlot.slotKind, 'NORMAL')))
-        : [];
+      const [slot] =
+        o.o.requestedDate && o.o.requestedTimeFrom
+          ? await tx
+              .select({ id: timeSlot.id })
+              .from(timeSlot)
+              .where(
+                and(
+                  eq(timeSlot.branchId, o.o.branchId),
+                  eq(timeSlot.slotDate, o.o.requestedDate),
+                  eq(timeSlot.slotHour, Number(o.o.requestedTimeFrom.slice(0, 2))),
+                  eq(timeSlot.slotKind, 'NORMAL'),
+                ),
+              )
+          : [];
       await tx.insert(assignment).values({
         orderId: o.o.id,
         technicianId: techId,
@@ -250,7 +321,17 @@ export async function requestSelfAssign(techId: number, orderNo: string, now = n
         actorId: techId,
       });
       if (status === 'ACCEPTED') {
-        await tx.insert(assignmentHistory).values({ orderId: o.o.id, fromTechnicianId: null, toTechnicianId: techId, action: 'SELF_APPROVE', reason: '승인 불필요(거점 설정)', actorType: 'SYSTEM', actorId: null });
+        await tx
+          .insert(assignmentHistory)
+          .values({
+            orderId: o.o.id,
+            fromTechnicianId: null,
+            toTechnicianId: techId,
+            action: 'SELF_APPROVE',
+            reason: '승인 불필요(거점 설정)',
+            actorType: 'SYSTEM',
+            actorId: null,
+          });
         await transitionOrder(tx, o.o, 'ASSIGNED', actor, { memo: '기사 자가 배정' });
       }
     });
@@ -262,11 +343,16 @@ export async function requestSelfAssign(techId: number, orderNo: string, now = n
     await notifyOrder('TECH_ASSIGNED', o.o.id, { 기사명: t.displayName || t.name });
     await syncPlan(techId, date, actor).catch((e) => console.error('코스 반영 실패', e));
   } else {
-    await notifyStaffWith('SELF_ASSIGN_REQUESTED', { type: 'ADMIN', id: null }, { type: 'ORDER', id: o.o.id }, {
-      기사명: t.displayName || t.name,
-      접수번호: o.o.orderNo,
-      방문일시: o.o.promisedAt ? formatVisit(o.o.promisedAt) : '',
-    });
+    await notifyStaffWith(
+      'SELF_ASSIGN_REQUESTED',
+      { type: 'ADMIN', id: null },
+      { type: 'ORDER', id: o.o.id },
+      {
+        기사명: t.displayName || t.name,
+        접수번호: o.o.orderNo,
+        방문일시: o.o.promisedAt ? formatVisit(o.o.promisedAt) : '',
+      },
+    );
   }
   return { status };
 }
@@ -274,11 +360,25 @@ export async function requestSelfAssign(techId: number, orderNo: string, now = n
 /* ---------- A-DSP-020 자가 배정 요청 탭 · F-ADM-DSP-10 ---------- */
 
 const scopeCond = (filter: BranchFilter) =>
-  filter.kind === 'BRANCH' ? eq(serviceOrder.branchId, filter.branchId) : filter.kind === 'NONE' ? eq(serviceOrder.branchId, -1) : undefined;
+  filter.kind === 'BRANCH'
+    ? eq(serviceOrder.branchId, filter.branchId)
+    : filter.kind === 'NONE'
+      ? eq(serviceOrder.branchId, -1)
+      : undefined;
 
 export async function listSelfAssignRequests(filter: BranchFilter) {
   const rows = await getDb()
-    .select({ a: assignment, orderNo: serviceOrder.orderNo, promisedAt: serviceOrder.promisedAt, branchId: serviceOrder.branchId, addressId: serviceOrder.addressId, o: serviceOrder, road: customerAddress.roadAddress, techName: technician.name, techDisplay: technician.displayName })
+    .select({
+      a: assignment,
+      orderNo: serviceOrder.orderNo,
+      promisedAt: serviceOrder.promisedAt,
+      branchId: serviceOrder.branchId,
+      addressId: serviceOrder.addressId,
+      o: serviceOrder,
+      road: customerAddress.roadAddress,
+      techName: technician.name,
+      techDisplay: technician.displayName,
+    })
     .from(assignment)
     .innerJoin(serviceOrder, eq(serviceOrder.id, assignment.orderId))
     .innerJoin(customerAddress, eq(customerAddress.id, serviceOrder.addressId))
@@ -289,7 +389,8 @@ export async function listSelfAssignRequests(filter: BranchFilter) {
   for (const r of rows) {
     const date = r.promisedAt ? kstDate(r.promisedAt) : null;
     // 코스 영향: 그 기사 코스에 넣었을 때 위치·이동시간 증가
-    const ins = date && r.a.technicianId ? await insertionPreview(r.a.technicianId, date, r.o).catch(() => null) : null;
+    const ins =
+      date && r.a.technicianId ? await insertionPreview(r.a.technicianId, date, r.o).catch(() => null) : null;
     const [area] = await getDb()
       .select({ priority: technicianArea.priority })
       .from(technicianArea)
@@ -320,7 +421,11 @@ export async function countSelfAssignRequests(filter: BranchFilter) {
   return r?.n ?? 0;
 }
 
-export async function decideSelfAssign(input: { assignmentId: number; decision: 'APPROVE' | 'REJECT'; reason: string | null }, filter: BranchFilter, actor: Actor) {
+export async function decideSelfAssign(
+  input: { assignmentId: number; decision: 'APPROVE' | 'REJECT'; reason: string | null },
+  filter: BranchFilter,
+  actor: Actor,
+) {
   const db = getDb();
   const [row] = await db
     .select({ a: assignment, o: serviceOrder })
@@ -328,8 +433,10 @@ export async function decideSelfAssign(input: { assignmentId: number; decision: 
     .innerJoin(serviceOrder, eq(serviceOrder.id, assignment.orderId))
     .where(eq(assignment.id, input.assignmentId));
   if (!row || row.a.status !== 'REQUESTED') throw new UserError('이미 처리된 요청입니다.');
-  if (filter.kind === 'NONE' || (filter.kind === 'BRANCH' && filter.branchId !== row.o.branchId)) throw new ForbiddenError('다른 거점의 요청입니다.');
-  if (input.decision === 'REJECT' && !input.reason?.trim()) throw new UserError('반려 사유은(는) 필수 입력값입니다.');
+  if (filter.kind === 'NONE' || (filter.kind === 'BRANCH' && filter.branchId !== row.o.branchId))
+    throw new ForbiddenError('다른 거점의 요청입니다.');
+  if (input.decision === 'REJECT' && !input.reason?.trim())
+    throw new UserError('반려 사유은(는) 필수 입력값입니다.');
   const to = input.decision === 'APPROVE' ? ('ACCEPTED' as const) : ('REJECTED' as const);
   assertAssignTransition(row.a.status, to);
   await db.transaction(async (tx) => {
@@ -360,11 +467,28 @@ export async function decideSelfAssign(input: { assignmentId: number; decision: 
   const techId = row.a.technicianId!;
   const vars = { 접수번호: row.o.orderNo, 방문일시: row.o.promisedAt ? formatVisit(row.o.promisedAt) : '' };
   if (to === 'ACCEPTED') {
-    const [t] = await db.select({ name: technician.name, displayName: technician.displayName }).from(technician).where(eq(technician.id, techId));
-    await notifyStaffWith('SELF_ASSIGN_APPROVED', { type: 'TECHNICIAN', id: techId }, { type: 'ORDER', id: row.o.id }, vars, `/tech/jobs/${row.o.orderNo}`);
+    const [t] = await db
+      .select({ name: technician.name, displayName: technician.displayName })
+      .from(technician)
+      .where(eq(technician.id, techId));
+    await notifyStaffWith(
+      'SELF_ASSIGN_APPROVED',
+      { type: 'TECHNICIAN', id: techId },
+      { type: 'ORDER', id: row.o.id },
+      vars,
+      `/tech/jobs/${row.o.orderNo}`,
+    );
     await notifyOrder('TECH_ASSIGNED', row.o.id, { 기사명: t ? t.displayName || t.name : '' });
-    if (row.o.promisedAt) await syncPlan(techId, kstDate(row.o.promisedAt), actor).catch((e) => console.error('코스 반영 실패', e));
+    if (row.o.promisedAt)
+      await syncPlan(techId, kstDate(row.o.promisedAt), actor).catch((e) =>
+        console.error('코스 반영 실패', e),
+      );
   } else {
-    await notifyStaffWith('SELF_ASSIGN_REJECTED', { type: 'TECHNICIAN', id: techId }, { type: 'ORDER', id: row.o.id }, vars);
+    await notifyStaffWith(
+      'SELF_ASSIGN_REJECTED',
+      { type: 'TECHNICIAN', id: techId },
+      { type: 'ORDER', id: row.o.id },
+      vars,
+    );
   }
 }

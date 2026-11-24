@@ -43,7 +43,7 @@ export function haversineMeters(a: LatLng, b: LatLng): number {
 /** 직선거리 ÷ 25km/h 이동시간(분, 올림) */
 export function estimateTravel(a: LatLng, b: LatLng, speedKmh = FALLBACK_SPEED_KMH): TravelLeg {
   const meters = Math.round(haversineMeters(a, b));
-  return { meters, minutes: Math.ceil(meters / 1000 / speedKmh * 60) };
+  return { meters, minutes: Math.ceil((meters / 1000 / speedKmh) * 60) };
 }
 
 /** 중심에서 반경(m)인 육각형 (법정동 경계 데이터를 붙이기 전의 근사 경계) */
@@ -73,7 +73,8 @@ export function mergePolygons(shapes: readonly GeoShape[]): GeoMultiPolygon | nu
 
 /** 지도에 찍은 꼭짓점 → 닫힌 고리 검증. 오류 문구 또는 null */
 export function validateRing(points: readonly Position[]): string | null {
-  const open = points.length > 1 && samePos(points[0]!, points[points.length - 1]!) ? points.slice(0, -1) : points;
+  const open =
+    points.length > 1 && samePos(points[0]!, points[points.length - 1]!) ? points.slice(0, -1) : points;
   if (open.length < 3) return '관할 구역은 지도에서 꼭짓점을 3개 이상 찍어야 합니다.';
   return null;
 }
@@ -109,7 +110,10 @@ export function pointInGeo(p: LatLng, shape: GeoShape): boolean {
 }
 
 /** 직접 그린 구역(DRAWN): 중심이 다각형 안에 들어가는 법정동 코드 → technician_area */
-export function dongsInsidePolygon(dongs: readonly { code: string; center: LatLng }[], shape: GeoShape): string[] {
+export function dongsInsidePolygon(
+  dongs: readonly { code: string; center: LatLng }[],
+  shape: GeoShape,
+): string[] {
   return dongs.filter((d) => pointInGeo(d.center, shape)).map((d) => d.code);
 }
 
@@ -123,7 +127,12 @@ export interface Bounds {
 export function boundsOf(points: readonly LatLng[]): Bounds | null {
   if (points.length === 0) return null;
   return points.reduce<Bounds>(
-    (b, p) => ({ minLat: Math.min(b.minLat, p.lat), maxLat: Math.max(b.maxLat, p.lat), minLng: Math.min(b.minLng, p.lng), maxLng: Math.max(b.maxLng, p.lng) }),
+    (b, p) => ({
+      minLat: Math.min(b.minLat, p.lat),
+      maxLat: Math.max(b.maxLat, p.lat),
+      minLng: Math.min(b.minLng, p.lng),
+      maxLng: Math.max(b.maxLng, p.lng),
+    }),
     { minLat: points[0]!.lat, maxLat: points[0]!.lat, minLng: points[0]!.lng, maxLng: points[0]!.lng },
   );
 }
@@ -138,14 +147,18 @@ export function shapePoints(shape: GeoShape): LatLng[] {
 export function shapeCenter(shape: GeoShape): LatLng | null {
   const pts = shapePoints(shape);
   if (!pts.length) return null;
-  return { lat: round7(pts.reduce((s, p) => s + p.lat, 0) / pts.length), lng: round7(pts.reduce((s, p) => s + p.lng, 0) / pts.length) };
+  return {
+    lat: round7(pts.reduce((s, p) => s + p.lat, 0) / pts.length),
+    lng: round7(pts.reduce((s, p) => s + p.lng, 0) / pts.length),
+  };
 }
 
 /** 저장된 JSON → 경계 (형식이 다르면 null) */
 export function parseShape(v: unknown): GeoShape | null {
   if (!v || typeof v !== 'object') return null;
   const s = v as { type?: unknown; coordinates?: unknown };
-  if ((s.type === 'Polygon' || s.type === 'MultiPolygon') && Array.isArray(s.coordinates)) return s as GeoShape;
+  if ((s.type === 'Polygon' || s.type === 'MultiPolygon') && Array.isArray(s.coordinates))
+    return s as GeoShape;
   return null;
 }
 

@@ -35,4 +35,14 @@ export function renderTemplate(body: string, vars: Record<string, string>): stri
 }
 
 /** 화면 템플릿 편집(A-CRM-040)에서 안내하는 치환 변수 */
-export const TEMPLATE_VARIABLES = ['고객명', '접수번호', '방문일시', '금액', '거점전화', '기사명', '방문예정', '코스일자', '방문건수'] as const;
+export const TEMPLATE_VARIABLES = [
+  '고객명',
+  '접수번호',
+  '방문일시',
+  '금액',
+  '거점전화',
+  '기사명',
+  '방문예정',
+  '코스일자',
+  '방문건수',
+] as const;

@@ -99,7 +99,7 @@
   --status-completed-fg:   var(--gray-700);   --status-completed-bg:   var(--gray-100);
   --status-canceled-fg:    var(--gray-600);   --status-canceled-bg:    var(--gray-50);
 
-  /* ---------- 3-1. 지도 (단계 4-2: 출동 지도·관할 구역·코스, 05 §4.9) ---------- */
+  /* ---------- 3-1. 지도 (단계 4-2: 출동 지도·관할 구역·코스, 05 §1.4) ---------- */
   /* 지도 배경·격자 */
   --map-bg:          var(--gray-50);
   --map-grid:        var(--gray-100);
