@@ -15,7 +15,8 @@ export default async function TechMyPage() {
   const p = await getTechProfile(me.id);
   if (!p) notFound();
   const codes = await loadCodes(['TECH_GRADE', 'DEVICE_TYPE', 'SKILL_LEVEL', 'BANK_CODE']);
-  const label = (g: string, v: string | null) => (v ? (codes[g]?.find((c) => c.value === v)?.label ?? v) : '');
+  const label = (g: string, v: string | null) =>
+    v ? (codes[g]?.find((c) => c.value === v)?.label ?? v) : '';
   return (
     <main className="tec-page__body">
       <TechTopbar title="내 정보" back={{ href: '/tech/more', label: '더보기' }} />
@@ -40,7 +41,15 @@ export default async function TechMyPage() {
           <dt>연락처</dt>
           <dd className="ac-masked ac-num">{p.phoneMasked}</dd>
           <dt>정산 계좌</dt>
-          <dd>{p.bankAccountMasked ? <span className="ac-masked ac-num">{`${p.bankCode ?? ''} ${p.bankAccountMasked} ${p.accountHolder ?? ''}`.trim()}</span> : '등록 전'}</dd>
+          <dd>
+            {p.bankAccountMasked ? (
+              <span className="ac-masked ac-num">
+                {`${p.bankCode ?? ''} ${p.bankAccountMasked} ${p.accountHolder ?? ''}`.trim()}
+              </span>
+            ) : (
+              '등록 전'
+            )}
+          </dd>
         </dl>
         <p className="ac-caption">계좌·연락처 변경은 소속 거점에 요청해 주세요.</p>
       </Card>
@@ -94,7 +103,9 @@ export default async function TechMyPage() {
         <h2 id="pw-title" className="ac-h3">
           {p.hasPassword ? '비밀번호 바꾸기' : '비밀번호 만들기'}
         </h2>
-        <p className="ac-caption">비밀번호가 있으면 인증번호 없이 휴대폰 번호와 비밀번호로 로그인할 수 있어요.</p>
+        <p className="ac-caption">
+          비밀번호가 있으면 인증번호 없이 휴대폰 번호와 비밀번호로 로그인할 수 있어요.
+        </p>
         <PasswordForm />
       </section>
     </main>

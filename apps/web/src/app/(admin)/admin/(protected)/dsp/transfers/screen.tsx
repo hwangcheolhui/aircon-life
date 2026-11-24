@@ -1,5 +1,5 @@
 'use client';
-// A-DSP-020 재배정·이관. 경고(근무·시간 겹침·숙련·지역)는 확인 후 진행, 차단(BR-070·071·072)은 진행 불가.
+// A-DSP-020 재배정·이관·자가 배정 요청(F-ADM-DSP-10, 단계 4-2). 경고(근무·시간 겹침·숙련·지역)는 확인 후 진행, 차단(BR-070·071·072)은 진행 불가.
 import type { AssignIssue } from '@aircon/domain';
 import {
   Alert,
@@ -14,6 +14,7 @@ import {
   Select,
   StatusBadge,
   Tabs,
+  Tag,
   Textarea,
   useToast,
 } from '@aircon/ui';
@@ -22,9 +23,11 @@ import { useEffect, useState } from 'react';
 import { type Option, labelOf } from '@/admin/crud-screen';
 import { formatDateTime } from '@/customer/format';
 import type { listTransferRequests } from '@/server/dispatch';
-import { decide, findOrder, reassign, techOptions } from './actions';
+import type { listSelfAssignRequests } from '@/server/self-assign';
+import { decide, decideSelf, findOrder, reassign, techOptions } from './actions';
 
 type Request = Awaited<ReturnType<typeof listTransferRequests>>[number];
+type SelfRequest = Awaited<ReturnType<typeof listSelfAssignRequests>>[number];
 type TechOpt = { id: number; name: string; grade: string; status: string };
 type Found = {
   order: {
@@ -41,6 +44,7 @@ type Res = { ok: boolean; message?: string; fieldErrors?: Record<string, string>
 
 const TABS = [
   { value: 'transfer', label: '이관 요청' },
+  { value: 'self', label: '자가 배정 요청' },
   { value: 'reassign', label: '재배정' },
 ] as const;
 type Tab = (typeof TABS)[number]['value'];
@@ -103,19 +107,30 @@ function useWarnFlow(onSaved: () => void) {
 
 export function TransfersScreen(p: {
   requests: Request[];
+  selfRequests: SelfRequest[];
+  initialTab?: Tab;
   codes: Record<string, Option[]>;
   canUpdate: boolean;
 }) {
-  const [tab, setTab] = useState<Tab>('transfer');
+  const [tab, setTab] = useState<Tab>(p.initialTab ?? 'transfer');
+  const items = TABS.map((t) =>
+    t.value === 'self' && p.selfRequests.length
+      ? { ...t, label: `${t.label} ${p.selfRequests.length}` }
+      : t.value === 'transfer' && p.requests.length
+        ? { ...t, label: `${t.label} ${p.requests.length}` }
+        : t,
+  );
   const L = (g: string, v: string | null | undefined) => labelOf(p.codes[g], v);
   return (
     <>
       <div className="adm-page-head">
         <h1 className="ac-h1">재배정·이관</h1>
       </div>
-      <Tabs items={[...TABS]} value={tab} onChange={setTab} />
+      <Tabs items={items} value={tab} onChange={setTab} />
       {tab === 'transfer' ? (
         <TransferTab requests={p.requests} L={L} canUpdate={p.canUpdate} />
+      ) : tab === 'self' ? (
+        <SelfAssignTab requests={p.selfRequests} canUpdate={p.canUpdate} />
       ) : (
         <ReassignTab L={L} canUpdate={p.canUpdate} />
       )}
@@ -165,6 +180,154 @@ function TransferTab(p: {
         </tbody>
       </table>
       {open ? <TransferModal req={open} L={p.L} onClose={() => setOpen(null)} /> : null}
+    </div>
+  );
+}
+
+/** F-ADM-DSP-10 자가 배정 요청: 코스 영향(넣을 위치·이동시간 증가)을 보고 승인/거절(사유 필수) */
+function SelfAssignTab(p: { requests: SelfRequest[]; canUpdate: boolean }) {
+  const router = useRouter();
+  const toast = useToast();
+  const [open, setOpen] = useState<SelfRequest | null>(null);
+  const [reason, setReason] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState<null | 'APPROVE' | 'REJECT'>(null);
+  const close = () => {
+    setOpen(null);
+    setReason('');
+    setError(null);
+  };
+  const submit = async (decision: 'APPROVE' | 'REJECT') => {
+    if (!open) return;
+    setBusy(true);
+    const r = (await decideSelf({ assignmentId: open.assignmentId, decision, reason })) as Res;
+    setBusy(false);
+    if (!r.ok) return setError(errOf(r, '저장하지 못했습니다.'));
+    close();
+    toast(MSG.saved);
+    router.refresh();
+  };
+  if (p.requests.length === 0) return <Empty />;
+  const zoneLabel = (z: SelfRequest['zone']) =>
+    z === 'PRIMARY' ? '주 관할' : z === 'SECONDARY' ? '보조 관할' : '관할 밖';
+  return (
+    <div className="ac-table-wrap adm-gap-top">
+      <table className="ac-table">
+        <thead>
+          <tr>
+            <th scope="col">접수번호</th>
+            <th scope="col">약속 일시</th>
+            <th scope="col">주소</th>
+            <th scope="col">요청 기사</th>
+            <th scope="col">관할</th>
+            <th scope="col">인원</th>
+            <th scope="col">코스 영향</th>
+            <th scope="col">요청 시각</th>
+            <th scope="col">처리</th>
+          </tr>
+        </thead>
+        <tbody>
+          {p.requests.map((r) => (
+            <tr key={r.assignmentId} onDoubleClick={() => p.canUpdate && setOpen(r)}>
+              <td className="ac-num">{r.orderNo}</td>
+              <td className="ac-num">{when(r.promisedAt)}</td>
+              <td>{r.address}</td>
+              <td>{r.techName}</td>
+              <td>
+                <Tag tone={r.zone === 'PRIMARY' ? 'primary' : 'warning'}>{zoneLabel(r.zone)}</Tag>
+              </td>
+              <td className="is-num ac-num">{r.requiredTechCount}명</td>
+              <td>
+                {r.insertion ? (
+                  <>
+                    <span className="ac-num">{r.insertion.position}</span>번째 · 이동 +
+                    <span className="ac-num">{r.insertion.addedTravelMin}</span>분{' '}
+                    {r.insertion.ok ? null : <Tag tone="danger">시간창 위반</Tag>}
+                  </>
+                ) : (
+                  '계산 불가'
+                )}
+              </td>
+              <td className="ac-num">{when(r.requestedAt)}</td>
+              <td>
+                {p.canUpdate ? (
+                  <Button size="sm" variant="outline" onClick={() => setOpen(r)}>
+                    처리
+                  </Button>
+                ) : null}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {open ? (
+        <Modal
+          open
+          form
+          title="자가 배정 요청 처리"
+          description={`${open.orderNo} · ${when(open.promisedAt)} · ${open.techName}`}
+          onClose={close}
+          actions={
+            <>
+              <Button
+                variant="outline"
+                loading={busy}
+                onClick={() => {
+                  if (!reason.trim()) return setError(MSG.required('거절 사유'));
+                  setConfirm('REJECT');
+                }}
+              >
+                거절
+              </Button>
+              <Button variant="primary" loading={busy} onClick={() => setConfirm('APPROVE')}>
+                승인
+              </Button>
+            </>
+          }
+        >
+          <div className="adm-csl-modal-body">
+            {open.insertion && !open.insertion.ok ? (
+              <Alert tone="warning">
+                이 기사 코스에 넣으면 도착 허용 시간을 지키지 못하는 방문지가 생깁니다.
+              </Alert>
+            ) : null}
+            <Field
+              label="거절 사유"
+              required
+              help="거절할 때만 적습니다. 기사에게 사유와 함께 알림이 가고, 주문은 배정 대기로 남습니다."
+              error={error ?? undefined}
+            >
+              {(id, desc, inv) => (
+                <Textarea
+                  id={id}
+                  aria-describedby={desc}
+                  aria-invalid={inv}
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  maxLength={200}
+                />
+              )}
+            </Field>
+          </div>
+        </Modal>
+      ) : null}
+      <ConfirmModal
+        open={confirm !== null}
+        message={
+          confirm === 'APPROVE' ? '자가 배정을 승인하시겠습니까?' : '자가 배정 요청을 거절하시겠습니까?'
+        }
+        description={
+          confirm === 'APPROVE' ? '승인하면 배정이 확정되고 고객에게 기사 배정 안내가 나갑니다.' : undefined
+        }
+        confirmLabel={confirm === 'APPROVE' ? '승인' : '거절'}
+        onCancel={() => setConfirm(null)}
+        onConfirm={() => {
+          const d = confirm!;
+          setConfirm(null);
+          void submit(d);
+        }}
+      />
     </div>
   );
 }

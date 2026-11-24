@@ -1,11 +1,12 @@
 'use server';
-// A-DSP-020 재배정·이관 서버 액션 · F-ADM-DSP-04(재배정·이관 승인/반려). 사유 필수, 이력 assignment_history INSERT ONLY. BR-102 거점 범위.
-import { reassignInput, transferDecisionInput } from '@aircon/contracts';
+// A-DSP-020 재배정·이관·자가 배정 요청 서버 액션 · F-ADM-DSP-04(재배정·이관 승인/반려) · F-ADM-DSP-10(자가 배정 승인/거절, 단계 4-2). 사유 필수, 이력 assignment_history INSERT ONLY. BR-102 거점 범위.
+import { reassignInput, selfAssignDecisionInput, transferDecisionInput } from '@aircon/contracts';
 import { revalidatePath } from 'next/cache';
 import { MSG } from '@aircon/domain';
 import { UserError, handle, parse } from '@/server/action-result';
 import { requirePermission } from '@/server/auth';
 import { currentBranchFilter } from '@/server/branch-selection';
+import { decideSelfAssign } from '@/server/self-assign';
 import { branchTechOptions, decideTransfer, findOrderForReassign, reassignOrder } from '@/server/dispatch';
 
 const MENU = 'A-DSP-020';
@@ -54,5 +55,15 @@ export async function decide(values: Record<string, unknown>) {
     const r = await decideTransfer(v, await currentBranchFilter(admin), { type: 'ADMIN', id: admin.adminId });
     if (r.saved) refresh();
     return r;
+  });
+}
+
+/** F-ADM-DSP-10 자가 배정 요청 승인/거절 (BR-111, 거절 사유 필수) */
+export async function decideSelf(values: Record<string, unknown>) {
+  return handle(async () => {
+    const admin = await requirePermission(MENU, 'UPDATE');
+    const v = parse(selfAssignDecisionInput, values);
+    await decideSelfAssign(v, await currentBranchFilter(admin), { type: 'ADMIN', id: admin.adminId });
+    refresh();
   });
 }

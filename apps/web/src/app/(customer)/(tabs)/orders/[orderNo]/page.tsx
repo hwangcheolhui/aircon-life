@@ -1,13 +1,14 @@
-// C-ORD-020 예약 상세 · F-CUS-ORD-02: 상태 타임라인, 방문 예정 시간, 기사 정보(배정 후, 단계 4-1: 고객 표시 이름·소개), 항목·금액, 액션(결제·변경·취소·고객센터)
+// C-ORD-020 예약 상세 · F-CUS-ORD-02: 상태 타임라인, 방문 예정 시간(단계 4-2: 기사 코스 확정 시각, 좌표는 보여 주지 않음 BR-115), 기사 정보(배정 후, 단계 4-1: 고객 표시 이름·소개), 항목·금액, 액션(결제·변경·취소·고객센터)
 import { canCustomerCancel } from '@aircon/domain';
 import { Alert, Card, StatusBadge, Tag } from '@aircon/ui';
 import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { formatDateLabel, formatDateTime, formatVisit, formatWon } from '@/customer/format';
+import { formatDateLabel, formatDateTime, formatVisit, formatVisitTime, formatWon } from '@/customer/format';
 import { loadCodes } from '@/server/codes';
 import { requireCustomer } from '@/server/customer-session';
 import { getCustomerOrder } from '@/server/orders';
+import { customerVisitInfo } from '@/server/route-plans';
 
 export const metadata = { title: '예약 상세' };
 export const dynamic = 'force-dynamic';
@@ -17,7 +18,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ or
   const me = await requireCustomer(`/orders/${orderNo}`);
   const o = me.demo ? null : await getCustomerOrder(me.id, orderNo);
   if (!o) notFound();
-  const codes = await loadCodes(['PAYMENT_STATUS', 'CHANGE_REQUEST_STATUS', 'CHANGE_REQUEST_TYPE']);
+  const [codes, visit] = await Promise.all([loadCodes(['PAYMENT_STATUS', 'CHANGE_REQUEST_STATUS', 'CHANGE_REQUEST_TYPE']), customerVisitInfo(o.id)]);
   const label = (g: string, v: string) => codes[g]?.find((c) => c.value === v)?.label ?? v;
   const openRequest = o.requests.find((r) => r.status === 'REQUESTED');
   return (
@@ -31,7 +32,13 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ or
       <div>
         <StatusBadge code={o.status} audience="customer" />
         <h1 className="ac-h2">{o.promisedAt ? formatVisit(o.promisedAt) : '일정 협의 중'}</h1>
-        <p className="ac-caption">정확한 도착 시간은 기사님 일정이 확정되면 알려 드려요.</p>
+        {visit ? (
+          <p className="ac-body cus-visit-time">
+            방문 예정 <strong className="ac-num">{formatVisitTime(visit.at)}</strong> 전후
+          </p>
+        ) : o.status === 'RECEIVED' || o.status === 'ASSIGN_WAIT' || o.status === 'ASSIGNED' ? (
+          <p className="ac-caption">정확한 도착 시간은 기사님 일정이 확정되면 알려 드려요.</p>
+        ) : null}
       </div>
       {openRequest ? (
         <Alert>

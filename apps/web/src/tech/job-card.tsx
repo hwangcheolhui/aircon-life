@@ -7,7 +7,12 @@ const ROLE: Record<string, string> = { SUPPORT: '지원', ACCOMPANY: '동행' };
 
 export function timeLabel(at: Date | null, timeTo: string | null) {
   if (!at) return '시간 미정';
-  const from = at.toLocaleTimeString('en-GB', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false });
+  const from = at.toLocaleTimeString('en-GB', {
+    timeZone: 'Asia/Seoul',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
   return timeTo ? `${from}~${timeTo}` : from;
 }
 

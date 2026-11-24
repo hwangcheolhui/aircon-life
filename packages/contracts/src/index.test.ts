@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { areaOpenRequestInput, branchInput, fieldErrors, pricePolicyInput, surchargeRuleInput } from './index';
+import {
+  areaOpenRequestInput,
+  branchInput,
+  fieldErrors,
+  pricePolicyInput,
+  routeEditInput,
+  selfAssignDecisionInput,
+  surchargeRuleInput,
+  zoneInput,
+} from './index';
 
 describe('입력 스키마', () => {
   it('필수 누락 시 "○○은(는) 필수 입력값입니다." 문구를 낸다', () => {
@@ -13,21 +22,37 @@ describe('입력 스키마', () => {
   });
 
   it('폼 문자열을 숫자·null로 바꾼다', () => {
-    const r = branchInput.parse({ branchCode: 'EP01', name: '은평거점', status: 'ACTIVE', radiusKm: '5.0', phone: '' });
+    const r = branchInput.parse({
+      branchCode: 'EP01',
+      name: '은평거점',
+      status: 'ACTIVE',
+      radiusKm: '5.0',
+      phone: '',
+    });
     expect(r.phone).toBeNull();
     expect(r.radiusKm).toBe('5.0');
   });
 
   it('대수 할인 JSON을 검증한다', () => {
     const base = { productId: '1', unitPrice: '90000', validFrom: '2027-01-01', priority: '0' };
-    expect(pricePolicyInput.safeParse({ ...base, multiUnitDiscountJson: '[{"min":2,"rate":5}]' }).success).toBe(true);
-    expect(pricePolicyInput.safeParse({ ...base, multiUnitDiscountJson: '[{"min":1,"rate":5}]' }).success).toBe(false);
+    expect(
+      pricePolicyInput.safeParse({ ...base, multiUnitDiscountJson: '[{"min":2,"rate":5}]' }).success,
+    ).toBe(true);
+    expect(
+      pricePolicyInput.safeParse({ ...base, multiUnitDiscountJson: '[{"min":1,"rate":5}]' }).success,
+    ).toBe(false);
     expect(pricePolicyInput.safeParse({ ...base, multiUnitDiscountJson: '{bad' }).success).toBe(false);
     expect(pricePolicyInput.safeParse({ ...base, validTo: '2026-12-31' }).success).toBe(false);
   });
 
   it('정률 할증은 100%를 넘을 수 없다', () => {
-    const r = surchargeRuleInput.safeParse({ ruleCode: 'NIGHT', name: '야간', applyType: 'AUTO_QUOTE', amountType: 'RATE', amount: '150' });
+    const r = surchargeRuleInput.safeParse({
+      ruleCode: 'NIGHT',
+      name: '야간',
+      applyType: 'AUTO_QUOTE',
+      amountType: 'RATE',
+      amount: '150',
+    });
     expect(r.success).toBe(false);
   });
 });
@@ -80,7 +105,12 @@ describe('단계 2 입력 스키마', async () => {
 });
 
 describe('오픈 알림 신청 입력 (F-CUS-QUO-08)', () => {
-  const base = { legalDongCode: '4113511000', sido: '경기', sigungu: '성남시 분당구', eupmyeondong: '백현동' };
+  const base = {
+    legalDongCode: '4113511000',
+    sido: '경기',
+    sigungu: '성남시 분당구',
+    eupmyeondong: '백현동',
+  };
   it('BR-003 휴대폰 번호와 동의가 있으면 통과', () => {
     const r = areaOpenRequestInput.safeParse({ ...base, phone: ' 010-1234-5678 ', privacyAgreed: true });
     expect(r.success && r.data.phone).toBe('010-1234-5678');
@@ -93,6 +123,56 @@ describe('오픈 알림 신청 입력 (F-CUS-QUO-08)', () => {
   it('BR-003 번호가 비었거나 휴대폰이 아니면 거절', () => {
     const empty = areaOpenRequestInput.safeParse({ ...base, phone: '', privacyAgreed: true });
     expect(fieldErrors(empty.error!).phone).toBe('휴대폰 번호는 필수 입력값입니다.');
-    expect(areaOpenRequestInput.safeParse({ ...base, phone: '02-123-4567', privacyAgreed: true }).success).toBe(false);
+    expect(
+      areaOpenRequestInput.safeParse({ ...base, phone: '02-123-4567', privacyAgreed: true }).success,
+    ).toBe(false);
+  });
+});
+
+describe('단계 4-2 입력 스키마', () => {
+  it('F-ADM-DSP-10 자가 배정 거절은 사유가 필수다', () => {
+    const r = selfAssignDecisionInput.safeParse({ assignmentId: 1, decision: 'REJECT', reason: '' });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(fieldErrors(r.error).reason).toBe('거절 사유는 필수 입력값입니다.');
+    expect(
+      selfAssignDecisionInput.safeParse({ assignmentId: 1, decision: 'APPROVE', reason: '' }).success,
+    ).toBe(true);
+  });
+
+  it('F-ADM-DSP-08 관할 구역은 구역명이 필수이고 적용기간 순서를 검사한다', () => {
+    const r = zoneInput.safeParse({
+      technicianId: 1,
+      zoneName: '',
+      zoneType: 'PRIMARY',
+      defineMethod: 'DONG_SET',
+      validFrom: '2026-03-10',
+      validTo: '2026-03-01',
+    });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(fieldErrors(r.error).zoneName).toBe('구역명은 필수 입력값입니다.');
+    const ok = zoneInput.parse({
+      technicianId: '1',
+      zoneName: '불광 일대',
+      zoneType: 'PRIMARY',
+      defineMethod: 'DRAWN',
+      points: [
+        [126.9, 37.6],
+        [126.92, 37.6],
+        [126.91, 37.62],
+      ],
+    });
+    expect(ok.points).toHaveLength(3);
+    expect(ok.color).toBe('1');
+  });
+
+  it('F-TEC-RTE-01 코스 편집은 방문지 유형을 제한한다', () => {
+    expect(
+      routeEditInput.safeParse({ date: '2026-03-10', stops: [{ key: 'A1', type: 'JOB', locked: false }] })
+        .success,
+    ).toBe(true);
+    expect(
+      routeEditInput.safeParse({ date: '2026-03-10', stops: [{ key: 'A1', type: 'LUNCH', locked: false }] })
+        .success,
+    ).toBe(false);
   });
 });

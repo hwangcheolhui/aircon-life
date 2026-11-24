@@ -18,6 +18,7 @@ import {
   Textarea,
   useToast,
 } from '@aircon/ui';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { type Option, labelOf } from '@/admin/crud-screen';
@@ -103,6 +104,11 @@ export function BoardScreen(p: {
             <Tag>
               미처리 <span className="ac-num">{b.summary.pending}</span>건
             </Tag>
+            {b.summary.selfRequested ? (
+              <Link href="/admin/dsp/transfers?tab=self" className="ac-btn ac-btn--text ac-btn--sm">
+                자가 배정 승인 대기 <span className="ac-num">{b.summary.selfRequested}</span>건
+              </Link>
+            ) : null}
           </div>
           {b.summary.urgent ? (
             <Alert tone="danger">
@@ -132,6 +138,7 @@ export function BoardScreen(p: {
                       <div className="adm-board-card__head">
                         <StatusBadge code={c.status} audience="staff" />
                         {c.urgent ? <Tag tone="danger">임박</Tag> : null}
+                        {c.selfRequested ? <Tag tone="warning">자가 배정 승인 대기</Tag> : null}
                         {c.requiredTechCount > 1 ? <Tag tone="warning">{c.requiredTechCount}인</Tag> : null}
                       </div>
                       <p className="adm-board-card__time ac-num">

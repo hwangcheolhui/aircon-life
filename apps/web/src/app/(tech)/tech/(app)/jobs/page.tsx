@@ -1,17 +1,27 @@
-// T-JOB-010 작업 목록 · F-TEC-JOB-01: 탭 [오늘 | 예정 | 미처리 | 완료], 날짜 선택, 처리완료는 하단·배경색
+// T-JOB-010 작업 목록 · F-TEC-JOB-01: 탭 [오늘 | 예정 | 미처리 | 완료], 날짜 선택, 처리완료는 하단·배경색. 상단 [목록 ⇄ 지도] 토글(T-MAP-010, 단계 4-2)
 import { Empty } from '@aircon/ui';
 import { TECH_JOB_TABS, type TechJobTab, kstDate } from '@aircon/domain';
 import Link from 'next/link';
 import { TechJobCard } from '@/tech/job-card';
 import { TechTopbar } from '@/tech/topbar';
+import { JobViewToggle } from '@/tech/view-toggle';
 import { listTechJobs } from '@/server/tech-jobs';
 import { requireTech } from '@/server/tech-session';
 
 export const metadata = { title: '작업 목록' };
 
-const LABEL: Record<TechJobTab, string> = { TODAY: '오늘', UPCOMING: '예정', PENDING: '미처리', DONE: '완료' };
+const LABEL: Record<TechJobTab, string> = {
+  TODAY: '오늘',
+  UPCOMING: '예정',
+  PENDING: '미처리',
+  DONE: '완료',
+};
 
-export default async function TechJobsPage({ searchParams }: { searchParams: Promise<{ tab?: string; date?: string }> }) {
+export default async function TechJobsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string; date?: string }>;
+}) {
   const me = await requireTech();
   const sp = await searchParams;
   const tab = (TECH_JOB_TABS as readonly string[]).includes(sp.tab ?? '') ? (sp.tab as TechJobTab) : 'TODAY';
@@ -19,14 +29,23 @@ export default async function TechJobsPage({ searchParams }: { searchParams: Pro
   const date = /^\d{4}-\d{2}-\d{2}$/.test(sp.date ?? '') ? sp.date! : today;
   const all = await listTechJobs(me.id);
   // "오늘" 탭은 선택한 날짜의 작업 전부(처리완료 포함, 하단), 나머지는 탭 기준
-  const jobs = tab === 'TODAY' ? all.filter((j) => j.date === date && j.tab !== 'PENDING') : all.filter((j) => j.tab === tab);
+  const jobs =
+    tab === 'TODAY'
+      ? all.filter((j) => j.date === date && j.tab !== 'PENDING')
+      : all.filter((j) => j.tab === tab);
   return (
     <main className="tec-page__body">
       <TechTopbar title="작업" />
+      <JobViewToggle view="list" date={tab === 'TODAY' && date >= today ? date : undefined} />
       <div className="ac-tabs tec-tabs" role="tablist" aria-label="작업 구분">
         {TECH_JOB_TABS.map((t) => (
           <Link key={t} href={`/tech/jobs?tab=${t}`} role="tab" className="ac-tab" aria-selected={t === tab}>
-            {LABEL[t]} <span className="ac-num">{t === 'TODAY' ? all.filter((j) => j.date === today && j.tab !== 'PENDING').length : all.filter((j) => j.tab === t).length}</span>
+            {LABEL[t]}{' '}
+            <span className="ac-num">
+              {t === 'TODAY'
+                ? all.filter((j) => j.date === today && j.tab !== 'PENDING').length
+                : all.filter((j) => j.tab === t).length}
+            </span>
           </Link>
         ))}
       </div>

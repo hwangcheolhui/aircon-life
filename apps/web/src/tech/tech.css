@@ -214,3 +214,127 @@
 .tec-menu-btn {
   flex: 1;
 }
+
+/* ── 단계 4-2: 근무 토글 (T-HOM-010) ── */
+.tec-duty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.tec-duty.is-on {
+  border-color: var(--color-success);
+}
+.tec-duty .ac-h3,
+.tec-duty p {
+  margin: 0;
+}
+.tec-consent {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+.tec-consent svg {
+  flex: none;
+  color: var(--color-primary);
+}
+.tec-consent ul {
+  margin: 0;
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* ── 단계 4-2: 출동 지도·코스 (T-MAP-010 · T-RTE-010 · T-RTE-020) ── */
+.tec-date-chips {
+  margin-top: calc(var(--space-2) * -1);
+}
+.tec-preview,
+.tec-open-job {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.tec-preview p,
+.tec-open-job p {
+  margin: 0;
+}
+.tec-route-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.tec-route-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-subtle);
+}
+.tec-route-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.tec-route-stop {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.tec-route-stop p {
+  margin: 0;
+}
+.tec-route-stop.is-violation {
+  border-color: var(--color-danger);
+}
+.tec-route-stop.is-dragging {
+  opacity: 0.5;
+}
+.tec-route-stop[draggable='true'] {
+  cursor: grab;
+}
+.tec-route-stop__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.tec-route-stop__grip {
+  color: var(--color-text-tertiary);
+}
+.tec-route-stop__seq {
+  display: inline-grid;
+  place-items: center;
+  min-width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  background: var(--color-text);
+  color: var(--color-text-inverse);
+  font-weight: var(--font-weight-semibold);
+}
+.tec-route-stop__tools {
+  display: flex;
+  gap: var(--space-1);
+  justify-content: flex-end;
+}
+.tec-compare {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.tec-compare__order {
+  margin: 0;
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.tec-reasons {
+  margin: 0;
+  padding-left: var(--space-5);
+  color: var(--color-text-secondary);
+}

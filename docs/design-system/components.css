@@ -340,6 +340,7 @@ body {
 .ac-map__zone--4 { fill: var(--map-zone-4); stroke: var(--map-zone-4); }
 .ac-map__zone--5 { fill: var(--map-zone-5); stroke: var(--map-zone-5); }
 .ac-map__zone--6 { fill: var(--map-zone-6); stroke: var(--map-zone-6); }
+.ac-map__zone--muted { fill: var(--map-muted); stroke: var(--map-muted); fill-opacity: 0.08; }
 .ac-map__route { fill: none; stroke: var(--map-route); stroke-width: 3; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; }
 .ac-map__draft { fill: var(--color-primary); fill-opacity: 0.08; stroke: var(--color-primary); stroke-width: 2; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
 .ac-map__pin { position: absolute; transform: translate(-50%, -50%); min-width: var(--touch-min); min-height: var(--touch-min); display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; background: transparent; cursor: pointer; --pin-color: var(--color-text-secondary); }

@@ -502,6 +502,8 @@ export async function loadBoard(branchId: number, date: string, now = new Date()
       legalDongCode: r.legalDongCode,
       devices: devices.get(r.o.id) ?? [],
       urgent: isUnassignedUrgent(r.o, now, alertHours),
+      /** 단계 4-2: 기사 자가 배정 요청이 승인 대기 중 (A-DSP-020 [자가 배정 요청]에서 처리) */
+      selfRequested: as.some((a) => a.status === 'REQUESTED' && a.assignMethod === 'SELF'),
       internalNote: r.o.internalNote,
       customerRequest: r.o.customerRequest,
       assignments: as.map((a) => ({ id: a.id, technicianId: a.technicianId, role: a.role, status: a.status })),
@@ -531,6 +533,7 @@ export async function loadBoard(branchId: number, date: string, now = new Date()
       unassigned: counts.find((c) => c.status === 'ASSIGN_WAIT')?.n ?? 0,
       pending: counts.find((c) => c.status === 'PENDING')?.n ?? 0,
       urgent: cards.filter((c) => c.urgent).length,
+      selfRequested: cards.filter((c) => c.selfRequested).length,
     },
     alertHours,
   };
