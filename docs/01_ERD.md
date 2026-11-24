@@ -1017,17 +1017,26 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 | id | BIGINT | PK | | |
 | work_order_id | BIGINT | FK, NN | | |
 | surcharge_rule_id | BIGINT | FK→surcharge_rule | 사전 공개 규칙 기반이면 연결 | |
-| charge_type | VARCHAR(20) | NN | `RULE`(사전공개 규칙), `MATERIAL`(자재구매), `ETC`(기타·관리자 승인 필요) | |
+| charge_type | VARCHAR(20) | NN | `RULE`(사전공개 규칙), `MATERIAL`(자재구매), `ETC`(기타·관리자 승인 필요), `DEVICE_ADD`(현장 기기 추가, 단계 5-2) | 코드 `EXTRA_CHARGE_TYPE` |
 | title | VARCHAR(100) | NN | 항목명 | 오염 심함 추가 세척 |
-| amount | INT | NN | 금액 | |
+| quantity | SMALLINT | NN, 기본 1 | 추가 대수(`DEVICE_ADD`, 단계 5-2) | |
+| base_order_item_id | BIGINT | FK→order_item | 추가할 기기의 기준 주문 항목(`DEVICE_ADD`). 금액 = 그 항목의 스냅샷 단가 × 대수(BR-014) | |
+| order_item_id | BIGINT | FK→order_item | 고객이 동의해 새로 만든 주문 항목(`DEVICE_ADD`). 사진·결과 칸이 늘어남 | |
+| amount | INT | NN | 금액(1원 이상) | |
 | reason | VARCHAR(300) | NN | 사유 | |
-| evidence_file_id | BIGINT | FK→attachment | 증빙(사진) | |
-| customer_agreed | BOOLEAN | NN | 고객 동의 여부 | |
-| agreed_method | VARCHAR(20) | | `APP_CONFIRM`, `SIGNATURE`, `VERBAL` | |
-| agreed_at | DATETIME | | | |
-| approval_status | VARCHAR(20) | | ETC 유형일 때 관리자 승인 | `NOT_REQUIRED`, `REQUESTED`, `APPROVED`, `REJECTED` |
+| evidence_file_id | BIGINT | FK→attachment | 증빙(사진). `MATERIAL`·`ETC`는 필수 | |
+| customer_agreed | BOOLEAN | NN, 기본 false | 고객 동의 여부 | |
+| agreed_method | VARCHAR(20) | | `APP_CONFIRM`(고객 앱), `SIGNATURE`(현장 서명) — 코드 `EXTRA_AGREED_METHOD` | |
+| agreed_at | DATETIME | | 고객이 **응답한** 시각(동의·거절 모두). 비어 있으면 응답 전 | |
+| signature_file_id | BIGINT | FK→attachment | 현장 서명 이미지(`SIGNATURE`, 단계 5-2) | |
+| approval_status | VARCHAR(20) | NN | BR-042 `ETC`만 `REQUESTED`로 시작, 나머지 `NOT_REQUIRED` | `NOT_REQUIRED`, `REQUESTED`, `APPROVED`, `REJECTED` (코드 `EXTRA_APPROVAL_STATUS`) |
 | approved_by | BIGINT | FK→admin_user | | |
+| approved_at | DATETIME | | 승인·반려 시각(단계 5-2) | |
+| reject_reason | VARCHAR(300) | | 반려 사유(반려 시 필수, 단계 5-2) | |
+| deleted_at | DATETIME | | 기사 철회(응답 전만) | |
 | 공통컬럼 | | | | |
+
+> 단계 5-2 상태(별도 컬럼 없음, `packages/domain` `extraChargeState`): `deleted_at` 있음 → 철회 / `approval_status`=`REQUESTED` → 관리자 승인 대기 / `REJECTED` → 반려(청구 안 함) / `agreed_at` 없음 → 고객 동의 대기 / `customer_agreed` 참 → 동의, 거짓 → 거절(청구 안 함). BR-040: 동의한 금액 합계만 `work_order.extra_amount`·`service_order.extra_amount`로 청구합니다. 응답 전(승인 대기 포함) 추가요금이 있으면 완료할 수 없고(F-TEC-WRK-07 ④), 미처리로 저장하면 응답 전 추가요금은 자동 철회됩니다. 고객 응답은 작업이 도착·작업중일 때만 받습니다. 증빙·서명 파일은 `attachment.ref_type`=`EXTRA_CHARGE`(서명은 `SIGNATURE`)로 두고, 고객 본인·담당 기사·A-PRC-040 조회 권한 관리자(거점 범위)만 봅니다.
 
 #### 2.9.5 `material_usage` — 자재 사용(MCS '오늘의 자재')
 `id`, `work_order_id`(FK), `material_id`(FK), `quantity`, `unit_cost`, `charge_to_customer`(BOOLEAN), `sale_amount`, 공통컬럼
@@ -1147,7 +1156,7 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 ### D12. CRM·마케팅·품질
 
 #### 2.12.1 `notification_template` — 알림 템플릿
-`id`, `template_code`(UK, `ORDER_CONFIRMED`, `ORDER_CHANGED`(일정 변경, 단계 2), `ORDER_CANCELED`(취소, 단계 2), `VISIT_REMINDER`(방문 전날 18:00, 단계 2), `TECH_ASSIGNED`, `ON_THE_WAY`, `WORK_DONE`, `PAYMENT_DONE`, `REVISIT_11M`, `REVIEW_REQUEST`, `AREA_OPENED`(서비스 지역 오픈 안내, F-ADM-DSP-11), 단계 4-1: `TECH_ASSIGNED`(고객 기사 배정 안내, `#{기사명}`), `TECH_JOB_ASSIGNED`·`TECH_JOB_CHANGED`·`TECH_TRANSFER_REJECTED`(기사 앱 푸시), `UNASSIGNED_WARNING`(운영자 미지정 경고 푸시, F-SYS-09), 단계 4-2: `VISIT_TIME_NOTICE`·`VISIT_TIME_CHANGED`(고객 방문 예정 시간 안내·변경, `#{방문예정}`), `ROUTE_DRAFT_READY`·`ROUTE_CONFIRM_REMIND`·`ROUTE_AUTO_CONFIRMED`(기사 코스 푸시, `#{코스일자}`·`#{방문건수}`), `SELF_ASSIGN_REQUESTED`(운영자)·`SELF_ASSIGN_APPROVED`·`SELF_ASSIGN_REJECTED`(기사 푸시), 단계 5-1: `ON_THE_WAY`(기사 출발·도착 예정, `#{기사명}`·`#{도착예정}`), `WORK_DONE`(작업 완료·리포트, `#{리포트링크}`·`#{금액}`)), `channel`(`ALIMTALK`/`SMS`/`PUSH`/`EMAIL`), `target`(`CUSTOMER`/`TECHNICIAN`/`ADMIN`), `title`, `body`(치환변수 `#{고객명}` 등), `kakao_template_id`, `is_active`, 공통컬럼
+`id`, `template_code`(UK, `ORDER_CONFIRMED`, `ORDER_CHANGED`(일정 변경, 단계 2), `ORDER_CANCELED`(취소, 단계 2), `VISIT_REMINDER`(방문 전날 18:00, 단계 2), `TECH_ASSIGNED`, `ON_THE_WAY`, `WORK_DONE`, `PAYMENT_DONE`, `REVISIT_11M`, `REVIEW_REQUEST`, `AREA_OPENED`(서비스 지역 오픈 안내, F-ADM-DSP-11), 단계 4-1: `TECH_ASSIGNED`(고객 기사 배정 안내, `#{기사명}`), `TECH_JOB_ASSIGNED`·`TECH_JOB_CHANGED`·`TECH_TRANSFER_REJECTED`(기사 앱 푸시), `UNASSIGNED_WARNING`(운영자 미지정 경고 푸시, F-SYS-09), 단계 4-2: `VISIT_TIME_NOTICE`·`VISIT_TIME_CHANGED`(고객 방문 예정 시간 안내·변경, `#{방문예정}`), `ROUTE_DRAFT_READY`·`ROUTE_CONFIRM_REMIND`·`ROUTE_AUTO_CONFIRMED`(기사 코스 푸시, `#{코스일자}`·`#{방문건수}`), `SELF_ASSIGN_REQUESTED`(운영자)·`SELF_ASSIGN_APPROVED`·`SELF_ASSIGN_REJECTED`(기사 푸시), 단계 5-1: `ON_THE_WAY`(기사 출발·도착 예정, `#{기사명}`·`#{도착예정}`), `WORK_DONE`(작업 완료·리포트, `#{리포트링크}`·`#{금액}`), 단계 5-2: `EXTRA_CHARGE_REQUEST`(고객 추가요금 동의 요청, `#{추가요금}`·`#{동의링크}`), `PENDING_ABSENT`(고객 방문 부재 안내), `EXTRA_CHARGE_RESULT`(기사 푸시, `#{결과}`), `EXTRA_APPROVAL_REQUESTED`·`PENDING_OVERDUE`(운영자 푸시)), `channel`(`ALIMTALK`/`SMS`/`PUSH`/`EMAIL`), `target`(`CUSTOMER`/`TECHNICIAN`/`ADMIN`), `title`, `body`(치환변수 `#{고객명}` 등), `kakao_template_id`, `is_active`, 공통컬럼
 
 #### 2.12.2 `notification_log` — 알림 발송 이력
 `id`, `template_id`(FK), `receiver_type`, `receiver_id`, `receiver_phone_masked`, `channel`, `related_type`(`ORDER`/`CAMPAIGN`/...), `related_id`, `status`(`QUEUED`/`SENT`/`FAILED`/`FALLBACK_SMS`), `sent_at`, `fail_reason`, `created_at`(단계 2 추가: 실패 건도 시각을 남기고 고객 알림함 C-NTF-010 정렬에 사용)
@@ -1265,7 +1274,7 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 `id`, `actor_type`, `actor_id`, `action`(`VIEW_PII`/`EXPORT`/`UPDATE`/`DELETE`/`LOGIN`/`PERMISSION_CHANGE`), `target_table`, `target_id`(VARCHAR(50): 문자열 PK 테이블 대응), `ip_address`, `user_agent`, `detail_json`, `created_at`. **INSERT ONLY**: DB 트리거로 UPDATE·DELETE를 막습니다.
 
 #### 2.13.8 `system_setting` — 시스템 설정(키-값)
-`setting_key`(PK, 예: `QUOTE_EXPIRE_DAYS`=7, `REVISIT_MONTHS`=11, `PURGE_YEARS`=…, `SETTLEMENT_WEEKDAY`=`WED`, `POPUP_DEFAULT_TIME`=08:30, `DUPLICATE_CHECK_DAYS`=30, `ROUTE_CONFIRM_DEADLINE`=전날 18:00, `ROUTE_TRAVEL_BUFFER_MIN`=10, `ARRIVAL_WINDOW_HOURS`=2, `LOCATION_INTERVAL_SEC`=60, `LOCATION_RETENTION_DAYS`=90, `SELF_ASSIGN_ENABLED`=거점별 Y/N, `SELF_ASSIGN_NEEDS_APPROVAL`=Y, `ADMIN_LOGIN_MAX_FAIL`=5, `ADMIN_PASSWORD_MIN_LENGTH`=8, `QUOTE_SITE_SURVEY_MIN_UNITS`=4(시스템·천장형 합계가 이 대수 이상이면 "현장 확인 견적" 안내, 단계 1), 단계 2: `SLOT_DAYS_AHEAD`=14(슬롯 자동 생성·고객 달력 일수), `SLOT_JOBS_PER_TECH_HOUR`=1(기사 1명 시간당 처리 건수), `WORK_DEFAULT_START`=09:00·`WORK_DEFAULT_END`=18:00(근무 시간을 비운 일정의 기본값, 반차는 가운데 시각으로 나눔), `CANCEL_FEE_HOURS`=24·`CANCEL_FEE_AMOUNT`=0(BR-030 방문 N시간 전부터 취소 수수료, 금액은 운영사가 정함), `TERMS_VERSION`=v1.0(동의 이력에 남는 약관 버전), `AREA_OPEN_REQUEST_KEEP_DAYS`=365(오픈 알림 신청 대기 보관일, 지나면 EXPIRED·연락처 삭제, BR-003), 단계 3: `PRIVACY_REASK_MONTHS`=12(BR-023 미동의 고객 재질의 주기, 개월), 단계 4-1: `ASSIGN_TRAVEL_BUFFER_MIN`=30(배정 시간 겹침 판단 때 앞뒤 이동 여유, 분), `TECH_ACCOMPANY_COUNT`=3(신규 기사 등록 시 `accompany_required_count` 기본값, BR-071), `UNASSIGNED_ALERT_HOURS`=4(약속 N시간 이내 미지정 경고, F-SYS-09), `TECH_LOGIN_MAX_FAIL`=5(기사 비밀번호 연속 실패 잠금), `TECH_PASSWORD_MIN_LENGTH`=8(기사 비밀번호 최소 길이), 단계 4-2: `SELF_ASSIGN_DAYS_AHEAD`=7(기사 관할 지도에 보이는 미배정 작업의 약속 범위, 오늘부터 N일), `ROUTE_BREAK_DEFAULT_MIN`=60(코스에 넣는 휴식 기본 분), `ZONE_DONG_RADIUS_M`=600(법정동 선택 구역의 동 중심 반경 근사, m), 단계 5-1: `WORK_NOTE_MIN_LENGTH`=10(처리 저장 때 처리 내용 최소 글자 수, 공백 제외), `WORK_PHOTO_CAMERA_ONLY`=N(Y면 작업 사진을 카메라 촬영으로만 받음)), `setting_value`, `description`, `updated_at`, `updated_by`
+`setting_key`(PK, 예: `QUOTE_EXPIRE_DAYS`=7, `REVISIT_MONTHS`=11, `PURGE_YEARS`=…, `SETTLEMENT_WEEKDAY`=`WED`, `POPUP_DEFAULT_TIME`=08:30, `DUPLICATE_CHECK_DAYS`=30, `ROUTE_CONFIRM_DEADLINE`=전날 18:00, `ROUTE_TRAVEL_BUFFER_MIN`=10, `ARRIVAL_WINDOW_HOURS`=2, `LOCATION_INTERVAL_SEC`=60, `LOCATION_RETENTION_DAYS`=90, `SELF_ASSIGN_ENABLED`=거점별 Y/N, `SELF_ASSIGN_NEEDS_APPROVAL`=Y, `ADMIN_LOGIN_MAX_FAIL`=5, `ADMIN_PASSWORD_MIN_LENGTH`=8, `QUOTE_SITE_SURVEY_MIN_UNITS`=4(시스템·천장형 합계가 이 대수 이상이면 "현장 확인 견적" 안내, 단계 1), 단계 2: `SLOT_DAYS_AHEAD`=14(슬롯 자동 생성·고객 달력 일수), `SLOT_JOBS_PER_TECH_HOUR`=1(기사 1명 시간당 처리 건수), `WORK_DEFAULT_START`=09:00·`WORK_DEFAULT_END`=18:00(근무 시간을 비운 일정의 기본값, 반차는 가운데 시각으로 나눔), `CANCEL_FEE_HOURS`=24·`CANCEL_FEE_AMOUNT`=0(BR-030 방문 N시간 전부터 취소 수수료, 금액은 운영사가 정함), `TERMS_VERSION`=v1.0(동의 이력에 남는 약관 버전), `AREA_OPEN_REQUEST_KEEP_DAYS`=365(오픈 알림 신청 대기 보관일, 지나면 EXPIRED·연락처 삭제, BR-003), 단계 3: `PRIVACY_REASK_MONTHS`=12(BR-023 미동의 고객 재질의 주기, 개월), 단계 4-1: `ASSIGN_TRAVEL_BUFFER_MIN`=30(배정 시간 겹침 판단 때 앞뒤 이동 여유, 분), `TECH_ACCOMPANY_COUNT`=3(신규 기사 등록 시 `accompany_required_count` 기본값, BR-071), `UNASSIGNED_ALERT_HOURS`=4(약속 N시간 이내 미지정 경고, F-SYS-09), `TECH_LOGIN_MAX_FAIL`=5(기사 비밀번호 연속 실패 잠금), `TECH_PASSWORD_MIN_LENGTH`=8(기사 비밀번호 최소 길이), 단계 4-2: `SELF_ASSIGN_DAYS_AHEAD`=7(기사 관할 지도에 보이는 미배정 작업의 약속 범위, 오늘부터 N일), `ROUTE_BREAK_DEFAULT_MIN`=60(코스에 넣는 휴식 기본 분), `ZONE_DONG_RADIUS_M`=600(법정동 선택 구역의 동 중심 반경 근사, m), 단계 5-1: `WORK_NOTE_MIN_LENGTH`=10(처리 저장 때 처리 내용 최소 글자 수, 공백 제외), `WORK_PHOTO_CAMERA_ONLY`=N(Y면 작업 사진을 카메라 촬영으로만 받음), 단계 5-2: `PENDING_OVERDUE_HOURS`=48(미처리 후 이 시간이 지나면 장기 미처리 강조·운영자 알림, BR-032 F-SYS-08)), `setting_value`, `description`, `updated_at`, `updated_by`
 
 ---
 
@@ -1307,6 +1316,8 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 | PENDING | PENDING (단계 5-2) |
 
 작업 상태 자체는 별도 이력 테이블 없이 `departed_at`·`arrived_at`·`started_at`·`finished_at`으로 남깁니다. 같은 때 코스 정류장(`route_stop`)의 `actual_departure`·`actual_arrival`·`status`도 맞추고, 코스가 `CONFIRMED`면 첫 출발 때 `IN_PROGRESS`, 마지막 정류장 완료 때 `DONE`이 됩니다.
+
+단계 5-2 미처리(F-TEC-WRK-08): 기사가 출발 전·이동중·도착·작업중 어느 때든 [미처리 저장]하면 `work_order.status`=`PENDING`(`pending_code`=`PENDING_REASON`), 주문은 `PENDING`(`order_status_history.reason_code`·`memo`에 사유·재약속 희망일), 코스 정류장은 `SKIPPED`(코스의 남은 정류장이 없으면 코스 `DONE`). 고객부재면 고객에게 `PENDING_ABSENT`를 보냅니다. BR-031 고객부재 연속 횟수(`order_status_history`의 `CUSTOMER_ABSENT` 연속 건수)가 2회 이상이면 "운영자 확인 필요"를 안내하고, 재약속 때 막는 것은 단계 6(A-PRC-050)에서 합니다. BR-032 `PENDING` 진입 후 `PENDING_OVERDUE_HOURS`가 지나면 목록에서 `overdue48h` 배지로 강조하고, F-SYS-08 배치가 운영자에게 1회 알립니다.
 
 ### 3.3 정산 상태
 `settlement_batch`: `DRAFT → CALCULATED → CONFIRMED → PAID → CLOSED`
@@ -1487,6 +1498,9 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 | `SAFETY_CHECK` | HIGH_PLACE 고소작업 안전 / ELECTRIC 전원 차단·누전 확인 / PROTECTIVE 보호구 착용 / CHEMICAL 세척 약품 희석·환기 확인 | 안전 체크리스트 항목(BR-043, T-WRK-011) |
 | `PHOTO_TYPE` | BEFORE 작업 전 / DURING 작업 중 / AFTER 작업 후 / ISSUE 이상 발견 / SAFETY 안전관리 / RECEIPT 증빙 | work_photo.photo_type |
 | `WORK_RESULT` | DONE 완료 / PARTIAL 일부 / SKIPPED 작업 불가 | work_result.result |
+| `EXTRA_CHARGE_TYPE` | RULE 사전공개 규칙 / MATERIAL 자재 구매 / ETC 기타(관리자 승인) / DEVICE_ADD 현장 기기 추가 | extra_charge.charge_type (단계 5-2) |
+| `EXTRA_AGREED_METHOD` | APP_CONFIRM 고객 앱 동의 / SIGNATURE 현장 서명 | extra_charge.agreed_method (단계 5-2) |
+| `EXTRA_APPROVAL_STATUS` | NOT_REQUIRED 승인 불필요 / REQUESTED 승인 대기 / APPROVED 승인 / REJECTED 반려 | extra_charge.approval_status (단계 5-2, BR-042) |
 | `DIRT_LEVEL` | LOW 양호 / MID 보통 / HIGH 심함 | work_order.dirt_level |
 | `ACTIVITY_TYPE` | CALL 통화 / SMS 문자 / VISIT_TRY 방문 시도 / NOTE 메모 / PHOTO 사진 / STATUS 상태 변경 | activity_log.activity_type |
 

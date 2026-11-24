@@ -21,7 +21,8 @@ export function TechJobCard({ job: j, showDate }: { job: TechJob; showDate?: boo
   return (
     <Link href={`/tech/jobs/${j.orderNo}`} className={`tec-job-card${done ? ' is-done' : ''}`}>
       <div className="tec-job-card__top">
-        <StatusBadge code={j.status} audience="staff" />
+        <StatusBadge code={j.status} audience="staff" overdue48h={j.overdue48h} />
+        {j.overdue48h ? <Tag tone="danger">장기 미처리</Tag> : null}
         {ROLE[j.role] ? <Tag>{ROLE[j.role]}</Tag> : null}
         {j.transferRequested ? <Tag tone="warning">이관 요청 중</Tag> : null}
         <span className="tec-job-card__time ac-num">

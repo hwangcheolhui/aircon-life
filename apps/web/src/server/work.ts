@@ -4,15 +4,35 @@ import 'server-only';
  * - 작업 건(work_order)은 주문 1건당 1개, 출발할 때 만든다. 작업 상태 변경은 assertWorkTransition(01 §3.2)을 거치고,
  *   주문 상태는 orderStatusForWork → transitionOrder(전이표 + order_status_history 1행)로 같이 바꾼다.
  * - 출발·도착·완료 처리는 주기사만, 활동내역은 확정 배정된 기사 누구나. 작업은 자기에게 확정된 배정(ACCEPTED·TRANSFER_REQUESTED)만.
- * - 완료 필수 검증은 packages/domain checkCompletion(BR-041·043, F-TEC-WRK-07). 동의 안 된 추가요금은 금액에 넣지 않는다(BR-040, 추가요금은 단계 5-2).
+ * - 완료 필수 검증은 packages/domain checkCompletion(BR-041·043, F-TEC-WRK-07). 동의 안 된 추가요금은 금액에 넣지 않는다(BR-040).
+ * - 단계 5-2: 응답 전 추가요금(승인 대기 포함)이 있으면 완료를 막고(F-TEC-WRK-07 ④), 미처리 저장(F-TEC-WRK-08, BR-031)은 어느 단계에서든.
  * - 사진·서명 파일은 저장소 어댑터(STORAGE_DRIVER)에 두고 /api/files/{id} 로 권한을 확인해 내려준다.
  */
-import { activityLog, assignment, attachment, orderItem, serviceOrder, technician, workOrder, workPhoto, workResult } from '@aircon/db';
+import {
+  activityLog,
+  assignment,
+  attachment,
+  extraCharge,
+  orderItem,
+  orderStatusHistory,
+  serviceOrder,
+  technician,
+  workOrder,
+  workPhoto,
+  workResult,
+} from '@aircon/db';
 import {
   ACTIVE_WORK_STATUSES,
   CONFIRMED_ASSIGN_STATUSES,
   SETTING_KEYS,
   type WorkStatus,
+  type BranchFilter,
+  absentStreak,
+  extraChargeState,
+  agreedExtraTotal,
+  checkPendingInput,
+  needsOperatorConfirm,
+  pendingExtraCount,
   assertWorkTransition,
   canSeeWorkReport,
   checkCompletion,
@@ -28,7 +48,7 @@ import {
 } from '@aircon/domain';
 import { and, asc, desc, eq, inArray, isNull, ne } from 'drizzle-orm';
 import { formatClock } from '@/customer/format';
-import { UserError } from './action-result';
+import { UserError, ValidationFailed } from './action-result';
 import { saveAttachment } from './attachments';
 import { getDb } from './db';
 import { notifyOrder } from './notify';
@@ -45,25 +65,25 @@ export const fileUrl = (id: number) => `/api/files/${id}`;
 
 /* ---------- 공통 ---------- */
 
-async function mine(techId: number, orderNo: string) {
+export async function mine(techId: number, orderNo: string) {
   const m = await myAssignment(techId, orderNo);
   if (!m) throw new UserError('내 작업이 아닙니다.');
   return m;
 }
 
-async function mainOnly(techId: number, orderNo: string) {
+export async function mainOnly(techId: number, orderNo: string) {
   const m = await mine(techId, orderNo);
   if (m.a.role !== 'MAIN') throw new UserError('출발·완료 처리는 주기사만 할 수 있습니다.');
   return m;
 }
 
-async function workOf(db: ReturnType<typeof getDb> | Tx, orderId: number): Promise<WorkRow | null> {
+export async function workOf(db: ReturnType<typeof getDb> | Tx, orderId: number): Promise<WorkRow | null> {
   const [w] = await db.select().from(workOrder).where(eq(workOrder.orderId, orderId));
   return w ?? null;
 }
 
 /** 작업 상태 변경의 유일한 경로: 작업 전이 검사 → 조건부 UPDATE → 주문 상태 동기화(이력 1행) */
-async function transitionWork(
+export async function transitionWork(
   tx: Tx,
   w: Pick<WorkRow, 'id' | 'status'>,
   o: Pick<OrderRow, 'id' | 'status'>,
@@ -93,11 +113,22 @@ async function teamSizeOf(orderId: number) {
 }
 
 /** 기기 단위 (주문 상품 항목 × 수량), 표시명은 견적 스냅샷 이름(BR-014) */
-async function unitsOf(o: Pick<OrderRow, 'id' | 'quoteId'>) {
+export async function unitsOf(o: Pick<OrderRow, 'id' | 'quoteId'>) {
   const db = getDb();
   const items = await db.select().from(orderItem).where(eq(orderItem.orderId, o.id)).orderBy(asc(orderItem.id));
   const names = await itemNames(o.quoteId);
-  return { items, units: workUnits(items.map((i) => ({ ...i, name: names(i) }))) };
+  // 현장 기기 추가(단계 5-2)로 생긴 항목은 이름 뒤에 표시
+  const added = items.length
+    ? new Set(
+        (
+          await db
+            .select({ id: extraCharge.orderItemId })
+            .from(extraCharge)
+            .where(inArray(extraCharge.orderItemId, items.map((i) => i.id)))
+        ).map((r) => r.id),
+      )
+    : new Set<number | null>();
+  return { items, units: workUnits(items.map((i) => ({ ...i, name: added.has(i.id) ? `${names(i)}(현장 추가)` : names(i) }))) };
 }
 
 /* ---------- 화면 데이터 (T-WRK-010~060) ---------- */
@@ -143,15 +174,22 @@ export async function getWorkState(techId: number, orderNo: string) {
 }
 export type WorkState = NonNullable<Awaited<ReturnType<typeof getWorkState>>>;
 
+/** 작업의 추가요금 (BR-040 동의 합계 · 응답 전 건수) */
+export async function extrasOf(workOrderId: number | null) {
+  const rows = workOrderId ? await getDb().select().from(extraCharge).where(eq(extraCharge.workOrderId, workOrderId)) : [];
+  return { agreed: agreedExtraTotal(rows), pending: pendingExtraCount(rows) };
+}
+
 /** 완료 화면의 필수값 체크 결과 (서버 저장과 같은 검증) */
 export async function completionCheck(s: WorkState, workNote: string | null) {
+  const extras = await extrasOf(s.work?.id ?? null);
   return checkCompletion({
     workStatus: s.work?.status ?? 'READY',
     units: s.units,
     results: s.results,
     photos: s.photos,
     safetyDone: Boolean(s.work?.safetyChecklistDone),
-    pendingExtraCharges: 0,
+    pendingExtraCharges: extras.pending,
     workNote,
     noteMinLength: await getSettingNumber(SETTING_KEYS.WORK_NOTE_MIN_LENGTH),
   });
@@ -367,8 +405,8 @@ export async function completeWork(
   const results = s.results.map((r) => r.result);
   const db = getDb();
   const [o] = await db.select().from(serviceOrder).where(eq(serviceOrder.id, s.orderId));
-  // 작업비 = 주문 금액(상품·옵션·할증·할인 반영). 동의된 추가요금·자재·현장 할인은 단계 5-2·9에서 붙는다(BR-040)
-  const agreedExtra = 0;
+  // 작업비 = 주문 금액(상품·옵션·할증·할인 반영) + 고객이 동의한 추가요금만(BR-040). 자재·현장 할인은 단계 9
+  const agreedExtra = (await extrasOf(w.id)).agreed;
   const final = finalAmount({ laborAmount: o!.totalAmount, agreedExtra, materialAmount: w.materialAmount, discountAmount: w.discountAmount });
   await db.transaction(async (tx) => {
     const sig = signature ? await saveAttachment(signature, 'SIGNATURE', w.id, { type: 'TECHNICIAN', id: techId }, tx) : null;
@@ -402,6 +440,63 @@ export async function completeWork(
   });
   await notifyOrder('WORK_DONE', o!.id, { 리포트링크: reportUrl(o!.orderNo) });
   return { done: true };
+}
+
+/* ---------- F-TEC-WRK-08 미처리 저장 ---------- */
+
+/**
+ * 어느 단계에서든(출발 전 배정완료 포함) 미처리로 저장: 작업 PENDING, 주문 PENDING + pending_reason, 이력 1행(사유·메모).
+ * 응답 전 추가요금은 자동 철회. 고객부재면 고객에게 부재 안내. BR-031 고객부재 2회 연속이면 운영자 확인 필요로 표시.
+ */
+export async function savePending(
+  techId: number,
+  v: { orderNo: string; pendingCode: string; memo: string | null; revisitDate: string | null },
+  now = new Date(),
+) {
+  const m = await mainOnly(techId, v.orderNo);
+  const errors = checkPendingInput({ pendingCode: v.pendingCode, memo: v.memo ?? '', revisitDate: v.revisitDate, today: kstDate(now) });
+  if (Object.keys(errors).length) throw new ValidationFailed(errors);
+  const o = m.o;
+  if (!['ASSIGNED', 'ON_THE_WAY', 'IN_PROGRESS'].includes(o.status)) throw new UserError('지금 상태에서는 미처리로 저장할 수 없습니다.');
+  const actor: Actor = { type: 'TECHNICIAN', id: techId };
+  const memo = [v.memo, v.revisitDate ? `재약속 희망일 ${v.revisitDate}` : null].filter(Boolean).join(' / ').slice(0, 500) || null;
+  const db = getDb();
+  await db.transaction(async (tx) => {
+    let w = await workOf(tx, o.id);
+    if (!w) {
+      assertWorkTransition(null, 'READY');
+      const [created] = await tx
+        .insert(workOrder)
+        .values({ orderId: o.id, mainTechnicianId: techId, status: 'READY', createdBy: techId, updatedBy: techId })
+        .returning();
+      w = created!;
+    }
+    assertWorkTransition(w.status, 'PENDING');
+    const rows = await tx
+      .update(workOrder)
+      .set({ status: 'PENDING', pendingCode: v.pendingCode, finishedAt: now, updatedAt: now, updatedBy: techId })
+      .where(and(eq(workOrder.id, w.id), eq(workOrder.status, w.status)))
+      .returning({ id: workOrder.id });
+    if (!rows.length) throw new UserError('다른 곳에서 먼저 처리된 작업입니다. 새로고침 후 다시 확인해 주세요.');
+    await transitionOrder(tx, o, 'PENDING', actor, { reasonCode: v.pendingCode, memo, set: { pendingReason: v.pendingCode } });
+    await tx
+      .update(extraCharge)
+      .set({ deletedAt: now, updatedAt: now, updatedBy: techId })
+      .where(and(eq(extraCharge.workOrderId, w.id), isNull(extraCharge.agreedAt), isNull(extraCharge.deletedAt)));
+    await markRouteStop(tx, techId, o.id, kstDate(now), { type: 'SKIP' }, now);
+  });
+  if (v.pendingCode === 'CUSTOMER_ABSENT') await notifyOrder('PENDING_ABSENT', o.id);
+  return { operatorConfirm: needsOperatorConfirm(await absentStreakOf(o.id)) };
+}
+
+/** BR-031 직전까지 이어진 고객부재 미처리 횟수 */
+export async function absentStreakOf(orderId: number) {
+  const h = await getDb()
+    .select({ toStatus: orderStatusHistory.toStatus, reasonCode: orderStatusHistory.reasonCode })
+    .from(orderStatusHistory)
+    .where(eq(orderStatusHistory.orderId, orderId))
+    .orderBy(asc(orderStatusHistory.id));
+  return absentStreak(h);
 }
 
 /* ---------- F-TEC-WRK-09 활동내역 ---------- */
@@ -488,6 +583,7 @@ export async function canViewAttachment(
   viewer: { type: 'TECHNICIAN' | 'CUSTOMER'; id: number },
   photoType: string | null,
 ): Promise<boolean> {
+  if (a.refType === 'EXTRA_CHARGE' && a.refId !== null) return canViewExtraFile(a.refId, viewer);
   if ((a.refType !== 'WORK_PHOTO' && a.refType !== 'SIGNATURE') || a.refId === null) return false;
   const db = getDb();
   const [row] = await db
@@ -506,6 +602,32 @@ export async function canViewAttachment(
   );
 }
 
+/** 추가요금 증빙·서명 (단계 5-2): 기사 = 확정 배정, 고객 = 본인 주문이고 고객에게 보이는 추가요금(승인 대기·반려·철회 제외) */
+async function canViewExtraFile(chargeId: number, viewer: { type: 'TECHNICIAN' | 'CUSTOMER'; id: number }) {
+  const [r] = await getDb()
+    .select({ orderNo: serviceOrder.orderNo, customerId: serviceOrder.customerId, c: extraCharge })
+    .from(extraCharge)
+    .innerJoin(workOrder, eq(workOrder.id, extraCharge.workOrderId))
+    .innerJoin(serviceOrder, eq(serviceOrder.id, workOrder.orderId))
+    .where(eq(extraCharge.id, chargeId));
+  if (!r) return false;
+  if (viewer.type === 'TECHNICIAN') return Boolean(await myAssignment(viewer.id, r.orderNo));
+  const st = extraChargeState(r.c);
+  return r.customerId === viewer.id && ['WAIT_CUSTOMER', 'AGREED', 'DECLINED'].includes(st);
+}
+
+/** 관리자 열람 (단계 5-2 A-PRC-040 추가요금 증빙): 거점 범위(BR-102) 안의 주문 */
+export async function adminCanViewExtraFile(a: { refType: string; refId: number | null }, filter: BranchFilter) {
+  if (a.refType !== 'EXTRA_CHARGE' || a.refId === null || filter.kind === 'NONE') return false;
+  const [r] = await getDb()
+    .select({ branchId: serviceOrder.branchId })
+    .from(extraCharge)
+    .innerJoin(workOrder, eq(workOrder.id, extraCharge.workOrderId))
+    .innerJoin(serviceOrder, eq(serviceOrder.id, workOrder.orderId))
+    .where(eq(extraCharge.id, a.refId));
+  return Boolean(r && (filter.kind === 'ALL' || filter.branchId === r.branchId));
+}
+
 export async function photoTypeOfFile(fileId: number): Promise<string | null> {
   const [p] = await getDb().select({ t: workPhoto.photoType }).from(workPhoto).where(eq(workPhoto.fileId, fileId));
   return p?.t ?? null;
@@ -514,5 +636,5 @@ export async function photoTypeOfFile(fileId: number): Promise<string | null> {
 /** 작업 상세 화면 요약 (T-JOB-020 [작업 시작/이어서] 버튼) */
 export async function workSummary(orderId: number) {
   const w = await workOf(getDb(), orderId);
-  return w ? { status: w.status } : null;
+  return w ? { status: w.status, pendingCode: w.pendingCode } : null;
 }

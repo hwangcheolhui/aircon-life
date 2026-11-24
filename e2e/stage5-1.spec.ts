@@ -224,6 +224,9 @@ test('BR-041 작업 후 사진이 없으면 완료가 막히고, 사진·결과�
   await p.getByRole('textbox', { name: '기기 상태' }).first().fill('냉각핀 곰팡이 제거');
   await p.getByRole('combobox', { name: '오염도' }).selectOption('HIGH');
   await p.getByRole('button', { name: '저장하고 다음' }).click();
+  // 단계 5-2: 결과 다음은 추가요금(T-WRK-040) → 처리 저장
+  await expect(p.getByRole('heading', { name: '추가요금' })).toBeVisible({ timeout: 30_000 });
+  await p.getByRole('link', { name: '다음: 처리 저장' }).click();
   await expect(p.getByRole('heading', { name: '처리 저장' })).toBeVisible({ timeout: 30_000 });
   await expect(p.getByText(/작업 후 사진이 없습니다/)).toBeVisible();
   await p.getByRole('textbox', { name: '처리 내용' }).fill('벽걸이 에어컨 완전분해 세척을 마쳤습니다. 냉각핀과 송풍팬 곰팡이를 제거했습니다.');

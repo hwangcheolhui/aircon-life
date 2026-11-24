@@ -1,6 +1,6 @@
 'use client';
 // A-ORD-010 주문 목록 (검색 영역 Enter = 조회, 그리드 더블클릭 = 상세, 03 §6.2)
-import { Button, Empty, Field, Input, Select, StatusBadge } from '@aircon/ui';
+import { Button, Empty, Field, Input, Select, StatusBadge, Tag } from '@aircon/ui';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -21,6 +21,8 @@ interface Row {
   customerName: string;
   phoneMasked: string;
   roadAddress: string;
+  /** BR-032 장기 미처리 */
+  overdue48h: boolean;
 }
 
 export function OrdersScreen(p: {
@@ -133,7 +135,8 @@ export function OrdersScreen(p: {
               {p.rows.map((r) => (
                 <tr key={r.id} tabIndex={0} aria-label="주문 상세 열기" onDoubleClick={() => open(r.id)} onKeyDown={(e) => e.key === 'Enter' && open(r.id)}>
                   <td>
-                    <StatusBadge code={r.status} audience="staff" />
+                    <StatusBadge code={r.status} audience="staff" overdue48h={r.overdue48h} />
+                    {r.overdue48h ? <Tag tone="danger">장기 미처리</Tag> : null}
                   </td>
                   <td className="ac-num">{r.orderNo}</td>
                   <td className="ac-num">{formatDateTime(r.createdAt)}</td>

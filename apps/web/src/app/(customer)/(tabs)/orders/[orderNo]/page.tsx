@@ -1,4 +1,4 @@
-// C-ORD-020 예약 상세 · F-CUS-ORD-02: 상태 타임라인, 방문 예정 시간(단계 4-2: 기사 코스 확정 시각, 단계 5-1: 이동 중이면 도착 예정시각 — 좌표는 보여 주지 않음 BR-115), 작업 리포트 링크(C-ORD-050), 기사 정보(배정 후, 단계 4-1: 고객 표시 이름·소개), 항목·금액, 액션(결제·변경·취소·고객센터)
+// C-ORD-020 예약 상세 · F-CUS-ORD-02: 상태 타임라인, 단계 5-2: 추가요금 동의 요청 안내(C-ORD-040)·동의된 추가요금 금액, 방문 예정 시간(단계 4-2: 기사 코스 확정 시각, 단계 5-1: 이동 중이면 도착 예정시각 — 좌표는 보여 주지 않음 BR-115), 작업 리포트 링크(C-ORD-050), 기사 정보(배정 후, 단계 4-1: 고객 표시 이름·소개), 항목·금액, 액션(결제·변경·취소·고객센터)
 import { canCustomerCancel, canSeeWorkReport } from '@aircon/domain';
 import { Alert, Card, StatusBadge, Tag } from '@aircon/ui';
 import { ChevronLeft } from 'lucide-react';
@@ -7,6 +7,7 @@ import { notFound } from 'next/navigation';
 import { formatClock, formatDateLabel, formatDateTime, formatVisit, formatVisitTime, formatWon } from '@/customer/format';
 import { loadCodes } from '@/server/codes';
 import { requireCustomer } from '@/server/customer-session';
+import { customerExtraCharges } from '@/server/extra-charges';
 import { getCustomerOrder } from '@/server/orders';
 import { customerVisitInfo } from '@/server/route-plans';
 
@@ -18,7 +19,16 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ or
   const me = await requireCustomer(`/orders/${orderNo}`);
   const o = me.demo ? null : await getCustomerOrder(me.id, orderNo);
   if (!o) notFound();
-  const [codes, visit] = await Promise.all([loadCodes(['PAYMENT_STATUS', 'CHANGE_REQUEST_STATUS', 'CHANGE_REQUEST_TYPE']), customerVisitInfo(o.id)]);
+  const [codes, visit, extras] = await Promise.all([
+    loadCodes(['PAYMENT_STATUS', 'CHANGE_REQUEST_STATUS', 'CHANGE_REQUEST_TYPE']),
+    customerVisitInfo(o.id),
+    customerExtraCharges(me.id, orderNo),
+  ]);
+  const waitingExtra = extras?.charges.filter((c) => c.state === 'WAIT_CUSTOMER') ?? [];
+  const agreedExtra = extras?.charges.filter((c) => c.state === 'AGREED') ?? [];
+  const added = new Set(extras?.addedItemIds ?? []);
+  // 완료 전에는 동의된 추가요금을 더해 보여 준다(완료 때 주문 금액에 합쳐진다, BR-040)
+  const total = o.status === 'WORK_DONE' || o.status === 'COMPLETED' ? o.totalAmount : o.totalAmount + (extras?.agreed ?? 0);
   const label = (g: string, v: string) => codes[g]?.find((c) => c.value === v)?.label ?? v;
   const openRequest = o.requests.find((r) => r.status === 'REQUESTED');
   return (
@@ -44,6 +54,12 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ or
           <p className="ac-caption">정확한 도착 시간은 기사님 일정이 확정되면 알려 드려요.</p>
         ) : null}
       </div>
+      {waitingExtra.length && extras?.canRespond ? (
+        <Alert tone="warning">
+          기사님이 추가요금 동의를 요청했어요({waitingExtra.length}건).{' '}
+          <Link href={`/orders/${o.orderNo}/extra`}>확인하기</Link>
+        </Alert>
+      ) : null}
       {openRequest ? (
         <Alert>
           일정 변경 요청을 확인하고 있어요
@@ -92,7 +108,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ or
         <h2 className="ac-h3" style={{ marginTop: 0 }}>
           금액
         </h2>
-        {o.items.map((i) => (
+        {o.items.filter((i) => !added.has(i.id)).map((i) => (
           <div key={i.id} className="cus-amount-row ac-body">
             <span>
               {i.name}
@@ -101,14 +117,25 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ or
             <span className="ac-num">{i.amount < 0 ? `−${formatWon(-i.amount)}` : formatWon(i.amount)}</span>
           </div>
         ))}
+        {agreedExtra.map((c) => (
+          <div key={`x${c.id}`} className="cus-amount-row ac-body">
+            <span>현장 추가: {c.title}</span>
+            <span className="ac-num">{formatWon(c.amount)}</span>
+          </div>
+        ))}
         <div className="cus-amount-row cus-amount-row--total ac-body-lg">
           <span>총 금액</span>
-          <span className="ac-num">{formatWon(o.totalAmount)}</span>
+          <span className="ac-num">{formatWon(total)}</span>
         </div>
         <p className="ac-caption" style={{ marginBottom: 0 }}>
           결제 상태 <Tag>{label('PAYMENT_STATUS', o.paymentStatus)}</Tag>
         </p>
       </Card>
+      {extras?.charges.length ? (
+        <Link href={`/orders/${o.orderNo}/extra`} className="ac-btn ac-btn--ghost ac-btn--block">
+          추가요금 내역 보기
+        </Link>
+      ) : null}
       {canSeeWorkReport(o.status) ? (
         <Link href={`/orders/${o.orderNo}/report`} className="ac-btn ac-btn--outline ac-btn--lg ac-btn--block">
           작업 리포트 보기 (전·후 사진)

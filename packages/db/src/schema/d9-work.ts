@@ -1,6 +1,6 @@
 /**
  * D9 현장작업 (01_ERD §2.9) — 단계 5-1: 작업 건(work_order)·기기별 결과(work_result)·작업 사진(work_photo)·활동 내역(activity_log).
- * 추가요금(extra_charge)은 단계 5-2, 자재(material_usage 등)는 단계 9.
+ * 단계 5-2: 현장 추가요금(extra_charge). 자재(material_usage 등)는 단계 9.
  * 기기 단위: 주문 항목(order_item) 수량만큼 기기가 있고, 결과·사진은 (order_item_id, unit_no)로 기기를 가리킨다(고객 보유 기기 customer_device 는 단계 9).
  */
 import {
@@ -15,10 +15,12 @@ import {
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core';
+import { surchargeRule } from './d3-product';
 import { orderItem, serviceOrder } from './d5-order';
+import { adminUser } from './d1-org';
 import { attachment } from './d13-system';
 import { technician } from './d7-technician';
-import { auditColumns, idColumn } from './common';
+import { auditColumns, idColumn, softDelete } from './common';
 
 /** 2.9.1 작업(현장 처리) 건. 주문 1건당 1개 */
 export const workOrder = pgTable(
@@ -120,4 +122,39 @@ export const activityLog = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('activity_log_order_idx').on(t.orderId, t.createdAt)],
+);
+
+/**
+ * 2.9.4 현장 추가요금 (단계 5-2). BR-040 고객 동의 없이는 청구하지 않고, BR-042 기타(ETC)는 관리자 승인 후 고객 동의 요청.
+ * 상태 = approval_status · customer_agreed · agreed_at(고객 응답 시각: 동의·거절) · deleted_at(기사 철회) — packages/domain extraChargeState.
+ * DEVICE_ADD(현장 기기 추가)는 base_order_item_id 상품을 quantity 대 더하고, 동의되면 새 주문 항목(order_item_id)을 만든다.
+ */
+export const extraCharge = pgTable(
+  'extra_charge',
+  {
+    id: idColumn(),
+    workOrderId: bigint('work_order_id', { mode: 'number' })
+      .notNull()
+      .references(() => workOrder.id),
+    surchargeRuleId: bigint('surcharge_rule_id', { mode: 'number' }).references(() => surchargeRule.id),
+    chargeType: varchar('charge_type', { length: 20 }).notNull(), // EXTRA_CHARGE_TYPE
+    title: varchar('title', { length: 100 }).notNull(),
+    quantity: smallint('quantity').notNull().default(1),
+    baseOrderItemId: bigint('base_order_item_id', { mode: 'number' }).references(() => orderItem.id),
+    orderItemId: bigint('order_item_id', { mode: 'number' }).references(() => orderItem.id),
+    amount: integer('amount').notNull(),
+    reason: varchar('reason', { length: 300 }).notNull(),
+    evidenceFileId: bigint('evidence_file_id', { mode: 'number' }).references(() => attachment.id),
+    customerAgreed: boolean('customer_agreed').notNull().default(false),
+    agreedMethod: varchar('agreed_method', { length: 20 }), // EXTRA_AGREED_METHOD
+    agreedAt: timestamp('agreed_at', { withTimezone: true }),
+    signatureFileId: bigint('signature_file_id', { mode: 'number' }).references(() => attachment.id),
+    approvalStatus: varchar('approval_status', { length: 20 }).notNull(), // EXTRA_APPROVAL_STATUS
+    approvedBy: bigint('approved_by', { mode: 'number' }).references(() => adminUser.id),
+    approvedAt: timestamp('approved_at', { withTimezone: true }),
+    rejectReason: varchar('reject_reason', { length: 300 }),
+    ...auditColumns,
+    ...softDelete,
+  },
+  (t) => [index('extra_charge_work_idx').on(t.workOrderId), index('extra_charge_approval_idx').on(t.approvalStatus)],
 );

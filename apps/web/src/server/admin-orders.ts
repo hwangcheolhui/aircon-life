@@ -34,6 +34,7 @@ import { and, asc, desc, eq, gte, inArray, isNull, like, lte, or, type SQL } fro
 import { UserError } from './action-result';
 import { createCustomer, findCustomerByPhone, upsertVisitAddress } from './customers';
 import { getDb } from './db';
+import { longPendingIds } from './pending';
 import { notifyOrder } from './notify';
 import {
   type Actor,
@@ -112,9 +113,12 @@ export async function listOrders(filter: BranchFilter, q: OrderListQuery, limit 
     )
     .orderBy(desc(serviceOrder.createdAt))
     .limit(limit);
+  // BR-032 장기 미처리 색상 강조 (단계 5-2)
+  const overdue = await longPendingIds(rows);
   // 목록은 항상 마스킹 (BR-100)
   return rows.map(({ name, phone, ...r }) => ({
     ...r,
+    overdue48h: overdue.has(r.id),
     customerName: maskName(decrypt(name)),
     phoneMasked: maskPhone(decrypt(phone)),
   }));

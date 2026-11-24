@@ -25,6 +25,7 @@ import { and, desc, eq, gte, inArray, isNull, lt, ne, or } from 'drizzle-orm';
 import { UserError } from './action-result';
 import { writeAudit } from './audit';
 import { getDb } from './db';
+import { longPendingIds } from './pending';
 import { decrypt } from './pii';
 
 const DAY = 24 * 3600_000;
@@ -73,7 +74,10 @@ export async function listTechJobs(techId: number, now = new Date()) {
         ),
       ),
     );
-  const devices = await devicesOf(rows.map((r) => r.orderId));
+  const [devices, overdue] = await Promise.all([
+    devicesOf(rows.map((r) => r.orderId)),
+    longPendingIds(rows.map((r) => ({ id: r.orderId, status: r.status })), now),
+  ]);
   return sortTechJobs(
     rows.map((r) => ({
       orderNo: r.orderNo,
@@ -88,6 +92,7 @@ export async function listTechJobs(techId: number, now = new Date()) {
       devices: devices.get(r.orderId) ?? [],
       tab: techJobTab(r, now),
       elapsedMin: elapsedMinutes(r, now),
+      overdue48h: overdue.has(r.orderId),
     })),
   );
 }

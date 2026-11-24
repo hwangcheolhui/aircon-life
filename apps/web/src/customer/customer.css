@@ -283,3 +283,8 @@
 .cus-report-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .cus-report-photos { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-3); }
 .cus-report-photos h3 { margin: 0; color: var(--color-text-secondary); }
+
+/* C-ORD-040 추가요금 동의 (단계 5-2) */
+.cus-extra-head { display: flex; gap: var(--space-2); align-items: center; }
+.cus-extra-photo { display: block; width: 100%; max-height: 320px; object-fit: cover; border-radius: var(--radius-md); margin-top: var(--space-2); }
+.cus-extra-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-top: var(--space-3); }

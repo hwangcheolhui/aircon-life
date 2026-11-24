@@ -1,5 +1,6 @@
 // T-JOB-020 작업 상세 · F-TEC-JOB-02(고객·주소·기기·요청·전달사항·과거 이력·길찾기·전화) · F-TEC-JOB-05(이관 요청)
-// 단계 5-1: [작업 시작/이어서] → 현장작업 스텝(T-WRK-010~060), 활동내역(T-WRK-070, F-TEC-WRK-09). 안심번호는 단계 9. 연락처·상세주소는 [보기]를 눌러야 보이고 감사 로그를 남긴다(BR-100).
+// 단계 5-1: [작업 시작/이어서] → 현장작업 스텝(T-WRK-010~060), 활동내역(T-WRK-070, F-TEC-WRK-09).
+// 단계 5-2: [미처리 저장](T-WRK-061, 출발 전에도) · 미처리 사유·장기 미처리 표시(BR-031·032). 안심번호는 단계 9. 연락처·상세주소는 [보기]를 눌러야 보이고 감사 로그를 남긴다(BR-100).
 import { Alert, Card, Empty, StatusBadge, Tag } from '@aircon/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -22,7 +23,7 @@ export default async function TechJobPage({ params }: { params: Promise<{ orderN
   const j = await getTechJob(me.id, orderNo);
   if (!j) notFound();
   const [codes, work, activities] = await Promise.all([
-    loadCodes(['ASSIGN_ROLE', 'HOUSING_TYPE', 'ORDER_TYPE', 'ACTIVITY_TYPE', 'WORK_STATUS']),
+    loadCodes(['ASSIGN_ROLE', 'HOUSING_TYPE', 'ORDER_TYPE', 'ACTIVITY_TYPE', 'WORK_STATUS', 'PENDING_REASON']),
     workSummary(j.orderId),
     listActivities(j.orderId),
   ]);
@@ -44,6 +45,11 @@ export default async function TechJobPage({ params }: { params: Promise<{ orderN
           {j.promisedAt ? formatVisit(j.promisedAt) : '일정 미정'}{' '}
           <span className="ac-body ac-caption">({timeLabel(j.promisedAt, j.timeTo)})</span>
         </p>
+        {j.status === 'PENDING' && work?.pendingCode ? (
+          <Alert tone="warning">
+            미처리: {label('PENDING_REASON', work.pendingCode)}. 재약속은 운영자가 정합니다.
+          </Alert>
+        ) : null}
         {j.transferRequested ? (
           <Alert tone="warning">
             이관을 요청했습니다. 운영자가 확인하기 전까지는 예정대로 방문해 주세요. 사유: {j.transferReason}
@@ -175,6 +181,11 @@ export default async function TechJobPage({ params }: { params: Promise<{ orderN
       ) : canStart ? (
         <Link href={`/tech/jobs/${j.orderNo}/work`} className="ac-btn ac-btn--primary ac-btn--xl ac-btn--block">
           작업 시작 (출발)
+        </Link>
+      ) : null}
+      {j.role === 'MAIN' && ['ASSIGNED', 'ON_THE_WAY', 'IN_PROGRESS'].includes(j.status) ? (
+        <Link href={`/tech/jobs/${j.orderNo}/work/pending`} className="ac-btn ac-btn--outline ac-btn--lg ac-btn--block">
+          미처리 저장 (고객부재·연기 등)
         </Link>
       ) : null}
       {j.status === 'ASSIGNED' && !j.transferRequested ? <TransferRequest orderNo={j.orderNo} /> : null}

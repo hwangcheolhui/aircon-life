@@ -258,7 +258,7 @@ export function ResultStep({
             });
             if (!r.ok) return setError(r.message ?? Object.values(r.fieldErrors ?? {})[0] ?? '저장하지 못했습니다.');
             toast('저장에 성공하였습니다.');
-            router.push(`/tech/jobs/${orderNo}/work/complete`);
+            router.push(`/tech/jobs/${orderNo}/work/extra`);
           })
         }
       >
