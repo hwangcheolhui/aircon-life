@@ -414,3 +414,31 @@
 
 /* T-WRK-040 추가요금 목록 (단계 5-2) */
 .tec-extra-item .ac-list-item__body { display: grid; gap: var(--space-1); }
+
+/* ── 단계 6 현장 결제 (T-PAY-010) ─────────────────────────────── */
+.tec-amount-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+.tec-amount-row--total {
+  border-top: 1px solid var(--color-divider);
+  padding-top: var(--space-3);
+  font-weight: 700;
+}
+.tec-pay-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.tec-pay-grid .ac-btn svg {
+  width: 20px;
+  height: 20px;
+}
+.tec-pay-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}

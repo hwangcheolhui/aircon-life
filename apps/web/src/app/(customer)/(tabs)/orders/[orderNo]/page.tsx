@@ -1,4 +1,4 @@
-// C-ORD-020 예약 상세 · F-CUS-ORD-02: 상태 타임라인, 단계 5-2: 추가요금 동의 요청 안내(C-ORD-040)·동의된 추가요금 금액, 방문 예정 시간(단계 4-2: 기사 코스 확정 시각, 단계 5-1: 이동 중이면 도착 예정시각 — 좌표는 보여 주지 않음 BR-115), 작업 리포트 링크(C-ORD-050), 기사 정보(배정 후, 단계 4-1: 고객 표시 이름·소개), 항목·금액, 액션(결제·변경·취소·고객센터)
+// C-ORD-020 예약 상세 · F-CUS-ORD-02: 상태 타임라인, 단계 5-2: 추가요금 동의 요청 안내(C-ORD-040)·동의된 추가요금 금액, 방문 예정 시간(단계 4-2: 기사 코스 확정 시각, 단계 5-1: 이동 중이면 도착 예정시각 — 좌표는 보여 주지 않음 BR-115), 작업 리포트 링크(C-ORD-050), 단계 6: 작업 후 결제(C-PAY-020)·증빙 신청(C-PAY-030), 기사 정보(배정 후, 단계 4-1: 고객 표시 이름·소개), 항목·금액, 액션(결제·변경·취소·고객센터)
 import { canCustomerCancel, canSeeWorkReport } from '@aircon/domain';
 import { Alert, Card, StatusBadge, Tag } from '@aircon/ui';
 import { ChevronLeft } from 'lucide-react';
@@ -9,7 +9,12 @@ import { loadCodes } from '@/server/codes';
 import { requireCustomer } from '@/server/customer-session';
 import { customerExtraCharges } from '@/server/extra-charges';
 import { getCustomerOrder } from '@/server/orders';
+import { paymentsOf } from '@/server/payments';
 import { customerVisitInfo } from '@/server/route-plans';
+import { ReceiptRequest } from '@/customer/receipt-request';
+
+/** 선결제(C-PAY-010)는 작업 전 주문만. 작업 후 금액은 C-PAY-020 */
+const PREPAY_STATUSES = ['QUOTED', 'RECEIVED', 'ASSIGN_WAIT', 'ASSIGNED'];
 
 export const metadata = { title: '예약 상세' };
 export const dynamic = 'force-dynamic';
@@ -20,10 +25,11 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ or
   const o = me.demo ? null : await getCustomerOrder(me.id, orderNo);
   if (!o) notFound();
   const [codes, visit, extras] = await Promise.all([
-    loadCodes(['PAYMENT_STATUS', 'CHANGE_REQUEST_STATUS', 'CHANGE_REQUEST_TYPE']),
+    loadCodes(['PAYMENT_STATUS', 'CHANGE_REQUEST_STATUS', 'CHANGE_REQUEST_TYPE', 'PAYMENT_METHOD', 'TAX_DOC_TYPE', 'TAX_ISSUE_STATUS']),
     customerVisitInfo(o.id),
     customerExtraCharges(me.id, orderNo),
   ]);
+  const payments = await paymentsOf(o.id);
   const waitingExtra = extras?.charges.filter((c) => c.state === 'WAIT_CUSTOMER') ?? [];
   const agreedExtra = extras?.charges.filter((c) => c.state === 'AGREED') ?? [];
   const added = new Set(extras?.addedItemIds ?? []);
@@ -141,11 +147,16 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ or
           작업 리포트 보기 (전·후 사진)
         </Link>
       ) : null}
-      {o.status !== 'CANCELED' && o.paymentStatus === 'UNPAID' ? (
+      {o.status === 'WORK_DONE' && o.totalAmount > o.paidAmount ? (
+        <Link href={`/orders/${o.orderNo}/pay`} className="ac-btn ac-btn--primary ac-btn--lg ac-btn--block">
+          작업 금액 결제하기
+        </Link>
+      ) : PREPAY_STATUSES.includes(o.status) && o.paymentStatus === 'UNPAID' ? (
         <Link href={`/reserve/pay/${o.orderNo}`} className="ac-btn ac-btn--primary ac-btn--lg ac-btn--block">
           지금 결제하기
         </Link>
       ) : null}
+      <ReceiptRequest orderNo={o.orderNo} payments={payments} codes={codes} />
       {canCustomerCancel(o.status) ? (
         <Link href={`/orders/${o.orderNo}/change`} className="ac-btn ac-btn--outline ac-btn--lg ac-btn--block">
           일정 변경·취소

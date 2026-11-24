@@ -345,4 +345,44 @@ d('RLS (BR-102, F-ADM-SYS-02)', () => {
       expect(codes.map((c) => c.code)).toEqual(['RULE', 'MATERIAL', 'ETC', 'DEVICE_ADD']);
     });
   });
+  describe('단계 6 결제·증빙', () => {
+    beforeAll(async () => {
+      const orders = await sql`SELECT id, customer_id FROM service_order WHERE order_no IN ('2703201000A1', '2703201000A2') ORDER BY order_no`;
+      for (const [i, o] of orders.entries()) {
+        const [p] = await sql`INSERT INTO payment (payment_no, order_id, customer_id, payment_stage, method, amount, status)
+          VALUES (${'PT6' + i}, ${o.id}, ${o.customer_id}, 'ONSITE', 'CASH', 90000, 'APPROVED') RETURNING id`;
+        await sql`INSERT INTO tax_document (payment_id, doc_type, identity_no, supply_amount, vat_amount, total_amount, issue_status)
+          VALUES (${p!.id}, 'CASH_RECEIPT_INCOME', 'enc', 81818, 8182, 90000, 'REQUESTED')`;
+        await sql`INSERT INTO memo (owner_type, owner_id, header_code, content, related_order_id, start_date, end_date)
+          VALUES ('ADMIN', 1, 'RECEIVABLE', '미수 독촉', ${o.id}, '2027-03-20', '2027-03-20')`;
+      }
+    });
+
+    it('BR-100 비로그인(anon)은 증빙·메모를 읽을 수 없다', async () => {
+      expect(await as(null, (tx) => tx`SELECT * FROM tax_document`)).toHaveLength(0);
+      expect(await as(null, (tx) => tx`SELECT * FROM memo`)).toHaveLength(0);
+    });
+
+    it('BR-102 거점장은 자기 거점 주문의 증빙·미수 메모만 조회한다', async () => {
+      expect(await as(ids.branchMgr, (tx) => tx`SELECT id FROM tax_document`)).toHaveLength(1);
+      expect(await as(ids.branchMgr, (tx) => tx`SELECT id FROM memo`)).toHaveLength(1);
+      expect(await as(ids.super, (tx) => tx`SELECT id FROM tax_document`)).toHaveLength(2);
+    });
+
+    it('증빙 발행은 서버 전용: 브라우저 키(관리자)로는 발행 상태를 바꿀 수 없다', async () => {
+      const updated = await as(ids.super, (tx) => tx`UPDATE tax_document SET issue_status = 'ISSUED' RETURNING id`);
+      expect(updated).toHaveLength(0);
+    });
+
+    it('BR-082 현장 수금 결제도 INSERT ONLY (수정 불가)', async () => {
+      await expect(sql`UPDATE payment SET amount = 1 WHERE payment_no = 'PT60'`).rejects.toThrow();
+    });
+
+    it('증빙 코드·결제 알림 템플릿이 있다', async () => {
+      const codes = await sql`SELECT code FROM common_code WHERE group_code = 'TAX_ISSUE_STATUS' ORDER BY sort_order`;
+      expect(codes.map((c) => c.code)).toEqual(['REQUESTED', 'ISSUED', 'FAILED', 'CANCELED']);
+      const t = await sql`SELECT template_code FROM notification_template WHERE template_code IN ('PAYMENT_REQUEST', 'PAYMENT_LINK', 'PAYMENT_DONE')`;
+      expect(t).toHaveLength(3);
+    });
+  });
 });

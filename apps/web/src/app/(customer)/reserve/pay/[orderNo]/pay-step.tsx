@@ -35,7 +35,9 @@ export function PayStep({ orderNo, amount, items, driver, portone, returnedPayme
       const d = r.data as { ok: boolean; failReason: string | null };
       if (!d.ok) {
         setMockNo(null);
-        return setMessage(`결제가 완료되지 않았어요. ${d.failReason ?? ''} 다시 시도하거나 현장 결제를 선택해 주세요.`);
+        return setMessage(
+          `결제가 완료되지 않았어요. ${d.failReason ?? ''} 다시 시도하거나 현장 결제를 선택해 주세요.`,
+        );
       }
       router.replace(done);
     });
@@ -77,7 +79,9 @@ export function PayStep({ orderNo, amount, items, driver, portone, returnedPayme
           {items.map((i, idx) => (
             <div key={idx} className="cus-amount-row ac-body">
               <span>{i.name}</span>
-              <span className="ac-num">{i.amount < 0 ? `−${formatWon(-i.amount)}` : formatWon(i.amount)}</span>
+              <span className="ac-num">
+                {i.amount < 0 ? `−${formatWon(-i.amount)}` : formatWon(i.amount)}
+              </span>
             </div>
           ))}
           <div className="cus-amount-row cus-amount-row--total ac-body-lg">

@@ -1,11 +1,16 @@
 'use server';
 // 기사 앱 현장작업 서버 액션 (단계 5-1): 출발 F-TEC-WRK-01 · 도착/작업 시작 F-TEC-WRK-02(BR-043) · 사진 F-TEC-WRK-03 ·
 // 기기별 결과·발견 이슈 F-TEC-WRK-04·10 · 처리 저장(완료) F-TEC-WRK-07(BR-041) · 활동내역 F-TEC-WRK-09
+// 단계 6: 현장 결제 F-TEC-PAY-01·02 · 증빙 F-TEC-PAY-03
 // 단계 5-2: 추가요금 등록·철회·현장 서명 F-TEC-WRK-05(BR-040·042) · 미처리 저장 F-TEC-WRK-08(BR-031)
 import {
   activityInput,
   extraChargeInput,
   extraChargeRefInput,
+  fieldPaymentInput,
+  paymentRequestInput,
+  receivableInput,
+  taxDocRequestInput,
   workPendingInput,
   workCompleteInput,
   workDepartInput,
@@ -18,6 +23,7 @@ import {
 import { revalidatePath } from 'next/cache';
 import { UserError, handle, parse } from '@/server/action-result';
 import { addExtraCharge, signExtraCharge, withdrawExtraCharge } from '@/server/extra-charges';
+import { collectInField, techMarkReceivable, techRequestPayment, techRequestTaxDoc } from '@/server/payments';
 import { extraAgreeUrl, siteOrigin } from '@/server/site-origin';
 import { requireTechAction } from '@/server/tech-session';
 import { addActivity, addPhoto, arrive, completeWork, deletePhoto, depart, savePending, saveResults, startWork } from '@/server/work';
@@ -160,5 +166,52 @@ export async function savePendingJob(values: Record<string, unknown>) {
     const r = await savePending(me.id, v);
     refresh(v.orderNo);
     return r;
+  });
+}
+
+/* ---------- 단계 6 T-PAY-010 현장 결제 · T-PAY-020 증빙 ---------- */
+
+const refreshPay = (orderNo: string) => {
+  revalidatePath(`/tech/jobs/${orderNo}`, 'layout');
+  revalidatePath('/tech/jobs');
+};
+
+/** F-TEC-PAY-01·02 카드단말·계좌이체·현금 수금 → 전액이면 주문 완료(정산 대상) */
+export async function collectJobPayment(values: Record<string, unknown>) {
+  return handle(async () => {
+    const me = await requireTechAction();
+    const v = parse(fieldPaymentInput, values);
+    const r = await collectInField(me.id, v);
+    refreshPay(v.orderNo);
+    return r;
+  });
+}
+
+/** F-TEC-PAY-01 고객 앱 결제 요청(알림톡) / 결제 링크 문자 */
+export async function requestJobPayment(values: Record<string, unknown>) {
+  return handle(async () => {
+    const me = await requireTechAction();
+    const v = parse(paymentRequestInput, values);
+    await techRequestPayment(me.id, v, await siteOrigin());
+  });
+}
+
+/** 결제를 못 받으면 미수로 남긴다([미수금] 메모, BR-081 정산 제외) */
+export async function markJobReceivable(values: Record<string, unknown>) {
+  return handle(async () => {
+    const me = await requireTechAction();
+    const v = parse(receivableInput, values);
+    await techMarkReceivable(me.id, v);
+    refreshPay(v.orderNo);
+  });
+}
+
+/** F-TEC-PAY-03 현금영수증 발행 요청 */
+export async function requestJobTaxDoc(values: Record<string, unknown>) {
+  return handle(async () => {
+    const me = await requireTechAction();
+    const v = parse(taxDocRequestInput, values);
+    await techRequestTaxDoc(me.id, v);
+    refreshPay(v.orderNo);
   });
 }

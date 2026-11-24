@@ -1,5 +1,6 @@
 // T-JOB-020 작업 상세 · F-TEC-JOB-02(고객·주소·기기·요청·전달사항·과거 이력·길찾기·전화) · F-TEC-JOB-05(이관 요청)
 // 단계 5-1: [작업 시작/이어서] → 현장작업 스텝(T-WRK-010~060), 활동내역(T-WRK-070, F-TEC-WRK-09).
+// 단계 6: 작업완료면 [결제 받기](T-PAY-010), 완료면 결제 내역·현금영수증.
 // 단계 5-2: [미처리 저장](T-WRK-061, 출발 전에도) · 미처리 사유·장기 미처리 표시(BR-031·032). 안심번호는 단계 9. 연락처·상세주소는 [보기]를 눌러야 보이고 감사 로그를 남긴다(BR-100).
 import { Alert, Card, Empty, StatusBadge, Tag } from '@aircon/ui';
 import Link from 'next/link';
@@ -181,6 +182,14 @@ export default async function TechJobPage({ params }: { params: Promise<{ orderN
       ) : canStart ? (
         <Link href={`/tech/jobs/${j.orderNo}/work`} className="ac-btn ac-btn--primary ac-btn--xl ac-btn--block">
           작업 시작 (출발)
+        </Link>
+      ) : j.role === 'MAIN' && j.status === 'WORK_DONE' ? (
+        <Link href={`/tech/jobs/${j.orderNo}/pay`} className="ac-btn ac-btn--primary ac-btn--xl ac-btn--block">
+          결제 받기 (현장 결제)
+        </Link>
+      ) : j.role === 'MAIN' && j.status === 'COMPLETED' ? (
+        <Link href={`/tech/jobs/${j.orderNo}/pay`} className="ac-btn ac-btn--outline ac-btn--lg ac-btn--block">
+          결제 내역·현금영수증
         </Link>
       ) : null}
       {j.role === 'MAIN' && ['ASSIGNED', 'ON_THE_WAY', 'IN_PROGRESS'].includes(j.status) ? (

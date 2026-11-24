@@ -556,6 +556,19 @@ export const COMMON_CODE_SEED = [
     ['APPROVED', '승인'],
     ['REJECTED', '반려'],
   ]),
+  // 단계 6 증빙 (01 §4 "단계 6에서 추가한 그룹")
+  ...g('TAX_DOC_TYPE', [
+    ['CASH_RECEIPT_INCOME', '현금영수증(소득공제)'],
+    ['CASH_RECEIPT_EXPENSE', '현금영수증(지출증빙)'],
+    ['TAX_INVOICE', '세금계산서'],
+    ['CARD_SLIP', '카드 영수증'],
+  ]),
+  ...g('TAX_ISSUE_STATUS', [
+    ['REQUESTED', '발행 요청'],
+    ['ISSUED', '발행'],
+    ['FAILED', '발행 실패'],
+    ['CANCELED', '취소'],
+  ]),
 ];
 
 /** 상담 스크립트 초기값 (01 §2.6.7, F-ADM-CSL-16). 운영 중 문구는 A-CNT-050에서 바꾸며 시드는 덮어쓰지 않는다. 마이그레이션 0005 에도 같은 값이 있다. */
@@ -666,6 +679,28 @@ export const WORK_TEMPLATE_SEED = [
     target: 'ADMIN',
     title: '장기 미처리',
     body: '#{접수번호} 장기 미처리 건입니다. 재약속 또는 취소를 확인해 주세요.',
+  },
+  // 단계 6 결제 (마이그레이션 0010 에도 같은 값)
+  {
+    templateCode: 'PAYMENT_REQUEST',
+    channel: 'ALIMTALK',
+    target: 'CUSTOMER',
+    title: '결제 요청',
+    body: '#{고객명}님, 에어컨 청소 작업 금액 결제를 요청드립니다.\n결제할 금액: #{결제금액}\n결제하기: #{결제링크}\n접수번호: #{접수번호}',
+  },
+  {
+    templateCode: 'PAYMENT_LINK',
+    channel: 'SMS',
+    target: 'CUSTOMER',
+    title: '결제 링크',
+    body: '[에어컨 청소] #{고객명}님 결제 링크입니다.\n결제할 금액: #{결제금액}\n#{결제링크}',
+  },
+  {
+    templateCode: 'PAYMENT_DONE',
+    channel: 'ALIMTALK',
+    target: 'CUSTOMER',
+    title: '결제 완료 안내',
+    body: '#{고객명}님, 결제가 완료되었습니다.\n결제 금액: #{결제금액}\n접수번호: #{접수번호}\n현금영수증·세금계산서는 예약 상세에서 신청할 수 있습니다.',
   },
 ];
 

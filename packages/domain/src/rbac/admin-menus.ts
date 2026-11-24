@@ -13,7 +13,8 @@ export type ImplementationStage =
   | '4-1'
   | '4-2'
   | '5'
-  | '6'
+  | '6-1'
+  | '6-2'
   | '7'
   | '8'
   | '9'
@@ -21,7 +22,7 @@ export type ImplementationStage =
   | '11';
 
 /** 지금까지 구현이 끝난 단계. 단계를 마칠 때마다 이 목록에 추가한다. */
-export const RELEASED_STAGES: readonly ImplementationStage[] = ['0', '1', '2', '3', '4-1', '4-2', '5'];
+export const RELEASED_STAGES: readonly ImplementationStage[] = ['0', '1', '2', '3', '4-1', '4-2', '5', '6-1'];
 
 export interface AdminScreen {
   screenId: string;
@@ -84,10 +85,10 @@ export const ADMIN_MENU: readonly AdminMenuGroup[] = [
     key: 'PRC',
     name: '처리',
     screens: [
-      { screenId: 'A-PRC-010', name: '처리 콘솔', stage: '6' },
+      { screenId: 'A-PRC-010', name: '처리 콘솔', stage: '6-2' },
       { screenId: 'A-PRC-030', name: '작업 결과 검수', stage: '9' },
       { screenId: 'A-PRC-040', name: '추가요금 승인', stage: '5' },
-      { screenId: 'A-PRC-050', name: '미처리 큐', stage: '6' },
+      { screenId: 'A-PRC-050', name: '미처리 큐', stage: '6-2' },
       { screenId: 'A-PRC-060', name: '독촉·전달 현황', stage: '8' },
     ],
   },
@@ -129,11 +130,11 @@ export const ADMIN_MENU: readonly AdminMenuGroup[] = [
     key: 'PAY',
     name: '결제',
     screens: [
-      { screenId: 'A-PAY-010', name: '결제 내역', stage: '6' },
-      { screenId: 'A-PAY-020', name: '결제 실패', stage: '6' },
-      { screenId: 'A-PAY-030', name: '환불 처리', stage: '6' },
-      { screenId: 'A-PAY-040', name: '미수금', stage: '6' },
-      { screenId: 'A-PAY-050', name: '증빙', stage: '6' },
+      { screenId: 'A-PAY-010', name: '결제 내역', stage: '6-1' },
+      { screenId: 'A-PAY-020', name: '결제 실패', stage: '6-1' },
+      { screenId: 'A-PAY-030', name: '환불 처리', stage: '6-1' },
+      { screenId: 'A-PAY-040', name: '미수금', stage: '6-1' },
+      { screenId: 'A-PAY-050', name: '증빙', stage: '6-1' },
     ],
   },
   {

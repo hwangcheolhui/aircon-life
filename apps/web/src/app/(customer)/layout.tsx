@@ -1,4 +1,5 @@
 // 고객 웹 루트 레이아웃 (C-*). 채널 밀도: data-channel="customer" (05 §0.3)
+import { ToastProvider } from '@aircon/ui';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import '@aircon/ui/styles/tokens.css';
@@ -16,7 +17,9 @@ export default function CustomerLayout({ children }: { children: ReactNode }) {
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <ToastProvider>{children}</ToastProvider>
+      </body>
     </html>
   );
 }

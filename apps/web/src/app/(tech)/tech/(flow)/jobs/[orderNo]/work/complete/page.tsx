@@ -1,6 +1,6 @@
 // T-WRK-060 처리 저장 · F-TEC-WRK-07: 필수값 체크(BR-041 전후 사진·결과·BR-043 안전·추가요금 응답·처리 내용) → 처리 내용 → 고객 서명 → WORK_DONE
 // 청구 금액 = 작업비 + 고객이 동의한 추가요금(BR-040)
-// 결제(T-PAY-010)는 단계 6. 완료 후에는 작업 상세로 돌아간다.
+// 완료 후 현장 결제(T-PAY-010, 단계 6)로 간다.
 import { SETTING_KEYS } from '@aircon/domain';
 import { getSettingNumber } from '@/server/settings';
 import { completionCheck, extrasOf } from '@/server/work';

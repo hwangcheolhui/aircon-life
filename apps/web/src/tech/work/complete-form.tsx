@@ -122,7 +122,7 @@ export function CompleteForm({
                 // 브라우저 저장소를 못 쓰면 임시 저장 없이 진행
               }
               toast('작업을 완료했습니다. 고객에게 작업 리포트를 보냈습니다.');
-              router.push(`/tech/jobs/${orderNo}`);
+              router.push(`/tech/jobs/${orderNo}/pay`);
             })
           }
         >
