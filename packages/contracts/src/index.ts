@@ -797,3 +797,65 @@ export const locationInput = z.object({
   accuracyM: z.number().min(0).max(100000).nullable().default(null),
   speedKmh: z.number().min(0).max(400).nullable().default(null),
 });
+
+/* ---------- 단계 5-1 현장작업 (T-WRK-010~070) ---------- */
+
+const orderNoField = () => reqStr('접수번호', 20);
+
+/** F-TEC-WRK-01 출발 (코스 순서와 다르면 force=true 로 다시 보낸다) */
+export const workDepartInput = z.object({ orderNo: orderNoField(), force: bool(false) });
+/** F-TEC-WRK-02 도착 */
+export const workOrderNoInput = z.object({ orderNo: orderNoField() });
+
+/** F-TEC-WRK-02 안전 체크리스트 → 작업 시작 (BR-043) */
+export const workSafetyInput = z.object({
+  orderNo: orderNoField(),
+  checked: z.array(z.enum(['HIGH_PLACE', 'ELECTRIC', 'PROTECTIVE', 'CHEMICAL'])).max(4),
+  highPlaceWork: bool(false),
+});
+
+/** F-TEC-WRK-03 작업 사진 1장 (파일은 FormData 의 file) */
+export const workPhotoInput = z.object({
+  orderNo: orderNoField(),
+  photoType: z.enum(['BEFORE', 'DURING', 'AFTER', 'ISSUE', 'SAFETY']),
+  orderItemId: optId(),
+  unitNo: optInt(1),
+  takenAt: z.preprocess((v) => blankToNull(v), z.string().datetime().nullable().default(null)),
+});
+export const workPhotoDeleteInput = z.object({ orderNo: orderNoField(), photoId: reqId('사진') });
+
+/** F-TEC-WRK-04·10 기기별 처리 결과 · 오염도 · 발견 이슈 */
+export const workResultInput = z.object({
+  orderNo: orderNoField(),
+  dirtLevel: z.preprocess((v) => blankToNull(v), z.enum(['LOW', 'MID', 'HIGH']).nullable().default(null)),
+  issueFound: optStr(500),
+  repairGuided: bool(false),
+  units: z
+    .array(
+      z.object({
+        orderItemId: reqId('주문 항목'),
+        unitNo: reqInt('기기 번호', 1),
+        result: z.enum(['DONE', 'PARTIAL', 'SKIPPED'], { errorMap: () => ({ message: MSG.required('처리 결과') }) }),
+        conditionNote: optStr(300),
+        recommendNext: z.preprocess(
+          (v) => (blankToNull(v ?? null) === null ? null : Number(v)),
+          z.number().int().min(1).max(36).nullable(),
+        ),
+      }),
+    )
+    .max(100),
+});
+
+/** F-TEC-WRK-07 처리 저장(완료) — 서명 이미지는 FormData 의 signature(선택) */
+export const workCompleteInput = z.object({
+  orderNo: orderNoField(),
+  workNote: reqStr('처리 내용', 2000),
+  internalNote: optStr(2000),
+});
+
+/** F-TEC-WRK-09 활동내역 등록 */
+export const activityInput = z.object({
+  orderNo: orderNoField(),
+  activityType: z.enum(['CALL', 'SMS', 'VISIT_TRY', 'NOTE'], { errorMap: () => ({ message: MSG.required('유형') }) }),
+  content: reqStr('내용', 500),
+});

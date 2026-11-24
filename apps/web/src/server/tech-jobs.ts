@@ -100,7 +100,7 @@ export async function todayAppointments(techId: number, now = new Date()) {
   return { jobs, remaining, total: jobs.length };
 }
 
-async function myAssignment(techId: number, orderNo: string) {
+export async function myAssignment(techId: number, orderNo: string) {
   const [row] = await getDb()
     .select({ a: assignment, o: serviceOrder })
     .from(assignment)
@@ -136,6 +136,7 @@ export async function getTechJob(techId: number, orderNo: string) {
   ]);
   const pastDevices = await devicesOf(past.map((p) => p.id));
   return {
+    orderId: o.id,
     orderNo: o.orderNo,
     status: o.status,
     promisedAt: o.promisedAt,

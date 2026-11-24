@@ -269,4 +269,50 @@ d('RLS (BR-102, F-ADM-SYS-02)', () => {
     const [r] = await sql`SELECT setting_value FROM system_setting WHERE setting_key = 'AREA_OPEN_REQUEST_KEEP_DAYS'`;
     expect(r?.setting_value).toBe('365');
   });
+
+  describe('단계 5-1 현장작업', () => {
+    beforeAll(async () => {
+      const [c] = await sql`INSERT INTO customer (customer_no, customer_type, name, phone1, join_channel, privacy_agree_status, status)
+        VALUES ('C2703200001', 'PERSONAL', 'enc', 'enc', 'APP', 'AGREED', 'ACTIVE') RETURNING id`;
+      const [a] = await sql`INSERT INTO customer_address (customer_id, zipcode, road_address, branch_id)
+        VALUES (${c!.id}, '00000', '현장로 1', ${b1}) RETURNING id`;
+      const [t] = await sql`INSERT INTO technician (tech_code, name, phone, branch_id, grade, contract_type, status)
+        VALUES ('T51', '현장기사', 'enc', ${b1}, 'REGULAR', 'FREELANCER', 'ACTIVE') RETURNING id`;
+      for (const [no, branchId] of [['2703201000A1', b1], ['2703201000A2', b2]] as const) {
+        const [o] = await sql`INSERT INTO service_order (order_no, customer_id, address_id, branch_id, channel, order_type, status, subtotal_amount, total_amount, payment_status)
+          VALUES (${no}, ${c!.id}, ${a!.id}, ${branchId}, 'APP', 'NORMAL', 'IN_PROGRESS', 90000, 90000, 'UNPAID') RETURNING id`;
+        const [w] = await sql`INSERT INTO work_order (order_id, main_technician_id, status) VALUES (${o!.id}, ${t!.id}, 'IN_PROGRESS') RETURNING id`;
+        const [f] = await sql`INSERT INTO attachment (storage_key, original_name, mime_type, size_bytes, ref_type, ref_id, uploaded_by_type)
+          VALUES (${'work_photo/' + no}, 'a.jpg', 'image/jpeg', 1, 'WORK_PHOTO', ${w!.id}, 'TECHNICIAN') RETURNING id`;
+        await sql`INSERT INTO work_photo (work_order_id, photo_type, file_id) VALUES (${w!.id}, 'BEFORE', ${f!.id})`;
+        await sql`INSERT INTO activity_log (order_id, actor_type, activity_type, content) VALUES (${o!.id}, 'TECHNICIAN', 'CALL', '통화')`;
+      }
+    });
+
+    it('BR-100 비로그인(anon)은 작업·사진·활동내역을 읽을 수 없다', async () => {
+      for (const t of ['work_order', 'work_result', 'work_photo', 'activity_log'])
+        expect(await as(null, (tx) => tx.unsafe(`SELECT * FROM ${t}`))).toHaveLength(0);
+    });
+
+    it('BR-102 거점장은 자기 거점 주문의 작업·사진만 조회한다', async () => {
+      expect(await as(ids.branchMgr, (tx) => tx`SELECT id FROM work_order`)).toHaveLength(1);
+      expect(await as(ids.branchMgr, (tx) => tx`SELECT id FROM work_photo`)).toHaveLength(1);
+      expect(await as(ids.cs, (tx) => tx`SELECT id FROM work_order`)).toHaveLength(2);
+    });
+
+    it('작업 기록 쓰기는 서버 전용: 브라우저 키(관리자)로는 수정할 수 없다', async () => {
+      const updated = await as(ids.super, (tx) => tx`UPDATE work_order SET status = 'DONE' RETURNING id`);
+      expect(updated).toHaveLength(0);
+      await expect(
+        as(ids.super, (tx) => tx`INSERT INTO activity_log (order_id, actor_type, activity_type, content) SELECT id, 'ADMIN', 'NOTE', 'x' FROM service_order LIMIT 1`),
+      ).rejects.toThrow(/row-level security/);
+    });
+
+    it('F-TEC-WRK-07 처리 내용 최소 글자 수 기준값이 시스템 설정에 있다', async () => {
+      const [r] = await sql`SELECT setting_value FROM system_setting WHERE setting_key = 'WORK_NOTE_MIN_LENGTH'`;
+      expect(r?.setting_value).toBe('10');
+      const codes = await sql`SELECT code FROM common_code WHERE group_code = 'SAFETY_CHECK' ORDER BY sort_order`;
+      expect(codes.map((c) => c.code)).toEqual(['HIGH_PLACE', 'ELECTRIC', 'PROTECTIVE', 'CHEMICAL']);
+    });
+  });
 });

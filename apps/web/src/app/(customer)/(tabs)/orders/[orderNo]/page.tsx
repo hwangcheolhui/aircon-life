@@ -1,10 +1,10 @@
-// C-ORD-020 예약 상세 · F-CUS-ORD-02: 상태 타임라인, 방문 예정 시간(단계 4-2: 기사 코스 확정 시각, 좌표는 보여 주지 않음 BR-115), 기사 정보(배정 후, 단계 4-1: 고객 표시 이름·소개), 항목·금액, 액션(결제·변경·취소·고객센터)
-import { canCustomerCancel } from '@aircon/domain';
+// C-ORD-020 예약 상세 · F-CUS-ORD-02: 상태 타임라인, 방문 예정 시간(단계 4-2: 기사 코스 확정 시각, 단계 5-1: 이동 중이면 도착 예정시각 — 좌표는 보여 주지 않음 BR-115), 작업 리포트 링크(C-ORD-050), 기사 정보(배정 후, 단계 4-1: 고객 표시 이름·소개), 항목·금액, 액션(결제·변경·취소·고객센터)
+import { canCustomerCancel, canSeeWorkReport } from '@aircon/domain';
 import { Alert, Card, StatusBadge, Tag } from '@aircon/ui';
 import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { formatDateLabel, formatDateTime, formatVisit, formatVisitTime, formatWon } from '@/customer/format';
+import { formatClock, formatDateLabel, formatDateTime, formatVisit, formatVisitTime, formatWon } from '@/customer/format';
 import { loadCodes } from '@/server/codes';
 import { requireCustomer } from '@/server/customer-session';
 import { getCustomerOrder } from '@/server/orders';
@@ -32,7 +32,11 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ or
       <div>
         <StatusBadge code={o.status} audience="customer" />
         <h1 className="ac-h2">{o.promisedAt ? formatVisit(o.promisedAt) : '일정 협의 중'}</h1>
-        {visit ? (
+        {visit?.kind === 'ETA' ? (
+          <p className="ac-body cus-visit-time">
+            기사님이 출발했어요. 도착 예정 <strong className="ac-num">{formatClock(visit.at)}</strong> 전후
+          </p>
+        ) : visit ? (
           <p className="ac-body cus-visit-time">
             방문 예정 <strong className="ac-num">{formatVisitTime(visit.at)}</strong> 전후
           </p>
@@ -105,6 +109,11 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ or
           결제 상태 <Tag>{label('PAYMENT_STATUS', o.paymentStatus)}</Tag>
         </p>
       </Card>
+      {canSeeWorkReport(o.status) ? (
+        <Link href={`/orders/${o.orderNo}/report`} className="ac-btn ac-btn--outline ac-btn--lg ac-btn--block">
+          작업 리포트 보기 (전·후 사진)
+        </Link>
+      ) : null}
       {o.status !== 'CANCELED' && o.paymentStatus === 'UNPAID' ? (
         <Link href={`/reserve/pay/${o.orderNo}`} className="ac-btn ac-btn--primary ac-btn--lg ac-btn--block">
           지금 결제하기

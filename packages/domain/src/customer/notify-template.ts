@@ -27,6 +27,7 @@ export const NOTIFICATION_TEMPLATE_CODES = [
   'SELF_ASSIGN_REQUESTED',
   'SELF_ASSIGN_APPROVED',
   'SELF_ASSIGN_REJECTED',
+  // 단계 5-1: 출발·완료 고객 알림(F-SYS-04)은 위 ON_THE_WAY·WORK_DONE
 ] as const;
 export type NotificationTemplateCode = (typeof NOTIFICATION_TEMPLATE_CODES)[number];
 
@@ -45,4 +46,6 @@ export const TEMPLATE_VARIABLES = [
   '방문예정',
   '코스일자',
   '방문건수',
+  '도착예정',
+  '리포트링크',
 ] as const;

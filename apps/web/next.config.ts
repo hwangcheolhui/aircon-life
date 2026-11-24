@@ -5,6 +5,8 @@ const config: NextConfig = {
   transpilePackages: ['@aircon/ui'],
   serverExternalPackages: ['postgres'],
   poweredByHeader: false,
+  // 단계 5-1 작업 사진·서명 업로드(서버 액션). 사진은 브라우저에서 줄여 보내고, Vercel 요청 한도(4.5MB) 안으로 둔다
+  experimental: { serverActions: { bodySizeLimit: '4mb' } },
   async headers() {
     return [
       {

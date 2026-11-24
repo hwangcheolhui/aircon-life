@@ -108,13 +108,15 @@ export function canCollectLocation(t: {
 
 /**
  * 고객 예약 상세(C-ORD-020) 방문 예정 시간: 코스가 확정되어 안내가 나간 배정완료 주문만 시각을 보여 준다.
- * 이동중(ON_THE_WAY) 도착 예정시각은 단계 5(출발)에서 붙인다. 좌표는 어떤 경우에도 돌려주지 않는다.
+ * 이동중(ON_THE_WAY)이면 출발 때 계산한 도착 예정시각(route_stop.eta, 단계 5-1). 좌표는 어떤 경우에도 돌려주지 않는다.
  */
 export function customerVisitTime(i: {
   orderStatus: string;
   routeStatus: string | null;
   notifiedArrival: Date | null;
-}): { kind: 'PLANNED'; at: Date } | null {
+  eta?: Date | null;
+}): { kind: 'PLANNED' | 'ETA'; at: Date } | null {
+  if (i.orderStatus === 'ON_THE_WAY') return i.eta ? { kind: 'ETA', at: i.eta } : null;
   if (i.orderStatus !== 'ASSIGNED' || !i.notifiedArrival) return null;
   if (i.routeStatus !== 'CONFIRMED' && i.routeStatus !== 'IN_PROGRESS') return null;
   return { kind: 'PLANNED', at: i.notifiedArrival };

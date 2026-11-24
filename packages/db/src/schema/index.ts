@@ -9,3 +9,4 @@ export * from './d5-order';
 export * from './d10-payment';
 export * from './d6-consult';
 export * from './d8-assignment';
+export * from './d9-work';

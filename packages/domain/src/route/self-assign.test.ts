@@ -136,4 +136,13 @@ describe('BR-115 위치는 동의 후 근무 중에만, 고객에게는 시각�
       customerVisitTime({ orderStatus: 'ASSIGNED', routeStatus: 'CONFIRMED', notifiedArrival: null }),
     ).toBeNull();
   });
+
+  it('BR-115 이동중(ON_THE_WAY)이면 출발 때 계산한 도착 예정시각만 보여 준다(단계 5-1)', () => {
+    const eta = new Date('2026-12-02T01:40:00Z');
+    const v = customerVisitTime({ orderStatus: 'ON_THE_WAY', routeStatus: 'IN_PROGRESS', notifiedArrival: null, eta });
+    expect(v).toEqual({ kind: 'ETA', at: eta });
+    expect(customerVisitTime({ orderStatus: 'ON_THE_WAY', routeStatus: null, notifiedArrival: null, eta })).toEqual({ kind: 'ETA', at: eta });
+    expect(customerVisitTime({ orderStatus: 'ON_THE_WAY', routeStatus: 'IN_PROGRESS', notifiedArrival: null, eta: null })).toBeNull();
+    expect(customerVisitTime({ orderStatus: 'IN_PROGRESS', routeStatus: 'IN_PROGRESS', notifiedArrival: null, eta })).toBeNull();
+  });
 });

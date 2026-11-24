@@ -215,6 +215,7 @@ export const COMMON_CODE_SEED = [
     ['REVIEW', '후기'],
     ['NOTICE', '공지'],
     ['DOC', '문서'],
+    ['SIGNATURE', '고객 서명'], // 단계 5-1
   ]),
   ...g('AUDIT_ACTION', [
     ['VIEW_PII', '개인정보 열람'],
@@ -496,6 +497,48 @@ export const COMMON_CODE_SEED = [
     ['DONE', '완료'],
     ['SKIPPED', '건너뜀'],
   ]),
+  // ── 단계 5-1 현장작업 (마이그레이션 0008 에도 같은 값) ──
+  ...g('WORK_STATUS', [
+    ['READY', '출발 전'],
+    ['ON_THE_WAY', '이동중'],
+    ['ARRIVED', '도착'],
+    ['IN_PROGRESS', '작업중'],
+    ['DONE', '작업완료'],
+    ['PENDING', '미처리'],
+    ['CANCELED', '취소'],
+  ]),
+  ...g('SAFETY_CHECK', [
+    ['HIGH_PLACE', '고소작업 안전(사다리 고정·추락 방지)'],
+    ['ELECTRIC', '전원 차단·누전 확인'],
+    ['PROTECTIVE', '보호구 착용(장갑·보안경·마스크)'],
+    ['CHEMICAL', '세척 약품 희석·환기 확인'],
+  ]),
+  ...g('PHOTO_TYPE', [
+    ['BEFORE', '작업 전'],
+    ['DURING', '작업 중'],
+    ['AFTER', '작업 후'],
+    ['ISSUE', '이상 발견'],
+    ['SAFETY', '안전관리'],
+    ['RECEIPT', '증빙'],
+  ]),
+  ...g('WORK_RESULT', [
+    ['DONE', '완료'],
+    ['PARTIAL', '일부'],
+    ['SKIPPED', '작업 불가'],
+  ]),
+  ...g('DIRT_LEVEL', [
+    ['LOW', '양호'],
+    ['MID', '보통'],
+    ['HIGH', '심함'],
+  ]),
+  ...g('ACTIVITY_TYPE', [
+    ['CALL', '통화'],
+    ['SMS', '문자'],
+    ['VISIT_TRY', '방문 시도'],
+    ['NOTE', '메모'],
+    ['PHOTO', '사진'],
+    ['STATUS', '상태 변경'],
+  ]),
 ];
 
 /** 상담 스크립트 초기값 (01 §2.6.7, F-ADM-CSL-16). 운영 중 문구는 A-CNT-050에서 바꾸며 시드는 덮어쓰지 않는다. 마이그레이션 0005 에도 같은 값이 있다. */
@@ -555,6 +598,24 @@ export const ROUTE_TEMPLATE_SEED = [
   { templateCode: 'SELF_ASSIGN_REJECTED', channel: 'PUSH', target: 'TECHNICIAN', title: '작업 담기 반려', body: '#{접수번호} 작업 담기 요청이 반려되었습니다.' },
 ];
 
+/** 단계 5-1 출발·완료 고객 알림 (F-SYS-04) */
+export const WORK_TEMPLATE_SEED = [
+  {
+    templateCode: 'ON_THE_WAY',
+    channel: 'ALIMTALK',
+    target: 'CUSTOMER',
+    title: '기사님 출발 안내',
+    body: '#{고객명}님, #{기사명} 기사님이 지금 출발했습니다.\n도착 예정: #{도착예정}\n접수번호: #{접수번호}\n문의: #{거점전화}',
+  },
+  {
+    templateCode: 'WORK_DONE',
+    channel: 'ALIMTALK',
+    target: 'CUSTOMER',
+    title: '작업 완료 안내',
+    body: '#{고객명}님, 에어컨 청소가 끝났습니다.\n작업 전·후 사진과 처리 내용은 작업 리포트에서 확인하세요.\n작업 리포트: #{리포트링크}\n결제 금액: #{금액}\n접수번호: #{접수번호}',
+  },
+];
+
 export const NOTIFICATION_TEMPLATE_SEED = [
   {
     templateCode: 'ORDER_CONFIRMED',
@@ -598,6 +659,8 @@ export const NOTIFICATION_TEMPLATE_SEED = [
   { templateCode: 'UNASSIGNED_WARNING', channel: 'PUSH', target: 'ADMIN', title: '미지정 건 경고', body: '#{접수번호} 약속(#{방문일시})이 곧 다가오는데 기사가 지정되지 않았습니다.' },
   // ── 단계 4-2 (마이그레이션 0007 에도 같은 값) ──
   ...ROUTE_TEMPLATE_SEED,
+  // ── 단계 5-1 (마이그레이션 0008 에도 같은 값) ──
+  ...WORK_TEMPLATE_SEED,
 ];
 
 /** ERD §0.2 역할. 거점장만 BRANCH 범위이고, 나머지는 소속 거점이 지정되면 BR-102에 따라 그 거점으로 제한된다. */
