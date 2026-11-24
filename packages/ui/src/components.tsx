@@ -165,6 +165,28 @@ export function Modal({ open, title, description, onClose, children, actions, fo
   );
 }
 
+/* ---------- Bottom sheet (.ac-sheet) ---------- */
+/** 하단 시트: 모바일 채널(기사·고객) 입력 창. overlayClassName 으로 채널별 배치(아래 붙임)를 준다 */
+export function Sheet({ title, onClose, children, overlayClassName }: { title: string; onClose: () => void; children: ReactNode; overlayClassName?: string }) {
+  const titleId = useId();
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <div className={cx('ac-overlay', overlayClassName)} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="ac-sheet" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+        <div className="ac-sheet__handle" aria-hidden />
+        <h2 id={titleId} className="ac-h3">
+          {title}
+        </h2>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 /** 저장 전 Confirm (03 §6.2) */
 export function ConfirmModal({
   open,

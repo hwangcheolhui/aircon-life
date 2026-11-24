@@ -27,7 +27,8 @@ export default async function PayPage({
   } else {
     const o = await getCustomerOrder(me.id, orderNo);
     if (!o) notFound();
-    if (o.paymentStatus !== 'UNPAID' || o.status === 'CANCELED') redirect(`/orders/${orderNo}`);
+    if (o.paymentStatus !== 'UNPAID' || !['QUOTED', 'RECEIVED', 'ASSIGN_WAIT', 'ASSIGNED'].includes(o.status))
+      redirect(`/orders/${orderNo}`);
     amount = o.totalAmount;
     items = o.items.map((i) => ({ name: i.name, amount: i.amount }));
   }
@@ -37,7 +38,11 @@ export default async function PayPage({
       amount={amount}
       items={items}
       driver={gateway.kind}
-      portone={gateway.kind === 'portone' ? { storeId: process.env.PORTONE_STORE_ID ?? '', channelKey: process.env.PORTONE_CHANNEL_KEY ?? '' } : null}
+      portone={
+        gateway.kind === 'portone'
+          ? { storeId: process.env.PORTONE_STORE_ID ?? '', channelKey: process.env.PORTONE_CHANNEL_KEY ?? '' }
+          : null
+      }
       returnedPaymentId={sp.paymentId ?? null}
       demoQuery={me.demo ? `?a=${amount}` : ''}
     />

@@ -2,11 +2,11 @@
 // T-WRK-040 추가요금 · F-TEC-WRK-05: 사전공개 규칙 선택 / 자재 / 기타(사유·증빙 필수, 관리자 승인 BR-042) / 현장 기기 추가(F-TEC-WRK-04)
 // 등록하면 고객 앱 동의 요청(기타는 승인 후). 앱을 못 쓰는 고객은 현장 서명으로 동의(BR-040). 응답 전에는 철회 가능.
 import type { ExtraChargeState } from '@aircon/domain';
-import { Alert, Button, ConfirmModal, Empty, Field, Input, Select, Tag, Textarea, useToast } from '@aircon/ui';
+import { Alert, Button, ConfirmModal, Empty, Field, Input, Select, Sheet as UiSheet, Tag, Textarea, useToast } from '@aircon/ui';
 import { Camera, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useId, useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { addJobExtraCharge, signJobExtraCharge, withdrawJobExtraCharge } from '@/app/(tech)/tech/(flow)/actions';
 import { formatWon } from '@/customer/format';
 import type { getExtraScreen } from '@/server/extra-charges';
@@ -30,24 +30,8 @@ const STATE: Record<ExtraChargeState, { label: string; tone?: 'primary' | 'succe
 
 const errOf = (r: Res, fallback: string) => r.message ?? Object.values(r.fieldErrors ?? {})[0] ?? fallback;
 
-function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  const titleId = useId();
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-  return (
-    <div className="ac-overlay tec-sheet-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="ac-sheet" role="dialog" aria-modal="true" aria-labelledby={titleId}>
-        <div className="ac-sheet__handle" aria-hidden />
-        <h2 id={titleId} className="ac-h3">
-          {title}
-        </h2>
-        {children}
-      </div>
-    </div>
-  );
+function Sheet(p: { title: string; onClose: () => void; children: React.ReactNode }) {
+  return <UiSheet {...p} overlayClassName="tec-sheet-overlay" />;
 }
 
 function AddSheet({ s, types, onClose }: { s: Screen; types: Code[]; onClose: () => void }) {

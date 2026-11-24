@@ -1092,12 +1092,16 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 | payment_id | BIGINT | FK | 개별 결제 기준 | |
 | corporate_account_id | BIGINT | FK | 월합산 계산서 기준 | |
 | doc_type | VARCHAR(20) | NN | `CASH_RECEIPT_INCOME`(소득공제), `CASH_RECEIPT_EXPENSE`(지출증빙), `TAX_INVOICE`, `CARD_SLIP` | |
-| identity_no 🔒 | VARCHAR(100) | | 휴대폰/사업자번호 | |
+| identity_no 🔒 | VARCHAR(200) | | 휴대폰/사업자번호(암호문 저장) | |
 | supply_amount / vat_amount / total_amount | INT | NN | 공급가/부가세/합계 | |
 | issue_status | VARCHAR(20) | NN | `REQUESTED`, `ISSUED`, `FAILED`, `CANCELED` | |
 | issued_no | VARCHAR(50) | | 국세청 승인번호 | |
 | issued_at | DATETIME | | | |
+| fail_reason | VARCHAR(300) | | 발행 실패 사유(단계 6-1) | |
+| requested_by | VARCHAR(20) | | 신청 주체 `ACTOR_TYPE`(CUSTOMER/TECHNICIAN/ADMIN, 단계 6-1) | |
 | 공통컬럼 | | | | |
+
+> 단계 6-1 구현: 현금·계좌이체·가상계좌 결제 1건마다 현금영수증(소득공제·지출증빙) 또는 세금계산서를 신청합니다. 카드·간편결제·현장카드는 PG·단말 영수증(`CARD_SLIP`)으로 대신하고 신청을 받지 않습니다. 공급가 = round(합계 ÷ 1.1), 부가세 = 합계 − 공급가. 현금영수증은 신청 즉시 증빙 어댑터(`RECEIPT_DRIVER`)로 발행해 `ISSUED`(또는 `FAILED`+`fail_reason`)로 남기고, 세금계산서는 관리자가 A-PAY-050에서 국세청 승인번호를 입력해 발행 처리합니다(전자세금계산서 자동 발행·B2B 월합산 `corporate_account_id`는 단계 11). 상태 전이는 §3.11. `identity_no`는 앱 암호화하고 목록은 마스킹, [보기]는 `audit_log(VIEW_PII)`.
 
 ---
 
@@ -1156,7 +1160,7 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 ### D12. CRM·마케팅·품질
 
 #### 2.12.1 `notification_template` — 알림 템플릿
-`id`, `template_code`(UK, `ORDER_CONFIRMED`, `ORDER_CHANGED`(일정 변경, 단계 2), `ORDER_CANCELED`(취소, 단계 2), `VISIT_REMINDER`(방문 전날 18:00, 단계 2), `TECH_ASSIGNED`, `ON_THE_WAY`, `WORK_DONE`, `PAYMENT_DONE`, `REVISIT_11M`, `REVIEW_REQUEST`, `AREA_OPENED`(서비스 지역 오픈 안내, F-ADM-DSP-11), 단계 4-1: `TECH_ASSIGNED`(고객 기사 배정 안내, `#{기사명}`), `TECH_JOB_ASSIGNED`·`TECH_JOB_CHANGED`·`TECH_TRANSFER_REJECTED`(기사 앱 푸시), `UNASSIGNED_WARNING`(운영자 미지정 경고 푸시, F-SYS-09), 단계 4-2: `VISIT_TIME_NOTICE`·`VISIT_TIME_CHANGED`(고객 방문 예정 시간 안내·변경, `#{방문예정}`), `ROUTE_DRAFT_READY`·`ROUTE_CONFIRM_REMIND`·`ROUTE_AUTO_CONFIRMED`(기사 코스 푸시, `#{코스일자}`·`#{방문건수}`), `SELF_ASSIGN_REQUESTED`(운영자)·`SELF_ASSIGN_APPROVED`·`SELF_ASSIGN_REJECTED`(기사 푸시), 단계 5-1: `ON_THE_WAY`(기사 출발·도착 예정, `#{기사명}`·`#{도착예정}`), `WORK_DONE`(작업 완료·리포트, `#{리포트링크}`·`#{금액}`), 단계 5-2: `EXTRA_CHARGE_REQUEST`(고객 추가요금 동의 요청, `#{추가요금}`·`#{동의링크}`), `PENDING_ABSENT`(고객 방문 부재 안내), `EXTRA_CHARGE_RESULT`(기사 푸시, `#{결과}`), `EXTRA_APPROVAL_REQUESTED`·`PENDING_OVERDUE`(운영자 푸시)), `channel`(`ALIMTALK`/`SMS`/`PUSH`/`EMAIL`), `target`(`CUSTOMER`/`TECHNICIAN`/`ADMIN`), `title`, `body`(치환변수 `#{고객명}` 등), `kakao_template_id`, `is_active`, 공통컬럼
+`id`, `template_code`(UK, `ORDER_CONFIRMED`, `ORDER_CHANGED`(일정 변경, 단계 2), `ORDER_CANCELED`(취소, 단계 2), `VISIT_REMINDER`(방문 전날 18:00, 단계 2), `TECH_ASSIGNED`, `ON_THE_WAY`, `WORK_DONE`, `PAYMENT_DONE`, `REVISIT_11M`, `REVIEW_REQUEST`, `AREA_OPENED`(서비스 지역 오픈 안내, F-ADM-DSP-11), 단계 4-1: `TECH_ASSIGNED`(고객 기사 배정 안내, `#{기사명}`), `TECH_JOB_ASSIGNED`·`TECH_JOB_CHANGED`·`TECH_TRANSFER_REJECTED`(기사 앱 푸시), `UNASSIGNED_WARNING`(운영자 미지정 경고 푸시, F-SYS-09), 단계 4-2: `VISIT_TIME_NOTICE`·`VISIT_TIME_CHANGED`(고객 방문 예정 시간 안내·변경, `#{방문예정}`), `ROUTE_DRAFT_READY`·`ROUTE_CONFIRM_REMIND`·`ROUTE_AUTO_CONFIRMED`(기사 코스 푸시, `#{코스일자}`·`#{방문건수}`), `SELF_ASSIGN_REQUESTED`(운영자)·`SELF_ASSIGN_APPROVED`·`SELF_ASSIGN_REJECTED`(기사 푸시), 단계 5-1: `ON_THE_WAY`(기사 출발·도착 예정, `#{기사명}`·`#{도착예정}`), `WORK_DONE`(작업 완료·리포트, `#{리포트링크}`·`#{금액}`), 단계 5-2: `EXTRA_CHARGE_REQUEST`(고객 추가요금 동의 요청, `#{추가요금}`·`#{동의링크}`), `PENDING_ABSENT`(고객 방문 부재 안내), `EXTRA_CHARGE_RESULT`(기사 푸시, `#{결과}`), `EXTRA_APPROVAL_REQUESTED`·`PENDING_OVERDUE`(운영자 푸시), 단계 6-1: `PAYMENT_REQUEST`(고객 앱 결제 요청 알림톡, `#{결제금액}`·`#{결제링크}`), `PAYMENT_LINK`(결제 링크 문자), `PAYMENT_DONE`(결제 완료, `#{결제금액}`)), `channel`(`ALIMTALK`/`SMS`/`PUSH`/`EMAIL`), `target`(`CUSTOMER`/`TECHNICIAN`/`ADMIN`), `title`, `body`(치환변수 `#{고객명}` 등), `kakao_template_id`, `is_active`, 공통컬럼
 
 #### 2.12.2 `notification_log` — 알림 발송 이력
 `id`, `template_id`(FK), `receiver_type`, `receiver_id`, `receiver_phone_masked`, `channel`, `related_type`(`ORDER`/`CAMPAIGN`/...), `related_id`, `status`(`QUEUED`/`SENT`/`FAILED`/`FALLBACK_SMS`), `sent_at`, `fail_reason`, `created_at`(단계 2 추가: 실패 건도 시각을 남기고 고객 알림함 C-NTF-010 정렬에 사용)
@@ -1257,6 +1261,8 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 | 공통컬럼 + deleted_at | | | | |
 
 `memo_recipient`: `memo_id`(FK), `receiver_type`, `receiver_id`, `read_at` — 지정 수신자(권한 보유자만 지정 가능)
+
+> 단계 6-1 구현: 미수 처리에 필요한 범위만 먼저 만듭니다. 기사·관리자가 미수로 남기거나 A-PAY-040에서 메모를 남기면 `header_code`=`RECEIVABLE`, `related_order_id`=주문, `start_date`=`end_date`=당일로 1행 넣습니다. 캘린더·공유·팝업·`memo_recipient`는 단계 10에서 씁니다.
 
 #### 2.13.3 `faq` — FAQ (상담 Q&A 축적 → RAG 상담 소스)
 `id`, `category`, `audience`(`CUSTOMER`/`TECHNICIAN`), `question`, `answer`, `source_consultation_id`(FK), `view_count`, `is_published`, `sort_order`, 공통컬럼
@@ -1388,6 +1394,21 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 
 ---
 
+### 3.11 증빙 상태 `tax_document.issue_status` (단계 6-1)
+
+| 코드 | 명칭 | 의미 | 다음 가능 상태 | 변경 주체 |
+|---|---|---|---|---|
+| `REQUESTED` | 발행 요청 | 고객·기사·관리자가 신청(세금계산서는 관리자 발행 대기) | ISSUED, FAILED, CANCELED | 시스템(현금영수증 즉시 발행)·관리자 |
+| `FAILED` | 발행 실패 | 발행 API 실패(`fail_reason`) | ISSUED, FAILED, CANCELED | 관리자(재발행) |
+| `ISSUED` | 발행 | 승인번호(`issued_no`) 받음 | CANCELED | 관리자 |
+| `CANCELED` | 취소 | 발행 취소 또는 요청 취소 | (종료) | 관리자 |
+
+- 전이표는 `packages/domain` `TAX_DOC_TRANSITIONS`가 단일 출처입니다. 이력 테이블은 두지 않고 상태 컬럼만 바꾸며, 관리자 처리는 `updated_by`로 남습니다.
+
+단계 6-1 결제 후 주문 전이: `WORK_DONE`에서 결제로 `paid_amount ≥ total_amount`가 되면 시스템이 `COMPLETED`로 바꾸고(`order_status_history` memo "결제 완료"), `payment_status`=`PAID`, `work_order.is_settlement_target`=true로 표시합니다(BR-081). 작업 완료 시점에 이미 다 낸 주문(선결제)은 작업 완료 저장과 같은 트랜잭션에서 곧바로 `COMPLETED`가 됩니다. 일부만 냈으면 `PREPAID`, 미수로 남기면 `RECEIVABLE`(주문은 `WORK_DONE` 유지, 정산 제외)입니다. 기사가 직접 받은 현금·계좌이체는 `payment.collected_by_tech_id`와 `work_order.received_amount`에 남겨 정산(단계 7)에서 상계합니다(BR-082).
+
+---
+
 ## 4. 주요 코드 그룹 (common_code 초기 데이터)
 
 | group_code | 코드 목록 |
@@ -1505,6 +1526,13 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 | `ACTIVITY_TYPE` | CALL 통화 / SMS 문자 / VISIT_TRY 방문 시도 / NOTE 메모 / PHOTO 사진 / STATUS 상태 변경 | activity_log.activity_type |
 
 `ATTACHMENT_REF_TYPE`에 `SIGNATURE` 고객 서명(단계 5-1)을 추가했습니다.
+
+**단계 6에서 추가한 그룹**
+
+| group_code | 코드 목록 | 사용 컬럼 |
+|---|---|---|
+| `TAX_DOC_TYPE` | CASH_RECEIPT_INCOME 현금영수증(소득공제) / CASH_RECEIPT_EXPENSE 현금영수증(지출증빙) / TAX_INVOICE 세금계산서 / CARD_SLIP 카드 영수증 | tax_document.doc_type (단계 6-1) |
+| `TAX_ISSUE_STATUS` | REQUESTED 발행 요청 / ISSUED 발행 / FAILED 발행 실패 / CANCELED 취소 | tax_document.issue_status (§3.11) |
 
 ---
 

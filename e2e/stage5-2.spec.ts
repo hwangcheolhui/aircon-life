@@ -390,7 +390,9 @@ test('F-TEC-WRK-04 현장 기기 추가를 현장 서명으로 동의받고, 완
   const agreed = 20000 + base!.unit_price;
   await expect(p.locator('.ac-bottom-bar')).toContainText(`${(before.total_amount + agreed).toLocaleString('ko-KR')}원`);
   await p.getByRole('button', { name: '작업 완료' }).click();
-  await expect(p).toHaveURL(new RegExp(`/tech/jobs/${orderNo}$`), { timeout: 30_000 });
+  // 단계 6: 완료 후 현장 결제(T-PAY-010)로 간다
+  await expect(p).toHaveURL(new RegExp(`/tech/jobs/${orderNo}/pay$`), { timeout: 30_000 });
+  await expect(p.getByRole('heading', { name: '현장 결제' })).toBeVisible({ timeout: 30_000 });
 
   const after = await orderOf(orderNo);
   expect(after).toMatchObject({ status: 'WORK_DONE', extra_amount: agreed, total_amount: before.total_amount + agreed });

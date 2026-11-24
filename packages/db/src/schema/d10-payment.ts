@@ -93,3 +93,28 @@ export const notificationLog = pgTable(
     index('notification_log_related_idx').on(t.relatedType, t.relatedId),
   ],
 );
+
+/**
+ * 2.10.3 증빙(현금영수증·세금계산서) — 단계 6. 발행 상태가 바뀌므로 INSERT ONLY 가 아니다(01 §3.11 전이표).
+ * identity_no 🔒 는 앱 레벨 암호화(휴대폰·사업자번호), 목록은 마스킹만.
+ */
+export const taxDocument = pgTable(
+  'tax_document',
+  {
+    id: idColumn(),
+    paymentId: bigint('payment_id', { mode: 'number' }).references(() => payment.id),
+    corporateAccountId: bigint('corporate_account_id', { mode: 'number' }), // 단계 11 B2B 월합산(corporate_account)
+    docType: varchar('doc_type', { length: 20 }).notNull(), // TAX_DOC_TYPE
+    identityNo: varchar('identity_no', { length: 200 }), // 🔒 암호문
+    supplyAmount: integer('supply_amount').notNull(),
+    vatAmount: integer('vat_amount').notNull(),
+    totalAmount: integer('total_amount').notNull(),
+    issueStatus: varchar('issue_status', { length: 20 }).notNull(), // TAX_ISSUE_STATUS
+    issuedNo: varchar('issued_no', { length: 50 }),
+    issuedAt: timestamp('issued_at', { withTimezone: true }),
+    failReason: varchar('fail_reason', { length: 300 }),
+    requestedBy: varchar('requested_by', { length: 20 }), // ACTOR_TYPE (CUSTOMER/TECHNICIAN/ADMIN)
+    ...auditColumns,
+  },
+  (t) => [index('tax_document_payment_idx').on(t.paymentId), index('tax_document_status_idx').on(t.issueStatus)],
+);

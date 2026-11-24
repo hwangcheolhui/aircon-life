@@ -502,7 +502,8 @@ export async function confirmPayment(customerId: number, orderNo: string, paymen
   if (!o) throw new UserError('예약을 찾을 수 없습니다.');
   const [done] = await db.select().from(payment).where(eq(payment.paymentNo, paymentNo));
   if (done) return { ok: done.status === 'APPROVED', failReason: done.failReason };
-  if (o.paymentStatus !== 'UNPAID' || o.status === 'CANCELED') throw new UserError('결제할 수 없는 예약입니다.');
+  // 작업이 시작된 뒤 금액은 작업 후 결제(C-PAY-020, confirmPostPayment)
+  if (o.paymentStatus !== 'UNPAID' || !['QUOTED', 'RECEIVED', 'ASSIGN_WAIT', 'ASSIGNED'].includes(o.status)) throw new UserError('결제할 수 없는 예약입니다.');
   const gw = createPaymentGateway();
   const r = await gw.verify(paymentId, o.totalAmount);
   await db.transaction(async (tx) => {

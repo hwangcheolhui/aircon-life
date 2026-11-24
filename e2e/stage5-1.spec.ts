@@ -255,7 +255,9 @@ test('BR-041 작업 후 사진이 없으면 완료가 막히고, 사진·결과�
   await p.mouse.move(box.x + 220, box.y + 50, { steps: 5 });
   await p.mouse.up();
   await p.getByRole('button', { name: '작업 완료' }).click();
-  await expect(p).toHaveURL(new RegExp(`/tech/jobs/${orderNo}$`), { timeout: 30_000 });
+  // 단계 6: 완료 후 현장 결제(T-PAY-010)로 간다
+  await expect(p).toHaveURL(new RegExp(`/tech/jobs/${orderNo}/pay$`), { timeout: 30_000 });
+  await expect(p.getByRole('heading', { name: '현장 결제' })).toBeVisible({ timeout: 30_000 });
 
   const o = await orderRow();
   expect(o.status).toBe('WORK_DONE');
@@ -272,6 +274,7 @@ test('BR-041 작업 후 사진이 없으면 완료가 막히고, 사진·결과�
     SELECT i.item_status FROM order_item i JOIN service_order o ON o.id = i.order_id WHERE o.order_no = ${orderNo} AND i.item_type = 'PRODUCT'`;
   expect(item!.item_status).toBe('DONE');
   expect(await notified('WORK_DONE')).toBe(1);
+  await p.goto(`/tech/jobs/${orderNo}`);
   await expect(p.locator('.ac-live-banner')).toHaveCount(0);
 
   // T-WRK-070 활동내역

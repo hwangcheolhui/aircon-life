@@ -34,6 +34,9 @@ export const NOTIFICATION_TEMPLATE_CODES = [
   'EXTRA_CHARGE_RESULT',
   'EXTRA_APPROVAL_REQUESTED',
   'PENDING_OVERDUE',
+  // 단계 6: 작업 후 결제 요청(앱 알림톡·결제 링크 문자, F-TEC-PAY-01)·결제 완료(PAYMENT_DONE)
+  'PAYMENT_REQUEST',
+  'PAYMENT_LINK',
 ] as const;
 export type NotificationTemplateCode = (typeof NOTIFICATION_TEMPLATE_CODES)[number];
 
@@ -57,4 +60,6 @@ export const TEMPLATE_VARIABLES = [
   '추가요금',
   '동의링크',
   '결과',
+  '결제금액',
+  '결제링크',
 ] as const;

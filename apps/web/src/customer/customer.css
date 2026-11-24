@@ -288,3 +288,17 @@
 .cus-extra-head { display: flex; gap: var(--space-2); align-items: center; }
 .cus-extra-photo { display: block; width: 100%; max-height: 320px; object-fit: cover; border-radius: var(--radius-md); margin-top: var(--space-2); }
 .cus-extra-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-top: var(--space-3); }
+/* ── 하단 시트 (C-PAY-030 증빙 신청, 단계 6) ─────────────────────────────── */
+.cus-sheet-overlay {
+  place-items: end center;
+  padding: 0;
+}
+.cus-sheet-overlay .ac-sheet {
+  max-width: 600px;
+  max-height: 90dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}

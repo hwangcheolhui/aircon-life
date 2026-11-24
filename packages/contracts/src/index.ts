@@ -902,3 +902,56 @@ export const workPendingInput = z.object({
   memo: optStr(500),
   revisitDate: optDate(),
 });
+
+/* ---------- 단계 6 결제·증빙 (F-TEC-PAY-01~03, F-CUS-PAY-02·03, F-ADM-PAY-01~05) ---------- */
+
+/** F-TEC-PAY-01·02 현장 결제(카드단말·계좌이체·현금) — 금액 일치 검사는 domain checkCollect */
+export const fieldPaymentInput = z.object({
+  orderNo: orderNoField(),
+  method: z.enum(['ONSITE_CARD', 'BANK_TRANSFER', 'CASH'], { errorMap: () => ({ message: MSG.required('결제 수단') }) }),
+  amount: reqInt('받은 금액', 1),
+  approvalNo: optStr(30),
+});
+
+/** F-TEC-PAY-01 고객에게 결제 요청(앱 알림톡 / 결제 링크 문자) */
+export const paymentRequestInput = z.object({ orderNo: orderNoField(), channel: z.enum(['APP', 'LINK']) });
+
+/** 미수로 남기기 (사유 필수) */
+export const receivableInput = z.object({ orderNo: orderNoField(), reason: reqStr('미수 사유', 300) });
+
+/** F-CUS-PAY-03 · F-TEC-PAY-03 증빙 신청 — 번호 형식은 domain checkTaxDocInput */
+export const taxDocRequestInput = z.object({
+  orderNo: orderNoField(),
+  paymentId: reqId('결제'),
+  docType: z.enum(['CASH_RECEIPT_INCOME', 'CASH_RECEIPT_EXPENSE', 'TAX_INVOICE'], { errorMap: () => ({ message: MSG.required('증빙 종류') }) }),
+  identityNo: reqStr('발급 번호', 30),
+});
+
+/** F-ADM-PAY-05 증빙 발행(세금계산서는 국세청 승인번호 직접 입력)·취소 */
+export const taxDocActionInput = z.object({
+  taxDocId: reqId('증빙'),
+  action: z.enum(['ISSUE', 'CANCEL']),
+  issuedNo: optStr(50),
+});
+
+/** F-ADM-PAY-03 환불 */
+export const refundInput = z.object({
+  paymentId: reqId('결제'),
+  amount: reqInt('환불 금액', 1),
+  fee: reqInt('수수료', 0),
+  reasonCode: z.enum(['CUSTOMER_CANCEL', 'SERVICE_FAIL', 'COMPENSATION', 'DUPLICATE'], { errorMap: () => ({ message: MSG.required('환불 사유') }) }),
+  reasonDetail: optStr(300),
+});
+
+/** F-ADM-PAY-04 미수금 독촉 메모([미수금]) */
+export const receivableMemoInput = z.object({ orderId: reqId('주문'), content: reqStr('메모 내용', 1000) });
+
+/** F-ADM-PAY-04 입금 확인(관리자 수금 기록) */
+export const adminCollectInput = z.object({
+  orderId: reqId('주문'),
+  method: z.enum(['BANK_TRANSFER', 'CASH'], { errorMap: () => ({ message: MSG.required('결제 수단') }) }),
+  amount: reqInt('입금 금액', 1),
+});
+
+/** F-ADM-PAY-02 결제 링크 다시 보내기 */
+export const resendPaymentLinkInput = z.object({ orderId: reqId('주문') });

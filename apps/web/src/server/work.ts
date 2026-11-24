@@ -6,6 +6,7 @@ import 'server-only';
  * - 출발·도착·완료 처리는 주기사만, 활동내역은 확정 배정된 기사 누구나. 작업은 자기에게 확정된 배정(ACCEPTED·TRANSFER_REQUESTED)만.
  * - 완료 필수 검증은 packages/domain checkCompletion(BR-041·043, F-TEC-WRK-07). 동의 안 된 추가요금은 금액에 넣지 않는다(BR-040).
  * - 단계 5-2: 응답 전 추가요금(승인 대기 포함)이 있으면 완료를 막고(F-TEC-WRK-07 ④), 미처리 저장(F-TEC-WRK-08, BR-031)은 어느 단계에서든.
+ * - 단계 6: 완료 후 결제 화면(T-PAY-010). 선결제로 전액을 냈으면 완료 즉시 주문 COMPLETED(payments.completeIfPaid).
  * - 사진·서명 파일은 저장소 어댑터(STORAGE_DRIVER)에 두고 /api/files/{id} 로 권한을 확인해 내려준다.
  */
 import {
@@ -52,6 +53,7 @@ import { UserError, ValidationFailed } from './action-result';
 import { saveAttachment } from './attachments';
 import { getDb } from './db';
 import { notifyOrder } from './notify';
+import { completeIfPaid } from './payments';
 import { type Actor, type OrderRow, type Tx, itemNames, transitionOrder } from './orders';
 import { departureEta, markRouteStop, nextRouteOrderNo } from './route-plans';
 import { getSettingNumber, getSettingString } from './settings';
@@ -437,6 +439,8 @@ export async function completeWork(
       { completedAt: now, extraAmount: agreedExtra, totalAmount: final },
     );
     await markRouteStop(tx, techId, o!.id, kstDate(now), { type: 'DONE' }, now);
+    // 단계 6: 선결제로 이미 다 냈으면 바로 완료(01 §3.1 WORK_DONE → COMPLETED, BR-081 정산 대상)
+    await completeIfPaid(tx, { id: o!.id, status: 'WORK_DONE', totalAmount: final, paidAmount: o!.paidAmount, paymentStatus: o!.paymentStatus });
   });
   await notifyOrder('WORK_DONE', o!.id, { 리포트링크: reportUrl(o!.orderNo) });
   return { done: true };
