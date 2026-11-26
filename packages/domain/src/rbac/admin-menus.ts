@@ -22,7 +22,7 @@ export type ImplementationStage =
   | '11';
 
 /** 지금까지 구현이 끝난 단계. 단계를 마칠 때마다 이 목록에 추가한다. */
-export const RELEASED_STAGES: readonly ImplementationStage[] = ['0', '1', '2', '3', '4-1', '4-2', '5', '6-1', '6-2', '7'];
+export const RELEASED_STAGES: readonly ImplementationStage[] = ['0', '1', '2', '3', '4-1', '4-2', '5', '6-1', '6-2', '7', '8'];
 
 export interface AdminScreen {
   screenId: string;

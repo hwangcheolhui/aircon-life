@@ -31,3 +31,5 @@ export * from './work/pending';
 export * from './work/process-console';
 export * from './payment/payment-rules';
 export * from './settlement/settlement-rules';
+export * from './aftercare/aftercare-rules';
+export * from './ops/ops-rules';

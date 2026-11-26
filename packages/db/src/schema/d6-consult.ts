@@ -1,6 +1,6 @@
 /**
  * D6 상담 (01_ERD §2.6.1·2.6.2·2.6.7) — 단계 3 상담 콘솔.
- * 독촉·안전사고·VOC(§2.6.3~2.6.6)는 단계 8에서 추가한다.
+ * 독촉·안전사고·VOC(§2.6.3~2.6.6)는 단계 8 d6-aftercare.ts.
  * 🔒 caller_phone 은 AES-256-GCM 암호문, 검색은 caller_phone_hash 로만(ERD §6).
  */
 import { bigint, boolean, char, index, integer, pgTable, text, timestamp, varchar } from 'drizzle-orm/pg-core';
@@ -45,6 +45,10 @@ export const consultation = pgTable(
     status: varchar('status', { length: 20 }).notNull(), // CONSULT_STATUS (01 §3.5)
     agentAdminId: bigint('agent_admin_id', { mode: 'number' }).references(() => adminUser.id),
     completedAt: timestamp('completed_at', { withTimezone: true }),
+    /** 1:1 문의 답변 (C-CS-020 · A-CSL-080, 단계 8) */
+    replyContent: text('reply_content'),
+    repliedAt: timestamp('replied_at', { withTimezone: true }),
+    repliedBy: bigint('replied_by', { mode: 'number' }).references(() => adminUser.id),
     ...auditColumns,
   },
   (t) => [

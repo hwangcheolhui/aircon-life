@@ -302,3 +302,11 @@
   flex-direction: column;
   gap: var(--space-4);
 }
+
+/* 단계 8: 고객센터 FAQ·1:1 문의·AS 요청 */
+.cus-card-title { margin-top: 0; }
+.cus-faq { padding: var(--space-2) 0; }
+.cus-phone { margin-bottom: var(--space-2); }
+.cus-inquiry { display: grid; gap: var(--space-2); padding: var(--space-3) 0; border-bottom: 1px solid var(--color-divider); }
+.cus-inquiry:last-child { border-bottom: 0; }
+.cus-reply { padding: var(--space-3); border-radius: var(--radius-md); background: var(--color-bg-subtle); white-space: pre-wrap; }

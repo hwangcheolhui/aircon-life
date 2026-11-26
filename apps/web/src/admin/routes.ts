@@ -40,6 +40,20 @@ export const ADMIN_ROUTES: Record<string, string> = {
   'A-SYS-030': '/admin/sys/branches',
   'A-SYS-040': '/admin/sys/codes',
   'A-SYS-050': '/admin/sys/settings',
+  // 단계 8
+  'A-DSH-010': '/admin/dsh/operations',
+  'A-DSH-020': '/admin/dsh/kpi',
+  'A-CSL-080': '/admin/csl/inquiries',
+  'A-PRC-060': '/admin/prc/followups',
+  'A-CUS-030': '/admin/cus/purge',
+  'A-VOC-010': '/admin/voc/vocs',
+  'A-VOC-020': '/admin/voc/incidents',
+  'A-VOC-030': '/admin/voc/as',
+  'A-CRM-010': '/admin/crm/revisit',
+  'A-CNT-010': '/admin/cnt/notices',
+  'A-CNT-020': '/admin/cnt/faqs',
+  'A-STA-010': '/admin/sta/sales',
+  'A-SYS-060': '/admin/sys/audit-logs',
 };
 
 export function routeOf(screenId: string): string {

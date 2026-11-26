@@ -216,6 +216,7 @@ export const COMMON_CODE_SEED = [
     ['NOTICE', '공지'],
     ['DOC', '문서'],
     ['SIGNATURE', '고객 서명'], // 단계 5-1
+    ['AS_REQUEST', 'AS 사진'], // 단계 8
   ]),
   ...g('AUDIT_ACTION', [
     ['VIEW_PII', '개인정보 열람'],
@@ -596,6 +597,143 @@ export const COMMON_CODE_SEED = [
     ['DEDUCTION', '공제'],
     ['ADJUST', '조정'],
   ]),
+  // 단계 8 사후관리·운영 마감 (01 §4 "단계 8에서 추가한 그룹", 마이그레이션 0012 에도 같은 값)
+  ...g('FOLLOWUP_TARGET', [
+    ['CONSULT', '상담 독촉'],
+    ['ORDER', '출장 독촉'],
+  ]),
+  ...g('FOLLOWUP_TYPE', [
+    ['SCHEDULE_DELAY', '일정 지연'],
+    ['NO_CONTACT', '연락 없음'],
+    ['RESULT_COMPLAINT', '결과 불만'],
+    ['MESSAGE_DELIVERY', '단순 전달'],
+  ]),
+  ...g('FOLLOWUP_CAUSE', [
+    ['TECH_LATE', '기사 지연'],
+    ['NO_CALL', '사전 연락 없음'],
+    ['SLOT_FULL', '일정 부족'],
+    ['CUSTOMER_CHANGE', '고객 사정'],
+    ['ETC', '기타'],
+  ]),
+  ...g('FOLLOWUP_STATUS', [
+    ['SENT', '발송'],
+    ['READ', '읽음'],
+    ['REPLIED', '회신'],
+    ['CLOSED', '종결'],
+  ]),
+  ...g('INCIDENT_STATUS', [
+    ['REPORTED', '접수'],
+    ['INVESTIGATING', '조사중'],
+    ['NEGOTIATING', '협의중'],
+    ['COMPENSATED', '보상 완료'],
+    ['CLOSED', '종결'],
+  ]),
+  ...g('INCIDENT_RECIPIENT_TYPE', [
+    ['BRANCH_MANAGER', '거점장'],
+    ['OWNER', '담당자'],
+    ['EXECUTIVE', '경영진'],
+    ['MANUAL', '수동 추가'],
+  ]),
+  ...g('VOC_CHANNEL', [
+    ['PHONE_IN', '전화 인입'],
+    ['APP', '앱'],
+    ['REVIEW', '후기'],
+    ['SNS', 'SNS'],
+  ]),
+  ...g('VOC_TYPE', [
+    ['COMPLAINT', '불만'],
+    ['PRAISE', '칭찬'],
+    ['SUGGESTION', '제안'],
+    ['INQUIRY', '문의'],
+  ]),
+  ...g('VOC_CATEGORY_L', [
+    ['QUALITY', '품질'],
+    ['ATTITUDE', '태도'],
+    ['PRICE', '가격'],
+    ['SCHEDULE', '일정'],
+    ['ETC', '기타'],
+  ]),
+  ...g('VOC_CATEGORY_M', [
+    ['QUALITY_DIRT', '세척불량'],
+    ['QUALITY_DAMAGE', '파손·고장'],
+    ['ATTITUDE_RUDE', '불친절'],
+    ['ATTITUDE_NO_CONTACT', '연락 없음'],
+    ['PRICE_EXTRA', '추가요금'],
+    ['PRICE_HIGH', '가격 불만'],
+    ['SCHEDULE_DELAY', '지연'],
+    ['SCHEDULE_CHANGE', '일정 변경'],
+    ['ETC', '기타'],
+  ]),
+  ...g('VOC_SEVERITY', [
+    ['LOW', '낮음'],
+    ['MID', '보통'],
+    ['HIGH', '높음'],
+  ]),
+  ...g('VOC_STATUS', [
+    ['RECEIVED', '접수'],
+    ['CONFIRMING', '확정중'],
+    ['PROCESSING', '처리중'],
+    ['DONE', '완료'],
+  ]),
+  ...g('AS_REASON', [
+    ['DIRT_REMAIN', '오염이 남아 있음'],
+    ['LEAK', '물이 샘'],
+    ['NOISE', '소음'],
+    ['ODOR', '냄새'],
+    ['BROKEN', '고장·파손'],
+  ]),
+  ...g('AS_STATUS', [
+    ['REQUESTED', '접수'],
+    ['ACCEPTED', '승인'],
+    ['SCHEDULED', '재방문 예정'],
+    ['DONE', '완료'],
+    ['REJECTED', '반려'],
+  ]),
+  ...g('CAMPAIGN_TYPE', [
+    ['REVISIT_AUTO', '자동 재방문'],
+    ['SEASON', '시즌'],
+    ['WINBACK', '휴면'],
+    ['CROSS_SELL', '교차 판매'],
+  ]),
+  ...g('CAMPAIGN_SCHEDULE', [
+    ['ONCE', '1회'],
+    ['DAILY_AUTO', '매일 자동'],
+  ]),
+  ...g('CAMPAIGN_STATUS', [
+    ['DRAFT', '작성'],
+    ['SCHEDULED', '예약'],
+    ['RUNNING', '진행중'],
+    ['DONE', '완료'],
+    ['STOPPED', '중지'],
+  ]),
+  ...g('CAMPAIGN_TARGET_STATUS', [
+    ['SENT', '발송'],
+    ['FAILED', '발송 실패'],
+    ['CONVERTED', '예약 전환'],
+  ]),
+  ...g('NOTICE_TYPE', [
+    ['ALL', '전체'],
+    ['SAFETY', '안전'],
+    ['BRANCH', '거점'],
+    ['CUSTOMER', '고객'],
+  ]),
+  ...g('NOTICE_AUDIENCE', [
+    ['TECHNICIAN', '기사'],
+    ['ADMIN', '관리자'],
+    ['CUSTOMER', '고객'],
+    ['ALL', '전체'],
+  ]),
+  ...g('FAQ_AUDIENCE', [
+    ['CUSTOMER', '고객'],
+    ['TECHNICIAN', '기사'],
+  ]),
+  ...g('FAQ_CATEGORY', [
+    ['PRICE', '가격·결제'],
+    ['RESERVATION', '예약·변경'],
+    ['SERVICE', '서비스'],
+    ['AS', 'AS·보증'],
+    ['ETC', '기타'],
+  ]),
 ];
 
 /** 상담 스크립트 초기값 (01 §2.6.7, F-ADM-CSL-16). 운영 중 문구는 A-CNT-050에서 바꾸며 시드는 덮어쓰지 않는다. 마이그레이션 0005 에도 같은 값이 있다. */
@@ -753,6 +891,28 @@ export const WORK_TEMPLATE_SEED = [
   },
 ];
 
+/** 단계 8 알림 템플릿: 독촉·전달(기사·운영자 푸시)·안전사고 통보·AS·1:1 문의 답변·재방문 안내 */
+export const AFTERCARE_TEMPLATE_SEED = [
+  { templateCode: 'FOLLOWUP_SENT', channel: 'PUSH', target: 'TECHNICIAN', title: '독촉·전달', body: "#{접수번호} #{독촉회차}차 전달\n#{전달내용}\n알림에서 확인하고 회신해 주세요." },
+  { templateCode: 'FOLLOWUP_ADMIN', channel: 'PUSH', target: 'ADMIN', title: '독촉·전달', body: "#{독촉회차}차 전달: #{전달내용}" },
+  { templateCode: 'FOLLOWUP_REPLIED', channel: 'PUSH', target: 'ADMIN', title: '독촉·전달 회신', body: "#{접수번호} 전달에 기사가 회신했습니다.\n#{회신}" },
+  { templateCode: 'SAFETY_INCIDENT', channel: 'PUSH', target: 'ADMIN', title: '안전사고 접수', body: "#{사고번호} #{피해유형} 안전사고가 접수되었습니다. 안전사고 관리에서 확인해 주세요." },
+  { templateCode: 'SAFETY_ESCALATED', channel: 'PUSH', target: 'ADMIN', title: '[경영진 보고] 안전사고', body: "#{사고번호} #{피해유형} 안전사고가 언론·인터넷에 알려졌습니다. 즉시 확인해 주세요." },
+  { templateCode: 'AS_RECEIVED', channel: 'ALIMTALK', target: 'CUSTOMER', title: 'AS 접수 안내', body: "#{고객명}님, AS 요청이 접수되었습니다.\nAS 번호: #{AS번호}\n#{보증안내}\n확인 후 연락드리겠습니다." },
+  { templateCode: 'AS_SCHEDULED', channel: 'ALIMTALK', target: 'CUSTOMER', title: 'AS 재방문 안내', body: "#{고객명}님, AS 재방문 일정이 잡혔습니다.\n방문 일시: #{방문일시}\n접수번호: #{접수번호}\n금액: #{금액}\n문의: #{거점전화}" },
+  { templateCode: 'AS_REJECTED', channel: 'ALIMTALK', target: 'CUSTOMER', title: 'AS 요청 결과 안내', body: "#{고객명}님, 요청하신 AS(#{AS번호})는 처리하기 어렵습니다.\n사유: #{사유}\n문의: #{거점전화}" },
+  { templateCode: 'INQUIRY_ANSWERED', channel: 'ALIMTALK', target: 'CUSTOMER', title: '1:1 문의 답변 안내', body: "#{고객명}님, 1:1 문의에 답변이 등록되었습니다.\n고객센터 > 1:1 문의에서 확인해 주세요." },
+  { templateCode: 'REVISIT_11M', channel: 'ALIMTALK', target: 'CUSTOMER', title: '재방문 안내', body: "#{고객명}님, 에어컨 청소를 받으신 지 #{경과개월}개월이 지났어요.\n더워지기 전에 미리 예약해 보세요.\n예약하기: #{예약링크}\n수신을 원하지 않으시면 마이 > 동의 관리에서 해제할 수 있어요." },
+];
+
+/** 단계 8 고객 FAQ 기본값(faq 가 비어 있을 때만). 운영 중에는 A-CNT-020에서 고친다 */
+export const FAQ_SEED = [
+  { category: 'PRICE', audience: 'CUSTOMER', question: "추가요금이 생길 수 있나요?", answer: "오염이 심하거나 높은 곳 작업 등은 현장에서 기사님이 먼저 설명하고, 고객님이 동의한 경우에만 추가돼요.", isPublished: true, sortOrder: 10 },
+  { category: 'RESERVATION', audience: 'CUSTOMER', question: "예약을 바꾸거나 취소하려면요?", answer: "내 예약 > 예약 상세 > 일정 변경·취소에서 할 수 있어요. 기사님이 출발한 뒤에는 고객센터로 연락해 주세요.", isPublished: true, sortOrder: 20 },
+  { category: 'PRICE', audience: 'CUSTOMER', question: "결제는 언제 하나요?", answer: "예약할 때 미리 결제하거나, 방문한 날 현장에서 결제할 수 있어요.", isPublished: true, sortOrder: 30 },
+  { category: 'AS', audience: 'CUSTOMER', question: "청소 후 문제가 생기면 어떻게 하나요?", answer: "내 예약 > 예약 상세에서 [AS 요청]을 눌러 주세요. 작업 완료 후 보증기간(기본 30일) 안이면 무상으로 다시 방문해요.", isPublished: true, sortOrder: 40 },
+];
+
 export const NOTIFICATION_TEMPLATE_SEED = [
   {
     templateCode: 'ORDER_CONFIRMED',
@@ -798,6 +958,8 @@ export const NOTIFICATION_TEMPLATE_SEED = [
   ...ROUTE_TEMPLATE_SEED,
   // ── 단계 5-1 (마이그레이션 0008 에도 같은 값) ──
   ...WORK_TEMPLATE_SEED,
+  // ── 단계 8 (마이그레이션 0012 에도 같은 값) ──
+  ...AFTERCARE_TEMPLATE_SEED,
 ];
 
 /** ERD §0.2 역할. 거점장만 BRANCH 범위이고, 나머지는 소속 거점이 지정되면 BR-102에 따라 그 거점으로 제한된다. */

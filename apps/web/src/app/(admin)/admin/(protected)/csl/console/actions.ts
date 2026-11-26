@@ -8,6 +8,8 @@ import {
   consoleCustomerInput,
   consoleCustomerUpdateInput,
   consultRecordInput,
+  followupInput,
+  incidentInput,
   legalDongCodeInput,
   phoneInput,
   phoneOrderInput,
@@ -38,6 +40,8 @@ import {
   startCall,
   updateConsoleCustomer,
 } from '@/server/consult';
+import { createFollowup, followupTargets } from '@/server/followups';
+import { createIncident } from '@/server/incidents';
 
 const MENU = 'A-CSL-010';
 const actorOf = (a: CurrentAdmin) => ({ type: 'ADMIN' as const, id: a.adminId });
@@ -204,6 +208,38 @@ export async function submitConsult(values: unknown) {
     const v = parse(consultRecordInput, values);
     const r = await recordConsult(v, await currentBranchFilter(admin), actorOf(admin));
     revalidatePath('/admin/csl/history');
+    return r;
+  });
+}
+
+/* ---------- 단계 8: A-CSL-030 독촉/전달 탭 (F-ADM-CSL-11) · A-CSL-040 안전사고 탭 (F-ADM-CSL-12) ---------- */
+
+/** A-CSL-030 대상 주문(진행 중)·회차·관리자 수신자 목록 */
+export async function loadFollowupTargets(customerId: number) {
+  return handle(async () => {
+    const admin = await requirePermission(MENU, 'READ');
+    return followupTargets(parse(id('고객'), customerId), await currentBranchFilter(admin));
+  });
+}
+
+/** F-ADM-CSL-11 독촉/전달 저장 → 기사 앱(또는 관리자) 알림 */
+export async function submitFollowup(values: Record<string, unknown>) {
+  return handle(async () => {
+    const admin = await requirePermission(MENU, 'CREATE');
+    const v = parse(followupInput, values);
+    const r = await createFollowup(v, await currentBranchFilter(admin), actorOf(admin));
+    revalidatePath('/admin/prc/followups');
+    return r;
+  });
+}
+
+/** F-ADM-CSL-12 안전사고 접수 → 자동 수신자 통보, 언론·인터넷이면 재확인 후 경영진 통보(BR-060·061) */
+export async function submitIncident(values: Record<string, unknown>) {
+  return handle(async () => {
+    const admin = await requirePermission(MENU, 'CREATE');
+    const v = parse(incidentInput, values);
+    const r = await createIncident(v, await currentBranchFilter(admin), actorOf(admin));
+    revalidatePath('/admin/voc/incidents');
     return r;
   });
 }

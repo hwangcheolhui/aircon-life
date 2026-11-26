@@ -8,7 +8,7 @@ export type AuditAction = 'VIEW_PII' | 'EXPORT' | 'UPDATE' | 'DELETE' | 'LOGIN' 
 /** 감사 로그 기록 (INSERT ONLY, BR-100·02 §7 감사) */
 export async function writeAudit(input: {
   /** 기본 ADMIN. 기사 앱 개인정보 열람은 TECHNICIAN */
-  actorType?: 'ADMIN' | 'TECHNICIAN';
+  actorType?: 'ADMIN' | 'TECHNICIAN' | 'SYSTEM';
   actorId: number | null;
   action: AuditAction;
   targetTable?: string;

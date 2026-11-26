@@ -12,3 +12,6 @@ export * from './d8-assignment';
 export * from './d9-work';
 export * from './d13-memo';
 export * from './d11-settlement';
+export * from './d6-aftercare';
+export * from './d12-crm';
+export * from './d13-content';

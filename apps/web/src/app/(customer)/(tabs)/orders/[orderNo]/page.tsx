@@ -1,4 +1,4 @@
-// C-ORD-020 예약 상세 · F-CUS-ORD-02: 상태 타임라인, 단계 5-2: 추가요금 동의 요청 안내(C-ORD-040)·동의된 추가요금 금액, 방문 예정 시간(단계 4-2: 기사 코스 확정 시각, 단계 5-1: 이동 중이면 도착 예정시각 — 좌표는 보여 주지 않음 BR-115), 작업 리포트 링크(C-ORD-050), 단계 6: 작업 후 결제(C-PAY-020)·증빙 신청(C-PAY-030), 기사 정보(배정 후, 단계 4-1: 고객 표시 이름·소개), 항목·금액, 액션(결제·변경·취소·고객센터)
+// C-ORD-020 예약 상세 · F-CUS-ORD-02: 상태 타임라인, 단계 5-2: 추가요금 동의 요청 안내(C-ORD-040)·동의된 추가요금 금액, 방문 예정 시간(단계 4-2: 기사 코스 확정 시각, 단계 5-1: 이동 중이면 도착 예정시각 — 좌표는 보여 주지 않음 BR-115), 작업 리포트 링크(C-ORD-050), 단계 8: [AS 요청](C-AS-010), 단계 6: 작업 후 결제(C-PAY-020)·증빙 신청(C-PAY-030), 기사 정보(배정 후, 단계 4-1: 고객 표시 이름·소개), 항목·금액, 액션(결제·변경·취소·고객센터)
 import { canCustomerCancel, canSeeWorkReport } from '@aircon/domain';
 import { Alert, Card, StatusBadge, Tag } from '@aircon/ui';
 import { ChevronLeft } from 'lucide-react';
@@ -157,6 +157,11 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ or
         </Link>
       ) : null}
       <ReceiptRequest orderNo={o.orderNo} payments={payments} codes={codes} />
+      {(o.status === 'COMPLETED' || o.status === 'WORK_DONE') && o.orderType !== 'AS' ? (
+        <Link href={`/orders/${o.orderNo}/as`} className="ac-btn ac-btn--outline ac-btn--lg ac-btn--block">
+          AS 요청
+        </Link>
+      ) : null}
       {canCustomerCancel(o.status) ? (
         <Link href={`/orders/${o.orderNo}/change`} className="ac-btn ac-btn--outline ac-btn--lg ac-btn--block">
           일정 변경·취소

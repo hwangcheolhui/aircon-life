@@ -51,6 +51,17 @@ export const SYSTEM_SETTING_SEEDS: readonly SystemSettingSeed[] = [
   { key: 'WORK_PHOTO_CAMERA_ONLY', value: 'N', description: '작업 사진을 카메라 촬영으로만 받을지(Y면 갤러리 선택 제한) F-TEC-WRK-03' },
   // ── 단계 5-2 추가요금·미처리 ──
   { key: 'PENDING_OVERDUE_HOURS', value: '48', description: '미처리(PENDING) 후 이 시간이 지나면 장기 미처리(색상 강조·운영자 알림) BR-032 F-SYS-08' },
+  // ── 단계 8 사후관리·운영 마감 ──
+  { key: 'CAMPAIGN_CONVERSION_DAYS', value: '60', description: '캠페인 발송 후 며칠 안에 접수하면 예약 전환으로 볼지(일) F-ADM-CRM-01' },
+  { key: 'PURGE_APPROVAL_MODE', value: 'Y', description: 'Y면 파기 배치가 바로 지우지 않고 A-CUS-030에서 슈퍼관리자가 일괄 승인해야 파기 F-SYS-12' },
+  { key: 'MARKETING_COST_MONTHLY', value: '0', description: '월 마케팅비(원, 수기 입력·0이면 미입력) — KPI 고객 획득비(CAC) 계산 ERD §5' },
+  { key: 'KPI_TARGET_MONTHLY_JOBS', value: '150', description: 'KPI 목표: 월 처리 건수(성수기) ERD §5' },
+  { key: 'KPI_TARGET_MARGIN_RATE', value: '30', description: 'KPI 목표: 마진율(%) ERD §5' },
+  { key: 'KPI_TARGET_REVISIT_RATE', value: '30', description: 'KPI 목표: 재방문율(%) ERD §5' },
+  { key: 'KPI_TARGET_RETENTION_RATE', value: '60', description: 'KPI 목표: 기사 6개월 정착률(%) ERD §5' },
+  { key: 'KPI_TARGET_OFFPEAK_RATIO', value: '40', description: 'KPI 목표: 비수기/성수기 매출 비(%) ERD §5' },
+  { key: 'KPI_TARGET_AS_RATE', value: '5', description: 'KPI 목표: AS·불만율(% 이하) ERD §5' },
+  { key: 'KPI_TARGET_CAC_RATE', value: '15', description: 'KPI 목표: 고객 획득비 ÷ 객단가(% 이하) ERD §5' },
 ];
 
 export const SETTING_KEYS = {
@@ -85,6 +96,16 @@ export const SETTING_KEYS = {
   ROUTE_BREAK_DEFAULT_MIN: 'ROUTE_BREAK_DEFAULT_MIN',
   ZONE_DONG_RADIUS_M: 'ZONE_DONG_RADIUS_M',
   REVISIT_MONTHS: 'REVISIT_MONTHS',
+  CAMPAIGN_CONVERSION_DAYS: 'CAMPAIGN_CONVERSION_DAYS',
+  PURGE_APPROVAL_MODE: 'PURGE_APPROVAL_MODE',
+  MARKETING_COST_MONTHLY: 'MARKETING_COST_MONTHLY',
+  KPI_TARGET_MONTHLY_JOBS: 'KPI_TARGET_MONTHLY_JOBS',
+  KPI_TARGET_MARGIN_RATE: 'KPI_TARGET_MARGIN_RATE',
+  KPI_TARGET_REVISIT_RATE: 'KPI_TARGET_REVISIT_RATE',
+  KPI_TARGET_RETENTION_RATE: 'KPI_TARGET_RETENTION_RATE',
+  KPI_TARGET_OFFPEAK_RATIO: 'KPI_TARGET_OFFPEAK_RATIO',
+  KPI_TARGET_AS_RATE: 'KPI_TARGET_AS_RATE',
+  KPI_TARGET_CAC_RATE: 'KPI_TARGET_CAC_RATE',
   WORK_NOTE_MIN_LENGTH: 'WORK_NOTE_MIN_LENGTH',
   WORK_PHOTO_CAMERA_ONLY: 'WORK_PHOTO_CAMERA_ONLY',
   PENDING_OVERDUE_HOURS: 'PENDING_OVERDUE_HOURS',

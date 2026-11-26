@@ -133,3 +133,27 @@
 .adm-kv .adm-kv__wide { grid-column: 2 / -1; }
 .adm-link { padding: 0; border: 0; background: none; color: var(--color-primary); font: inherit; text-decoration: underline; cursor: pointer; }
 @media (max-width: 1280px) { .adm-prc { grid-template-columns: 1fr; } .adm-prc-search { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* ---------- 단계 8: VOC 카드 인쇄 · 이력 · 대시보드 ---------- */
+.adm-pre { white-space: pre-wrap; word-break: break-word; }
+.adm-timeline { margin: 0; padding-left: var(--space-5); display: grid; gap: var(--space-2); }
+@media print {
+  .adm-no-print, .ac-gnb, .ac-lnb { display: none !important; }
+  .adm-print-area { padding: 0; }
+}
+.adm-stat-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-4); }
+.adm-kpi-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
+.adm-stat { display: grid; gap: var(--space-1); }
+.adm-stat__label { color: var(--color-text-secondary); font-size: var(--text-body-sm-size); }
+.adm-stat__value { font-size: var(--text-h2-size); line-height: var(--text-h2-lh); font-weight: 700; color: var(--color-text); }
+.adm-stat__meta { color: var(--color-text-tertiary); font-size: var(--text-caption-size); }
+.adm-two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+/* 단일 계열 막대(월별 매출): 얇은 막대, 끝만 둥글게, 막대 사이 간격, 값은 텍스트 색 */
+.adm-bars { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: end; gap: var(--space-2); height: 160px; padding-top: var(--space-4); border-bottom: 1px solid var(--color-border); }
+.adm-bars__col { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+.adm-bars__bar { width: 60%; max-width: 32px; min-height: 2px; background: var(--color-primary); border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+.adm-bars__col:hover .adm-bars__bar, .adm-bars__col:focus-visible .adm-bars__bar { background: var(--color-primary-hover); }
+.adm-bars__labels { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--space-2); text-align: center; color: var(--color-text-secondary); font-size: var(--text-caption-size); margin-top: var(--space-1); }
+.adm-bars__tip { position: absolute; bottom: calc(100% + var(--space-1)); white-space: nowrap; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--color-bg-inverse); color: var(--color-text-inverse); font-size: var(--text-caption-size); opacity: 0; pointer-events: none; }
+.adm-bars__col:hover .adm-bars__tip, .adm-bars__col:focus-visible .adm-bars__tip { opacity: 1; }
+@media (max-width: 1280px) { .adm-stat-grid, .adm-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

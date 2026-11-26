@@ -1,6 +1,6 @@
 'use client';
 /**
- * A-CSL-010 상담 콘솔 (03 §4.3): ① 고객 영역 ② 상담 유형 탭 ③ 거점·지역 현황 ④ Time Table ⑤ 이력 탭
+ * A-CSL-010 상담 콘솔 (03 §4.3): ① 고객 영역 ② 상담 유형 탭(출장접수 | 문의·클레임 | 독촉/전달 A-CSL-030 | 안전사고 A-CSL-040) ③ 거점·지역 현황 ④ Time Table ⑤ 이력 탭
  * - 초기 상태: 전화1 외 모든 입력 비활성. 고객 확정 후 활성.
  * - 고객 확정 시 순서: 개인정보 동의 팝업(BR-023) → 미완료 상담 → 미완료 클레임 → 당일 상담 이력(BR-022)
  */
@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { type Option, labelOf } from '@/admin/crud-screen';
 import type { ConsoleCustomerMatch, getConsoleCustomer } from '@/server/consult';
 import { answerConsent, confirmCustomer, loadBranchStatus, reloadCustomer, searchCustomers, viewCustomerPii } from './actions';
+import { FollowupTab, IncidentTab } from './aftercare-tabs';
 import { ConsentModal, EditCustomerModal, LookupModal } from './customer-modals';
 import { HistoryTabs } from './history-tabs';
 import { InquiryTab } from './inquiry-tab';
@@ -42,7 +43,7 @@ export function ConsoleScreen(p: {
   const [withdraw, setWithdraw] = useState(false);
   const [alerts, setAlerts] = useState<string[]>([]);
   const [editing, setEditing] = useState(false);
-  const [tab, setTab] = useState<'ORDER' | 'INQUIRY'>('ORDER');
+  const [tab, setTab] = useState<'ORDER' | 'INQUIRY' | 'FOLLOWUP' | 'SAFETY'>('ORDER');
   const [branchId, setBranchId] = useState<number | null>(p.branches.length === 1 ? p.branches[0]!.id : null);
   const [status, setStatus] = useState<BranchStatus | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -219,6 +220,8 @@ export function ConsoleScreen(p: {
             items={[
               { value: 'ORDER', label: '출장접수' },
               { value: 'INQUIRY', label: '문의·클레임' },
+              { value: 'FOLLOWUP', label: '독촉/전달' },
+              { value: 'SAFETY', label: '안전사고' },
             ]}
             value={tab}
             onChange={setTab}
@@ -226,8 +229,12 @@ export function ConsoleScreen(p: {
           <fieldset className="adm-fieldset" disabled={!data || !p.canWrite} aria-label={data ? undefined : '고객을 먼저 확정하세요'}>
             {tab === 'ORDER' ? (
               <OrderForm d={draft} data={data} codes={p.codes} choices={p.choices} onBranch={onBranch} />
-            ) : (
+            ) : tab === 'INQUIRY' ? (
               <InquiryTab data={data} codes={p.codes} canWrite={p.canWrite} onSaved={reload} />
+            ) : tab === 'FOLLOWUP' ? (
+              <FollowupTab data={data} codes={p.codes} canWrite={p.canWrite} onSaved={reload} />
+            ) : (
+              <IncidentTab data={data} codes={p.codes} canWrite={p.canWrite} onSaved={reload} />
             )}
           </fieldset>
         </section>

@@ -2,6 +2,7 @@
 
 > 에어컨 청소 기반 지역생활서비스 플랫폼 — MVP ~ 2단계 확장 대응 데이터 모델
 > 문서 버전: v1.1 · 작성일: 2026-11-22 · 작성 관점: 프로그램 분석·설계자
+> v1.5(단계 8 구현 반영): 사후관리 테이블 `branch_id`·`followup_request.read_at/replied_at`·`safety_incident.customer_id`·`as_request.warranty_until/handle_note`·`consultation.reply_*` 추가, `voc_history`(§2.6.8) 추가, §3.12~3.15 상태 전이, §4 단계 8 코드 그룹, 설정·알림 템플릿, §5 KPI 구현 메모, §6 파기 방식
 > v1.2(단계 1 보강): 서비스 지역 오픈 알림 신청 `area_open_request`(§2.2.7, §3.9) 추가, 알림 템플릿 `AREA_OPENED`, 설정 `AREA_OPEN_REQUEST_KEEP_DAYS`
 > v1.4(단계 3 구현 반영): `call_log`·`consultation`·`consult_script`·`customer_tag`·`assignment`·`assignment_history` 구현, §4 단계 3 코드 그룹, 설정 `PRIVACY_REASK_MONTHS`, §3.5 상담 초기 상태, 상담 번호 형식
 > v1.3(단계 2 구현 반영): §4 단계 2 코드 그룹, `system_setting` 슬롯·취소·약관 키, `notification_log.created_at`, `refund.requested_by` 타입, 접수번호 형식, 알림 템플릿 코드, 결제·환불 INSERT ONLY 처리 방식
@@ -642,7 +643,12 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 | status | VARCHAR(20) | NN | `OPEN`(미완료), `IN_PROGRESS`, `DONE`, `TRANSFERRED`(이관) | |
 | agent_admin_id | BIGINT | FK→admin_user | 상담원 | |
 | completed_at | DATETIME | | | |
+| reply_content | TEXT | | 1:1 문의 답변(단계 8, `channel`=`APP_CHAT`) | |
+| replied_at | DATETIME | | 답변 시각(단계 8) | |
+| replied_by | BIGINT | FK→admin_user | 답변한 관리자(단계 8) | |
 | 공통컬럼 | | | | |
+
+> 단계 8: 고객 1:1 문의(C-CS-020, F-CUS-CS-02)는 `channel`=`APP_CHAT`, `consult_type`=`INQUIRY` 상담 건으로 저장하고, 관리자가 A-CSL-080에서 답변하면 `reply_content`·`replied_at`·`replied_by`를 채우고 `DONE`으로 바꿉니다. 답변에서 [VOC로 전환](A-VOC-010)·[FAQ로 등록](A-CNT-020, `faq.source_consultation_id`)할 수 있습니다.
 
 #### 2.6.3 `followup_request` — 독촉·전달
 하이런 "독촉/전달: 상담 독촉 / 출장 독촉, 독촉회차·유형·원인, 미처리사유, 담당 SE".
@@ -653,6 +659,7 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 | consultation_id | BIGINT | FK, NN | | |
 | target_type | VARCHAR(20) | NN | 대상 | `CONSULT`, `ORDER` |
 | target_order_id | BIGINT | FK→service_order | | |
+| branch_id | BIGINT | FK→branch | 거점(주문 거점, BR-102 조회 범위, 단계 8) | |
 | followup_count | INT | NN | 독촉 회차(같은 주문 기준 자동 증가) | 2 |
 | followup_type | VARCHAR(20) | NN | 유형 | `SCHEDULE_DELAY`, `NO_CONTACT`, `RESULT_COMPLAINT`, `MESSAGE_DELIVERY` |
 | cause | VARCHAR(30) | | 독촉 원인 | |
@@ -661,6 +668,8 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 | receiver_admin_id | BIGINT | FK→admin_user | 전달 대상 관리자 | |
 | status | VARCHAR(20) | NN | `SENT`, `READ`, `REPLIED`, `CLOSED` | |
 | reply | VARCHAR(500) | | 회신 내용 | |
+| read_at | DATETIME | | 기사가 처음 연 시각(`SENT → READ`, 단계 8) | |
+| replied_at | DATETIME | | 회신 시각(단계 8) | |
 | 공통컬럼 | | | | |
 
 #### 2.6.4 `safety_incident` — 안전사고(파손·누수·인적 사고)
@@ -671,8 +680,10 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 | id | BIGINT | PK | | |
 | incident_no | VARCHAR(20) | UK | | `S2611220001` |
 | consultation_id | BIGINT | FK | | |
+| customer_id | BIGINT | FK→customer | 피해 고객(상담 콘솔 보상이력 탭, 단계 8) | |
 | order_id | BIGINT | FK→service_order | 관련 작업 | |
 | technician_id | BIGINT | FK→technician | 관련 기사 | |
+| branch_id | BIGINT | FK→branch | 거점(BR-102, 거점장 통보 대상, 단계 8) | |
 | damage_type | VARCHAR(30) | NN | 피해 유형 | `DEVICE_BREAK`(기기파손), `WATER_LEAK`(누수), `PROPERTY`(재산), `INJURY`(인명), `FIRE_ELECTRIC` |
 | occurred_at | DATETIME | | 발생 일시 | |
 | circumstance | TEXT | NN | 발생 경위(4,000B) | |
@@ -700,6 +711,7 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 | customer_id | BIGINT | FK, NN | | |
 | order_id | BIGINT | FK→service_order | | |
 | technician_id | BIGINT | FK→technician | 귀책(방문) 기사 → VOC 카운트 | |
+| branch_id | BIGINT | FK→branch | 거점(BR-102, 단계 8) | |
 | channel | VARCHAR(20) | NN | 접수 매체 | `PHONE_IN`, `APP`, `REVIEW`, `SNS` |
 | voc_type | VARCHAR(20) | NN | 유형 | `COMPLAINT`(불만), `PRAISE`(칭찬), `SUGGESTION`, `INQUIRY` |
 | category_l / category_m | VARCHAR(30) | | 대/중분류 | 품질/세척불량, 태도/불친절, 가격/추가요금, 일정/지연 |
@@ -717,6 +729,11 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 
 #### 2.6.7 `consult_script` — 상담 스크립트/응대 멘트 (개인정보 동의 멘트, 야간·휴일 안내 등)
 `id`, `script_code`(UK), `title`, `content`, `trigger_point`(`PRIVACY_CONSENT`/`NIGHT_VISIT`/`HOLIDAY_VISIT`/`PURGE_REQUEST`), `is_active`, 공통컬럼
+
+#### 2.6.8 `voc_history` — VOC 처리 이력 (단계 8 추가, INSERT ONLY §0.3-9)
+`id`, `voc_id`(FK→voc, NN), `from_status`(최초 접수는 NULL), `to_status`(NN), `memo`(처리 내용), `actor_type`(`ADMIN`/`SYSTEM`), `actor_id`, `created_at`. 수정·삭제는 트리거로 막습니다(`voc_history_insert_only`). A-VOC-011 CC 카드의 "처리 이력"이 이 테이블입니다.
+
+> 단계 8 구현(F-ADM-VOC-01~03, F-ADM-CSL-11·12, F-TEC-NTF-02, BR-060·061): 사후관리 4개 테이블(`voc`·`safety_incident`·`followup_request`·`as_request`)에 `branch_id`를 두어 거점장은 자기 거점만 봅니다(BR-102, RLS `can_access_branch`). 상담 콘솔의 클레임 접수도 VOC 1건(`voc_type`=`COMPLAINT`)을 만듭니다. 불만 VOC를 `DONE`으로 닫으려면 `root_cause`·`customer_action`이 필요합니다. 안전사고에 언론(`PRESS`)·인터넷(`INTERNET`)이 있으면 `is_escalated`=true, 수신자는 거점장(`BRANCH_MANAGER`, 그 거점 `ADM_BRANCH`) + 담당자(`OWNER`, 그 거점 `ADM_OPS`) + 경영진(`EXECUTIVE`, `ADM_SUPER`)이고 언론이 없으면 경영진을 뺍니다(BR-061).
 
 > 단계 3 구현: `call_log`·`consultation`·`consult_script`를 만들었습니다(`followup_request`·`safety_incident`·`incident_recipient`·`voc`는 단계 8). 상담 번호는 `J` + KST `YYMMDD` + 4자리 일련번호. 상담 콘솔에서 고객을 확정하면 `call_log`(INBOUND, 발신 번호 암호화·해시) 1행을 만들고, 전화 출장접수는 `consultation`(consult_type `ORDER`, status `DONE`, sub_type = `ORDER_SYMPTOM` 코드)과 주문을 한 트랜잭션에서 만듭니다. 접수 시 받은 브랜드·모델명·고객 요구일시는 별도 컬럼 없이 `consultation.content`에 함께 적습니다. `voc`가 생기기 전까지 클레임은 consult_type `CLAIM`·status `OPEN`으로 남겨 BR-022 Alert의 "미완료 클레임"으로 셉니다. 일반문의·클레임 세부 유형은 코드 그룹 `INQUIRY_SUB_TYPE`. 기본 스크립트 4종(PRIVACY_CONSENT·NIGHT_VISIT·HOLIDAY_VISIT·PURGE_REQUEST)은 시드로 넣고 A-CNT-050에서 삭제할 수 없습니다(사용 안 함으로만 변경).
 
@@ -1171,7 +1188,7 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 ### D12. CRM·마케팅·품질
 
 #### 2.12.1 `notification_template` — 알림 템플릿
-`id`, `template_code`(UK, `ORDER_CONFIRMED`, `ORDER_CHANGED`(일정 변경, 단계 2), `ORDER_CANCELED`(취소, 단계 2), `VISIT_REMINDER`(방문 전날 18:00, 단계 2), `TECH_ASSIGNED`, `ON_THE_WAY`, `WORK_DONE`, `PAYMENT_DONE`, `REVISIT_11M`, `REVIEW_REQUEST`, `AREA_OPENED`(서비스 지역 오픈 안내, F-ADM-DSP-11), 단계 4-1: `TECH_ASSIGNED`(고객 기사 배정 안내, `#{기사명}`), `TECH_JOB_ASSIGNED`·`TECH_JOB_CHANGED`·`TECH_TRANSFER_REJECTED`(기사 앱 푸시), `UNASSIGNED_WARNING`(운영자 미지정 경고 푸시, F-SYS-09), 단계 4-2: `VISIT_TIME_NOTICE`·`VISIT_TIME_CHANGED`(고객 방문 예정 시간 안내·변경, `#{방문예정}`), `ROUTE_DRAFT_READY`·`ROUTE_CONFIRM_REMIND`·`ROUTE_AUTO_CONFIRMED`(기사 코스 푸시, `#{코스일자}`·`#{방문건수}`), `SELF_ASSIGN_REQUESTED`(운영자)·`SELF_ASSIGN_APPROVED`·`SELF_ASSIGN_REJECTED`(기사 푸시), 단계 5-1: `ON_THE_WAY`(기사 출발·도착 예정, `#{기사명}`·`#{도착예정}`), `WORK_DONE`(작업 완료·리포트, `#{리포트링크}`·`#{금액}`), 단계 5-2: `EXTRA_CHARGE_REQUEST`(고객 추가요금 동의 요청, `#{추가요금}`·`#{동의링크}`), `PENDING_ABSENT`(고객 방문 부재 안내), `EXTRA_CHARGE_RESULT`(기사 푸시, `#{결과}`), `EXTRA_APPROVAL_REQUESTED`·`PENDING_OVERDUE`(운영자 푸시), 단계 6-1: `PAYMENT_REQUEST`(고객 앱 결제 요청 알림톡, `#{결제금액}`·`#{결제링크}`), `PAYMENT_LINK`(결제 링크 문자), `PAYMENT_DONE`(결제 완료, `#{결제금액}`), 단계 7: `STL_CONFIRM_REQUEST`·`STL_PAID`(기사 푸시, `#{정산회차}`·`#{실지급액}`), `STL_DISPUTED`(운영자 푸시, `#{기사명}`·`#{정산회차}`)), `channel`(`ALIMTALK`/`SMS`/`PUSH`/`EMAIL`), `target`(`CUSTOMER`/`TECHNICIAN`/`ADMIN`), `title`, `body`(치환변수 `#{고객명}` 등), `kakao_template_id`, `is_active`, 공통컬럼
+`id`, `template_code`(UK, `ORDER_CONFIRMED`, `ORDER_CHANGED`(일정 변경, 단계 2), `ORDER_CANCELED`(취소, 단계 2), `VISIT_REMINDER`(방문 전날 18:00, 단계 2), `TECH_ASSIGNED`, `ON_THE_WAY`, `WORK_DONE`, `PAYMENT_DONE`, `REVISIT_11M`, `REVIEW_REQUEST`, `AREA_OPENED`(서비스 지역 오픈 안내, F-ADM-DSP-11), 단계 4-1: `TECH_ASSIGNED`(고객 기사 배정 안내, `#{기사명}`), `TECH_JOB_ASSIGNED`·`TECH_JOB_CHANGED`·`TECH_TRANSFER_REJECTED`(기사 앱 푸시), `UNASSIGNED_WARNING`(운영자 미지정 경고 푸시, F-SYS-09), 단계 4-2: `VISIT_TIME_NOTICE`·`VISIT_TIME_CHANGED`(고객 방문 예정 시간 안내·변경, `#{방문예정}`), `ROUTE_DRAFT_READY`·`ROUTE_CONFIRM_REMIND`·`ROUTE_AUTO_CONFIRMED`(기사 코스 푸시, `#{코스일자}`·`#{방문건수}`), `SELF_ASSIGN_REQUESTED`(운영자)·`SELF_ASSIGN_APPROVED`·`SELF_ASSIGN_REJECTED`(기사 푸시), 단계 5-1: `ON_THE_WAY`(기사 출발·도착 예정, `#{기사명}`·`#{도착예정}`), `WORK_DONE`(작업 완료·리포트, `#{리포트링크}`·`#{금액}`), 단계 5-2: `EXTRA_CHARGE_REQUEST`(고객 추가요금 동의 요청, `#{추가요금}`·`#{동의링크}`), `PENDING_ABSENT`(고객 방문 부재 안내), `EXTRA_CHARGE_RESULT`(기사 푸시, `#{결과}`), `EXTRA_APPROVAL_REQUESTED`·`PENDING_OVERDUE`(운영자 푸시), 단계 6-1: `PAYMENT_REQUEST`(고객 앱 결제 요청 알림톡, `#{결제금액}`·`#{결제링크}`), `PAYMENT_LINK`(결제 링크 문자), `PAYMENT_DONE`(결제 완료, `#{결제금액}`), 단계 7: `STL_CONFIRM_REQUEST`·`STL_PAID`(기사 푸시, `#{정산회차}`·`#{실지급액}`), `STL_DISPUTED`(운영자 푸시, `#{기사명}`·`#{정산회차}`), 단계 8: `FOLLOWUP_SENT`(기사 푸시, `#{접수번호}`·`#{독촉회차}`·`#{전달내용}`), `FOLLOWUP_ADMIN`(관리자 수신 독촉), `FOLLOWUP_REPLIED`(기사 회신 → 보낸 상담원, `#{회신}`), `SAFETY_INCIDENT`(안전사고 접수 → 거점장·담당자, `#{사고번호}`·`#{피해유형}`), `SAFETY_ESCALATED`(언론·인터넷 → 경영진 보고), `AS_RECEIVED`·`AS_SCHEDULED`·`AS_REJECTED`(고객 AS 접수·재방문 일정·반려, `#{AS번호}`·`#{보증안내}`·`#{방문일시}`·`#{사유}`), `INQUIRY_ANSWERED`(고객 1:1 문의 답변), `REVISIT_11M`(재방문 안내, `#{경과개월}`·`#{예약링크}`)), `channel`(`ALIMTALK`/`SMS`/`PUSH`/`EMAIL`), `target`(`CUSTOMER`/`TECHNICIAN`/`ADMIN`), `title`, `body`(치환변수 `#{고객명}` 등), `kakao_template_id`, `is_active`, 공통컬럼
 
 #### 2.12.2 `notification_log` — 알림 발송 이력
 `id`, `template_id`(FK), `receiver_type`, `receiver_id`, `receiver_phone_masked`, `channel`, `related_type`(`ORDER`/`CAMPAIGN`/...), `related_id`, `status`(`QUEUED`/`SENT`/`FAILED`/`FALLBACK_SMS`), `sent_at`, `fail_reason`, `created_at`(단계 2 추가: 실패 건도 시각을 남기고 고객 알림함 C-NTF-010 정렬에 사용)
@@ -1192,8 +1209,12 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 | status | VARCHAR(20) | | `DRAFT`, `SCHEDULED`, `RUNNING`, `DONE`, `STOPPED` | |
 | 공통컬럼 | | | | |
 
+> 단계 8 구현(F-ADM-CRM-01, F-SYS-06): 마이그레이션이 자동 재방문 캠페인 1행(`campaign_type`=`REVISIT_AUTO`, `schedule_type`=`DAILY_AUTO`, `status`=`STOPPED`, 템플릿 `REVISIT_11M`)을 만들고 A-CRM-010에서 [실행]/[중지]와 대상 거점만 바꿉니다. `target_rule_json`은 `{"branchIds":[…]}`(비면 전체 거점, 고객 거점 = 기본 주소 거점)이고 경과 개월은 `system_setting` `REVISIT_MONTHS`에서 읽습니다. `coupon_id`는 쿠폰이 생기는 단계 9에서 씁니다.
+
 #### 2.12.4 `campaign_target` — 캠페인 대상·성과
-`id`, `campaign_id`(FK), `customer_id`(FK), `sent_at`, `opened_at`, `converted_order_id`(FK→service_order, 전환 추적), `status`
+`id`, `campaign_id`(FK), `customer_id`(FK), `sent_at`, `opened_at`, `converted_order_id`(FK→service_order, 전환 추적), `status`(`SENT`/`FAILED`/`CONVERTED`, 단계 8), 공통컬럼
+
+> 단계 8: 매일 10:00 발송 때 1행 INSERT(알림 실패면 `FAILED`). 같은 고객은 마지막 발송 이후 다시 작업하기 전까지 또 보내지 않습니다(BR-091, domain `isRevisitTarget`). 매일 02:00 집계(F-SYS-11)가 발송 후 `CAMPAIGN_CONVERSION_DAYS`일 안의 첫 주문(취소 제외)을 `converted_order_id`에 연결하고 `CONVERTED`로 바꿉니다.
 
 #### 2.12.5 `coupon` / 2.12.6 `customer_coupon` — 쿠폰
 `coupon`: `id`, `code`(UK), `name`, `discount_type`(`FIXED`/`RATE`), `discount_value`, `max_discount`, `min_order_amount`, `valid_from`, `valid_to`, `issue_limit`, `issued_count`, `target_category_id`, 공통컬럼
@@ -1218,7 +1239,9 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 | 공통컬럼 | | | |
 
 #### 2.12.8 `as_request` — AS·보증 재방문
-`id`, `as_no`(UK), `original_order_id`(FK), `new_order_id`(FK, 재방문 주문 생성 시), `customer_id`(FK), `reason`(`DIRT_REMAIN`/`LEAK`/`NOISE`/`ODOR`/`BROKEN`), `content`, `photo_file_ids`, `is_warranty`(보증기간 내 무상 여부 자동판정), `responsible_tech_id`(FK), `status`(`REQUESTED`/`ACCEPTED`/`SCHEDULED`/`DONE`/`REJECTED`), `handled_by`, 공통컬럼
+`id`, `as_no`(UK), `original_order_id`(FK), `new_order_id`(FK, 재방문 주문 생성 시), `customer_id`(FK), `branch_id`(FK→branch, 원 주문 거점, BR-102, 단계 8), `reason`(`DIRT_REMAIN`/`LEAK`/`NOISE`/`ODOR`/`BROKEN`), `content`, `photo_file_ids`(첨부 id 쉼표 목록, 최대 3장), `is_warranty`(보증기간 내 무상 여부 자동판정), `warranty_until`(DATE, 원 주문 완료일 + 상품 `warranty_days`, 단계 8), `responsible_tech_id`(FK), `status`(`REQUESTED`/`ACCEPTED`/`SCHEDULED`/`DONE`/`REJECTED`), `handled_by`, `handle_note`(VARCHAR(500), 승인·반려 사유, 단계 8), 공통컬럼
+
+> 단계 8: 같은 원 주문에 진행 중(`REQUESTED`/`ACCEPTED`/`SCHEDULED`) AS는 하나만 둡니다(부분 UK `as_request_open_uk`). [재방문 주문 생성]은 원 주문을 복사한 `order_type`=`AS` 주문을 만들고(보증 내면 금액 0원, BR-050) `new_order_id`에 연결해 `SCHEDULED`로 바꿉니다. 재방문 주문이 `COMPLETED`가 되면 매일 02:00 집계가 AS를 `DONE`으로 닫습니다.
 
 #### 2.12.9 `b2b_lead` — 기회고객(B2B 영업 리드)
 서비스 PORTAL '기회고객 등록' 전달사항 양식(현장명·사업명·담당자·연락처·설치시기·수량·현장이슈) 반영.
@@ -1250,7 +1273,9 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 
 #### 2.13.1 `notice` — 공지 (ALP: 전체/안전/거점 공지)
 `id`, `notice_type`(`ALL`/`SAFETY`/`BRANCH`/`CUSTOMER`), `target_audience`(`TECHNICIAN`/`ADMIN`/`CUSTOMER`/`ALL`), `branch_id`(FK, 거점 공지), `title`, `content`, `is_pinned`, `is_popup`, `publish_from`, `publish_to`, `author_admin_id`(FK), 공통컬럼
-`notice_read`: `notice_id`, `reader_type`, `reader_id`, `read_at` (필독 확인)
+`notice_read`: `notice_id`, `reader_type`, `reader_id`, `read_at` (필독 확인, PK = 세 컬럼)
+
+> 단계 8 구현(F-ADM-CNT-01, F-TEC-NTC-01): 거점 공지(`BRANCH`)는 `branch_id`가 필수이고 거점장은 자기 거점 공지만 쓰고 고칩니다(BR-102). 기사 앱은 게시 기간 안의 공지 중 `branch_id`가 비었거나 자기 거점인 것만 보이고, `is_popup` 공지는 읽기 전까지 홈에 팝업으로 띄웁니다. 기사가 [확인]하면 `notice_read` 1행이 생기고 A-CNT-010에서 읽음 인원을 봅니다. 공지는 `deleted_at`으로 소프트 삭제합니다.
 
 #### 2.13.2 `memo` — 메모 (ALP 나만의 캘린더 메모)
 
@@ -1276,7 +1301,9 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 > 단계 6-1 구현: 미수 처리에 필요한 범위만 먼저 만듭니다. 기사·관리자가 미수로 남기거나 A-PAY-040에서 메모를 남기면 `header_code`=`RECEIVABLE`, `related_order_id`=주문, `start_date`=`end_date`=당일로 1행 넣습니다. 캘린더·공유·팝업·`memo_recipient`는 단계 10에서 씁니다.
 
 #### 2.13.3 `faq` — FAQ (상담 Q&A 축적 → RAG 상담 소스)
-`id`, `category`, `audience`(`CUSTOMER`/`TECHNICIAN`), `question`, `answer`, `source_consultation_id`(FK), `view_count`, `is_published`, `sort_order`, 공통컬럼
+`id`, `category`(`FAQ_CATEGORY`), `audience`(`CUSTOMER`/`TECHNICIAN`), `question`, `answer`, `source_consultation_id`(FK), `view_count`, `is_published`, `sort_order`, 공통컬럼 + `deleted_at`(단계 8)
+
+> 단계 8: 고객 고객센터(C-CS-010)의 FAQ는 이 테이블(`audience`=`CUSTOMER`, `is_published`)에서 분류별로 읽습니다. 마이그레이션이 기본 FAQ 몇 건을 넣고 A-CNT-020에서 고칩니다.
 
 #### 2.13.4 `tech_document` — 기술자료·SOP·서비스 핸드북·CS 응대 Tip
 `id`, `doc_type`(`SOP`/`TECH_GUIDE`/`CS_TIP`/`SAFETY`/`HANDBOOK`), `device_type`, `title`, `content`, `file_ids`, `version`, `is_required_read`, 공통컬럼
@@ -1291,7 +1318,7 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 `id`, `actor_type`, `actor_id`, `action`(`VIEW_PII`/`EXPORT`/`UPDATE`/`DELETE`/`LOGIN`/`PERMISSION_CHANGE`), `target_table`, `target_id`(VARCHAR(50): 문자열 PK 테이블 대응), `ip_address`, `user_agent`, `detail_json`, `created_at`. **INSERT ONLY**: DB 트리거로 UPDATE·DELETE를 막습니다.
 
 #### 2.13.8 `system_setting` — 시스템 설정(키-값)
-`setting_key`(PK, 예: `QUOTE_EXPIRE_DAYS`=7, `REVISIT_MONTHS`=11, `PURGE_YEARS`=…, `SETTLEMENT_WEEKDAY`=`WED`, `POPUP_DEFAULT_TIME`=08:30, `DUPLICATE_CHECK_DAYS`=30, `ROUTE_CONFIRM_DEADLINE`=전날 18:00, `ROUTE_TRAVEL_BUFFER_MIN`=10, `ARRIVAL_WINDOW_HOURS`=2, `LOCATION_INTERVAL_SEC`=60, `LOCATION_RETENTION_DAYS`=90, `SELF_ASSIGN_ENABLED`=거점별 Y/N, `SELF_ASSIGN_NEEDS_APPROVAL`=Y, `ADMIN_LOGIN_MAX_FAIL`=5, `ADMIN_PASSWORD_MIN_LENGTH`=8, `QUOTE_SITE_SURVEY_MIN_UNITS`=4(시스템·천장형 합계가 이 대수 이상이면 "현장 확인 견적" 안내, 단계 1), 단계 2: `SLOT_DAYS_AHEAD`=14(슬롯 자동 생성·고객 달력 일수), `SLOT_JOBS_PER_TECH_HOUR`=1(기사 1명 시간당 처리 건수), `WORK_DEFAULT_START`=09:00·`WORK_DEFAULT_END`=18:00(근무 시간을 비운 일정의 기본값, 반차는 가운데 시각으로 나눔), `CANCEL_FEE_HOURS`=24·`CANCEL_FEE_AMOUNT`=0(BR-030 방문 N시간 전부터 취소 수수료, 금액은 운영사가 정함), `TERMS_VERSION`=v1.0(동의 이력에 남는 약관 버전), `AREA_OPEN_REQUEST_KEEP_DAYS`=365(오픈 알림 신청 대기 보관일, 지나면 EXPIRED·연락처 삭제, BR-003), 단계 3: `PRIVACY_REASK_MONTHS`=12(BR-023 미동의 고객 재질의 주기, 개월), 단계 4-1: `ASSIGN_TRAVEL_BUFFER_MIN`=30(배정 시간 겹침 판단 때 앞뒤 이동 여유, 분), `TECH_ACCOMPANY_COUNT`=3(신규 기사 등록 시 `accompany_required_count` 기본값, BR-071), `UNASSIGNED_ALERT_HOURS`=4(약속 N시간 이내 미지정 경고, F-SYS-09), `TECH_LOGIN_MAX_FAIL`=5(기사 비밀번호 연속 실패 잠금), `TECH_PASSWORD_MIN_LENGTH`=8(기사 비밀번호 최소 길이), 단계 4-2: `SELF_ASSIGN_DAYS_AHEAD`=7(기사 관할 지도에 보이는 미배정 작업의 약속 범위, 오늘부터 N일), `ROUTE_BREAK_DEFAULT_MIN`=60(코스에 넣는 휴식 기본 분), `ZONE_DONG_RADIUS_M`=600(법정동 선택 구역의 동 중심 반경 근사, m), 단계 5-1: `WORK_NOTE_MIN_LENGTH`=10(처리 저장 때 처리 내용 최소 글자 수, 공백 제외), `WORK_PHOTO_CAMERA_ONLY`=N(Y면 작업 사진을 카메라 촬영으로만 받음), 단계 5-2: `PENDING_OVERDUE_HOURS`=48(미처리 후 이 시간이 지나면 장기 미처리 강조·운영자 알림, BR-032 F-SYS-08)), `setting_value`, `description`, `updated_at`, `updated_by`
+`setting_key`(PK, 예: `QUOTE_EXPIRE_DAYS`=7, `REVISIT_MONTHS`=11, `PURGE_YEARS`=…, `SETTLEMENT_WEEKDAY`=`WED`, `POPUP_DEFAULT_TIME`=08:30, `DUPLICATE_CHECK_DAYS`=30, `ROUTE_CONFIRM_DEADLINE`=전날 18:00, `ROUTE_TRAVEL_BUFFER_MIN`=10, `ARRIVAL_WINDOW_HOURS`=2, `LOCATION_INTERVAL_SEC`=60, `LOCATION_RETENTION_DAYS`=90, `SELF_ASSIGN_ENABLED`=거점별 Y/N, `SELF_ASSIGN_NEEDS_APPROVAL`=Y, `ADMIN_LOGIN_MAX_FAIL`=5, `ADMIN_PASSWORD_MIN_LENGTH`=8, `QUOTE_SITE_SURVEY_MIN_UNITS`=4(시스템·천장형 합계가 이 대수 이상이면 "현장 확인 견적" 안내, 단계 1), 단계 2: `SLOT_DAYS_AHEAD`=14(슬롯 자동 생성·고객 달력 일수), `SLOT_JOBS_PER_TECH_HOUR`=1(기사 1명 시간당 처리 건수), `WORK_DEFAULT_START`=09:00·`WORK_DEFAULT_END`=18:00(근무 시간을 비운 일정의 기본값, 반차는 가운데 시각으로 나눔), `CANCEL_FEE_HOURS`=24·`CANCEL_FEE_AMOUNT`=0(BR-030 방문 N시간 전부터 취소 수수료, 금액은 운영사가 정함), `TERMS_VERSION`=v1.0(동의 이력에 남는 약관 버전), `AREA_OPEN_REQUEST_KEEP_DAYS`=365(오픈 알림 신청 대기 보관일, 지나면 EXPIRED·연락처 삭제, BR-003), 단계 3: `PRIVACY_REASK_MONTHS`=12(BR-023 미동의 고객 재질의 주기, 개월), 단계 4-1: `ASSIGN_TRAVEL_BUFFER_MIN`=30(배정 시간 겹침 판단 때 앞뒤 이동 여유, 분), `TECH_ACCOMPANY_COUNT`=3(신규 기사 등록 시 `accompany_required_count` 기본값, BR-071), `UNASSIGNED_ALERT_HOURS`=4(약속 N시간 이내 미지정 경고, F-SYS-09), `TECH_LOGIN_MAX_FAIL`=5(기사 비밀번호 연속 실패 잠금), `TECH_PASSWORD_MIN_LENGTH`=8(기사 비밀번호 최소 길이), 단계 4-2: `SELF_ASSIGN_DAYS_AHEAD`=7(기사 관할 지도에 보이는 미배정 작업의 약속 범위, 오늘부터 N일), `ROUTE_BREAK_DEFAULT_MIN`=60(코스에 넣는 휴식 기본 분), `ZONE_DONG_RADIUS_M`=600(법정동 선택 구역의 동 중심 반경 근사, m), 단계 5-1: `WORK_NOTE_MIN_LENGTH`=10(처리 저장 때 처리 내용 최소 글자 수, 공백 제외), `WORK_PHOTO_CAMERA_ONLY`=N(Y면 작업 사진을 카메라 촬영으로만 받음), 단계 5-2: `PENDING_OVERDUE_HOURS`=48(미처리 후 이 시간이 지나면 장기 미처리 강조·운영자 알림, BR-032 F-SYS-08), 단계 8: `CAMPAIGN_CONVERSION_DAYS`=60(캠페인 발송 후 이 기간 안 첫 주문을 예약 전환으로 봄), `PURGE_APPROVAL_MODE`=Y(Y면 파기 배치가 대상만 남기고 A-CUS-030 승인 후 파기, N이면 바로 파기), `MARKETING_COST_MONTHLY`=0(월 마케팅비 원, 0이면 CAC 미계산), `KPI_TARGET_MONTHLY_JOBS`=150·`KPI_TARGET_MARGIN_RATE`=30·`KPI_TARGET_REVISIT_RATE`=30·`KPI_TARGET_RETENTION_RATE`=60·`KPI_TARGET_OFFPEAK_RATIO`=40·`KPI_TARGET_AS_RATE`=5·`KPI_TARGET_CAC_RATE`=15(§5 KPI 목표값)), `setting_value`, `description`, `updated_at`, `updated_by`
 
 ---
 
@@ -1421,6 +1448,18 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 - 전이표는 `packages/domain` `TAX_DOC_TRANSITIONS`가 단일 출처입니다. 이력 테이블은 두지 않고 상태 컬럼만 바꾸며, 관리자 처리는 `updated_by`로 남습니다.
 
 단계 6-1 결제 후 주문 전이: `WORK_DONE`에서 결제로 `paid_amount ≥ total_amount`가 되면 시스템이 `COMPLETED`로 바꾸고(`order_status_history` memo "결제 완료"), `payment_status`=`PAID`, `work_order.is_settlement_target`=true로 표시합니다(BR-081). 작업 완료 시점에 이미 다 낸 주문(선결제)은 작업 완료 저장과 같은 트랜잭션에서 곧바로 `COMPLETED`가 됩니다. 일부만 냈으면 `PREPAID`, 미수로 남기면 `RECEIVABLE`(주문은 `WORK_DONE` 유지, 정산 제외)입니다. 기사가 직접 받은 현금·계좌이체는 `payment.collected_by_tech_id`와 `work_order.received_amount`에 남겨 정산(단계 7)에서 상계합니다(BR-082).
+
+### 3.12 AS 상태 `as_request.status` (단계 8)
+`REQUESTED`(접수) → `ACCEPTED`(승인) | `REJECTED`(반려, 사유 `handle_note` 필수) · `ACCEPTED` → `SCHEDULED`(재방문 주문 생성) | `REJECTED` · `SCHEDULED` → `DONE`(재방문 주문 `COMPLETED` 후 매일 02:00 집계가 닫음). 고객 AS 요청은 원 주문이 `WORK_DONE`/`COMPLETED`이고 AS 주문이 아니며 진행 중 AS가 없을 때만 받습니다. 보증 여부는 원 주문 완료일 + 상품 `warranty_days`(여러 상품이면 가장 긴 값)로 판정합니다(BR-050). 전이표: `packages/domain` `aftercare-rules` `AS_TRANSITIONS`.
+
+### 3.13 VOC 상태 `voc.status` (단계 8)
+`RECEIVED`(접수) → `CONFIRMING`(확정중) | `PROCESSING`(처리중) | `DONE`(완료) · `CONFIRMING` → `PROCESSING` | `DONE` · `PROCESSING` → `DONE`. 불만(`COMPLAINT`) VOC를 `DONE`으로 바꾸려면 `root_cause`·`customer_action`이 있어야 합니다. `DONE`이 되면 `closed_at`을 채웁니다. 모든 변경은 `voc_history`에 1행 INSERT(최초 접수 `from_status`=NULL). 등급 `HIGH`는 기본 경보(`is_alert`)입니다.
+
+### 3.14 안전사고 상태 `safety_incident.status` (단계 8)
+`REPORTED`(접수) → `INVESTIGATING`(조사중) → `NEGOTIATING`(협의중) → `COMPENSATED`(보상 완료) → `CLOSED`(종결). 앞 단계로 되돌릴 수 없고 중간 단계는 건너뛸 수 있습니다. 접수는 발생 경위·피해 내용이 필수이며 언론·인터넷(`PRESS`/`INTERNET`)을 고르면 재확인 후 접수하고 `is_escalated`=true로 경영진까지 통보합니다(BR-060·061).
+
+### 3.15 독촉·전달 상태 `followup_request.status` (단계 8)
+`SENT`(발송) → `READ`(읽음, 기사가 처음 열 때 `read_at`) → `REPLIED`(회신, `reply`·`replied_at`) → `CLOSED`(종결, 관리자 A-PRC-060). 읽지 않고 회신하거나 바로 종결할 수 있습니다. 회차(`followup_count`)는 같은 주문의 이전 독촉 최대값 + 1이고 전달 내용은 80자까지입니다.
 
 ---
 
@@ -1558,6 +1597,34 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 | `SETTLEMENT_STATUS` | CALCULATED 확인 대기 / TECH_CONFIRMED 기사 확인 / DISPUTED 이의 제기 / CONFIRMED 확정 / PAID 지급 완료 | settlement.status (§3.3) |
 | `SETTLEMENT_ITEM_TYPE` | JOB 작업 배분 / EXTRA 추가요금 배분 / INCENTIVE 인센티브 / DEDUCTION 공제 / ADJUST 조정 | settlement_item.item_type |
 
+**단계 8에서 추가한 그룹**
+
+| group_code | 코드 목록 | 사용 컬럼 |
+|---|---|---|
+| `FOLLOWUP_TARGET` | CONSULT 상담 독촉 / ORDER 출장 독촉 | followup_request.target_type |
+| `FOLLOWUP_TYPE` | SCHEDULE_DELAY 일정 지연 / NO_CONTACT 연락 없음 / RESULT_COMPLAINT 결과 불만 / MESSAGE_DELIVERY 단순 전달 | followup_request.followup_type |
+| `FOLLOWUP_CAUSE` | TECH_LATE 기사 지연 / NO_CALL 사전 연락 없음 / SLOT_FULL 일정 부족 / CUSTOMER_CHANGE 고객 사정 / ETC 기타 | followup_request.cause |
+| `FOLLOWUP_STATUS` | SENT 발송 / READ 읽음 / REPLIED 회신 / CLOSED 종결 | followup_request.status (§3.15) |
+| `INCIDENT_STATUS` | REPORTED 접수 / INVESTIGATING 조사중 / NEGOTIATING 협의중 / COMPENSATED 보상 완료 / CLOSED 종결 | safety_incident.status (§3.14) |
+| `INCIDENT_RECIPIENT_TYPE` | BRANCH_MANAGER 거점장 / OWNER 담당자 / EXECUTIVE 경영진 / MANUAL 수동 추가 | incident_recipient.recipient_type |
+| `VOC_CHANNEL` | PHONE_IN 전화 인입 / APP 앱 / REVIEW 후기 / SNS | voc.channel |
+| `VOC_TYPE` | COMPLAINT 불만 / PRAISE 칭찬 / SUGGESTION 제안 / INQUIRY 문의 | voc.voc_type |
+| `VOC_CATEGORY_L` | QUALITY 품질 / ATTITUDE 태도 / PRICE 가격 / SCHEDULE 일정 / ETC 기타 | voc.category_l |
+| `VOC_CATEGORY_M` | QUALITY_DIRT 세척불량 / QUALITY_DAMAGE 파손·고장 / ATTITUDE_RUDE 불친절 / ATTITUDE_NO_CONTACT 연락 없음 / PRICE_EXTRA 추가요금 / PRICE_HIGH 가격 불만 / SCHEDULE_DELAY 지연 / SCHEDULE_CHANGE 일정 변경 / ETC 기타 | voc.category_m |
+| `VOC_SEVERITY` | LOW 낮음 / MID 보통 / HIGH 높음 | voc.severity |
+| `VOC_STATUS` | RECEIVED 접수 / CONFIRMING 확정중 / PROCESSING 처리중 / DONE 완료 | voc.status (§3.13) |
+| `AS_REASON` | DIRT_REMAIN 오염이 남아 있음 / LEAK 물이 샘 / NOISE 소음 / ODOR 냄새 / BROKEN 고장·파손 | as_request.reason |
+| `AS_STATUS` | REQUESTED 접수 / ACCEPTED 승인 / SCHEDULED 재방문 예정 / DONE 완료 / REJECTED 반려 | as_request.status (§3.12) |
+| `CAMPAIGN_TYPE` | REVISIT_AUTO 자동 재방문 / SEASON 시즌 / WINBACK 휴면 / CROSS_SELL 교차 판매 | campaign.campaign_type |
+| `CAMPAIGN_SCHEDULE` | ONCE 1회 / DAILY_AUTO 매일 자동 | campaign.schedule_type |
+| `CAMPAIGN_STATUS` | DRAFT 작성 / SCHEDULED 예약 / RUNNING 진행중 / DONE 완료 / STOPPED 중지 | campaign.status |
+| `CAMPAIGN_TARGET_STATUS` | SENT 발송 / FAILED 발송 실패 / CONVERTED 예약 전환 | campaign_target.status |
+| `NOTICE_TYPE` | ALL 전체 / SAFETY 안전 / BRANCH 거점 / CUSTOMER 고객 | notice.notice_type |
+| `NOTICE_AUDIENCE` | TECHNICIAN 기사 / ADMIN 관리자 / CUSTOMER 고객 / ALL 전체 | notice.target_audience |
+| `FAQ_AUDIENCE` | CUSTOMER 고객 / TECHNICIAN 기사 | faq.audience |
+| `FAQ_CATEGORY` | PRICE 가격·결제 / RESERVATION 예약·변경 / SERVICE 서비스 / AS AS·보증 / ETC 기타 | faq.category |
+| `ATTACHMENT_REF_TYPE` | (추가) AS_REQUEST AS 사진 | attachment.ref_type |
+
 ---
 
 ## 5. KPI 산출 기준 (전략 문서 5.5 → 데이터 매핑)
@@ -1573,6 +1640,8 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 | 고객 획득비(CAC) | 객단가 15% 이하 | 마케팅비(수기 입력) ÷ 신규 고객 수 | customer, (marketing_cost 수기) |
 | NPS | — | (추천 9~10 비율 − 비추천 0~6 비율) ×100, 월마감 누적 | review |
 
+> 단계 8 구현(A-DSH-020, F-ADM-DSH-02, `packages/domain` `ops-rules`): 월을 골라 9개 카드를 계산합니다. 목표값은 `system_setting` `KPI_TARGET_*`에서 읽고(월 처리 건수 목표는 성수기 5~8월에만 비교), 매출은 그 달 완료(`COMPLETED`) 주문의 `total_amount` 합계입니다. 마진율의 자재원가는 자재 사용이 생기는 단계 9부터 넣고 지금은 매출 − 정산 지급으로 계산합니다. 재방문율은 전년 같은 달 완료 고객 중 올해 다시 주문한 비율, 비수기/성수기 매출 비는 최근 12개월 기준입니다. CAC의 마케팅비는 `MARKETING_COST_MONTHLY`(0이면 "미입력"), NPS는 후기(단계 9)가 생기면 집계합니다. 거점장은 자기 거점 주문만으로 계산합니다(BR-102).
+
 ---
 
 ## 6. 개인정보 처리 규칙 (데이터 관점)
@@ -1584,7 +1653,7 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 | 마스킹 | 목록 화면: 이름 `김*빈`, 전화 `010-****-7789`, 상세주소 비표시. 상세 열람 시 `audit_log(VIEW_PII)` 기록 |
 | 동의 | 앱 가입 시 필수/선택 동의 → `consent_history`. 전화 접수 시 상담원이 구두 동의(동의/미동의/질의못함) 기록 |
 | 철회 | 동의 철회 시 마케팅 발송 즉시 중단, 필수 동의 철회 = 탈퇴 처리 |
-| 보관·파기 | 탈퇴 또는 최종 거래 후 보관기간(전자상거래법 기준 거래기록 5년 등, 법무 확인 필요) 경과 시 `customer.status=PURGED`, 개인 식별 컬럼 NULL/비식별화. 주문·결제 금액 데이터는 통계용으로 비식별 보존 |
+| 보관·파기 | 탈퇴 또는 최종 거래 후 보관기간(전자상거래법 기준 거래기록 5년 등, 법무 확인 필요) 경과 시 `customer.status=PURGED`, 개인 식별 컬럼 NULL/비식별화. 주문·결제 금액 데이터는 통계용으로 비식별 보존. 단계 8 구현: 매일 02:00 집계가 `purge_due_date`(탈퇴일 또는 최종 거래일(없으면 가입일) + `PURGE_YEARS`년)를 다시 계산하고, 매일 03:00 파기 배치(F-SYS-12)가 `PURGE_APPROVAL_MODE`=Y면 대상만 남겨 A-CUS-030에서 슈퍼관리자가 일괄 승인, N이면 바로 파기합니다. 파기는 행을 지우지 않고 이름을 "파기된 고객"(암호화), 연락처를 "-"로 바꾸고 `phone1_hash`·`phone2`·`emergency_phone`·`email`·`auth_provider_key`·`referral_code`·`memo`를 NULL, 마케팅 동의 false로 만들며, 주소의 상세주소·별칭·주차 메모, 통화 기록의 발신 번호, 증빙의 식별번호도 지웁니다. 1건마다 `audit_log`(`DELETE`, `detail.reason`=`PII_PURGE`) 1행 |
 | 오픈 알림 신청 | `area_open_request`는 동의(`privacy_agreed_at`) 받은 휴대폰 번호와 법정동만 저장(도로명·상세주소 미저장). 안내 발송(`NOTIFIED`) 또는 보관일 경과(`EXPIRED`) 즉시 `phone`·`phone_hash`를 NULL로 지움. 관리자 화면에는 지역별 건수만 보이고 번호는 보이지 않음 |
 | 위치정보 | 주소 좌표는 서비스 제공 목적에 한정. 기사 위치(`technician_location`)는 기사 동의 후 근무 시작~종료 사이에만 수집, 고객에게는 코스 확정 후 방문 예정 시각(단계 4-2)과 이동중(ON_THE_WAY)일 때 도착 예정시각만 노출(좌표 비노출), 원본은 90일 후 삭제 |
 
