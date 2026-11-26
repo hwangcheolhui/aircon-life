@@ -19,9 +19,9 @@
 | 에어컨 라이프 플랫폼 전략(1차 회의 정리 v1.0) | 지역 거점(1거점=1생활권), 표준 견적(기기형태·대수·오염도), 3층 수익 구조, 기사 등급(견습→정식→팀장)·교육 파이프라인, 주 1회 정산, 현금영수증/세금계산서, 재방문 캠페인(작업 11개월 후), 개인정보 동의·보관·파기, 작업 전후 사진, AS·보증, KPI 7종 |
 | 상담 PORTAL 화면설계서 v1.0 | 전화번호 기반 고객 조회·신규 등록(주소 4단계 정제), 개인정보 수집 동의(동의/미동의/질의못함)·철회, 상담 유형(출장접수/독촉·전달/안전사고), 미완료 상담·클레임 Alert, 이중접수 체크, 7일 Time Table(시간대별 가용 슬롯), 출장 가능 기사 스케줄, 야간·휴일 출장비 할증, 미지정(긴급) 접수, 수리·VOC·보상 이력 탭, 안전사고 수신자·매체/기관 |
 | 서비스 PORTAL 화면설계서 v0.2 | 기사별 접수 목록(이관/미처리/처리), 처리 정보 입력(처리코드·미처리코드·유무상·고장코드·수리코드), 다인 방문(지원 기사), 비용 구성(출장비·작업비·부품비·별도금액·할증·영수금액), 별도금액+증빙 첨부, 안전관리/서비스 파일첨부, 활동내역, 기회고객(B2B 리드) 등록, 타 기사 이관 |
-| MCS 서비스 메인화면 v2.1 | 기사 홈(오늘 할일: 메모·자재·약속 / 주간 할일 D~D+2), 주요 공지(전체·안전·거점), 퀵메뉴(즐겨찾기·순서), 나만의 캘린더(근무/메모 전환, 타 기사 공유), 메모(머리말 템플릿, 기간·반복, 지정 수신자, 08:30 팝업), VOC 건수·NPS |
+| ALP 서비스 메인화면 v2.1 | 기사 홈(오늘 할일: 메모·자재·약속 / 주간 할일 D~D+2), 주요 공지(전체·안전·거점), 퀵메뉴(즐겨찾기·순서), 나만의 캘린더(근무/메모 전환, 타 기사 공유), 메모(머리말 템플릿, 기간·반복, 지정 수신자, 08:30 팝업), VOC 건수·NPS |
 
-> 참고 문서(하이런 B2E, MCS)는 제조사 A/S 조직용 시스템입니다. 본 플랫폼은 **소규모 지역 청소 사업자**에 맞게 "센터→거점", "SE→기사", "수리→청소 작업", "부품→소모품/자재"로 치환하고, 제조사 전용 개념(제조번호 이력, 렌탈, HIM/SMILE 고객유형, 그룹임직원 할인, PL포털 등)은 제외하거나 단순화했습니다.
+> 참고 문서(하이런 B2E, ALP)는 제조사 A/S 조직용 시스템입니다. 본 플랫폼은 **소규모 지역 청소 사업자**에 맞게 "센터→거점", "SE→기사", "수리→청소 작업", "부품→소모품/자재"로 치환하고, 제조사 전용 개념(제조번호 이력, 렌탈, HIM/SMILE 고객유형, 그룹임직원 할인, PL포털 등)은 제외하거나 단순화했습니다.
 
 ### 0.2 역할(Actor) 정의
 
@@ -467,7 +467,7 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 #### 2.3.5 `service_option` — 부가 옵션(실외기 추가, 항균 코팅 등)
 `id`, `product_id`(FK, NULL=전체 공통), `option_code`(UK), `name`, `price`, `duration_min`, `is_active`, 공통컬럼
 
-#### 2.3.6 `material` — 자재·소모품 마스터 (MCS '자재', 3단계 MRO 대비)
+#### 2.3.6 `material` — 자재·소모품 마스터 (ALP '자재', 3단계 MRO 대비)
 `id`, `material_code`(UK), `name`, `unit`(EA/L/BOX), `unit_cost`(원가), `sale_price`(판매가), `safety_stock`, `is_active`, 공통컬럼
 
 ---
@@ -796,7 +796,7 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 #### 2.7.4 `technician_grade_history` — 등급 변경 이력
 `id`, `technician_id`(FK), `from_grade`(신규 등록이면 NULL), `to_grade`, `reason`, `approved_by`(FK→admin_user), `effective_date`, `created_at` — **INSERT ONLY**(단계 4-1). 등급은 A-TEC-020 [등급 변경](사유 필수)으로만 바꾸고, 기사 등록 때 1행(`reason`=신규 등록)을 남깁니다.
 
-#### 2.7.5 `work_schedule` — 기사 근무 일정 (MCS '나만의 캘린더 – 근무')
+#### 2.7.5 `work_schedule` — 기사 근무 일정 (ALP '나만의 캘린더 – 근무')
 
 | 컬럼 | 타입 | 제약 | 설명 | 코드값/예시 |
 |---|---|---|---|---|
@@ -1038,7 +1038,7 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 
 > 단계 5-2 상태(별도 컬럼 없음, `packages/domain` `extraChargeState`): `deleted_at` 있음 → 철회 / `approval_status`=`REQUESTED` → 관리자 승인 대기 / `REJECTED` → 반려(청구 안 함) / `agreed_at` 없음 → 고객 동의 대기 / `customer_agreed` 참 → 동의, 거짓 → 거절(청구 안 함). BR-040: 동의한 금액 합계만 `work_order.extra_amount`·`service_order.extra_amount`로 청구합니다. 응답 전(승인 대기 포함) 추가요금이 있으면 완료할 수 없고(F-TEC-WRK-07 ④), 미처리로 저장하면 응답 전 추가요금은 자동 철회됩니다. 고객 응답은 작업이 도착·작업중일 때만 받습니다. 증빙·서명 파일은 `attachment.ref_type`=`EXTRA_CHARGE`(서명은 `SIGNATURE`)로 두고, 고객 본인·담당 기사·A-PRC-040 조회 권한 관리자(거점 범위)만 봅니다.
 
-#### 2.9.5 `material_usage` — 자재 사용(MCS '오늘의 자재')
+#### 2.9.5 `material_usage` — 자재 사용(ALP '오늘의 자재')
 `id`, `work_order_id`(FK), `material_id`(FK), `quantity`, `unit_cost`, `charge_to_customer`(BOOLEAN), `sale_amount`, 공통컬럼
 
 #### 2.9.6 `technician_material_stock` — 기사 보유 자재
@@ -1073,7 +1073,7 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 | pg_provider | VARCHAR(20) | | PG사 | `TOSS`, `NICE`, `KCP` |
 | pg_tid | VARCHAR(100) | UK | PG 거래 ID | |
 | approved_at | DATETIME | | 승인 일시 | |
-| fail_reason | VARCHAR(300) | | 실패 사유(MCS '결제저장실패') | |
+| fail_reason | VARCHAR(300) | | 실패 사유(ALP '결제저장실패') | |
 | collected_by_tech_id | BIGINT | FK→technician | 현장 수금 기사(현금·계좌) | |
 | receipt_url | VARCHAR(300) | | 영수증 URL | |
 | 공통컬럼 | | | | |
@@ -1248,11 +1248,11 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 
 ### D13. 업무지원·콘텐츠·시스템
 
-#### 2.13.1 `notice` — 공지 (MCS: 전체/안전/거점 공지)
+#### 2.13.1 `notice` — 공지 (ALP: 전체/안전/거점 공지)
 `id`, `notice_type`(`ALL`/`SAFETY`/`BRANCH`/`CUSTOMER`), `target_audience`(`TECHNICIAN`/`ADMIN`/`CUSTOMER`/`ALL`), `branch_id`(FK, 거점 공지), `title`, `content`, `is_pinned`, `is_popup`, `publish_from`, `publish_to`, `author_admin_id`(FK), 공통컬럼
 `notice_read`: `notice_id`, `reader_type`, `reader_id`, `read_at` (필독 확인)
 
-#### 2.13.2 `memo` — 메모 (MCS 나만의 캘린더 메모)
+#### 2.13.2 `memo` — 메모 (ALP 나만의 캘린더 메모)
 
 | 컬럼 | 타입 | 제약 | 설명 | 코드값/예시 |
 |---|---|---|---|---|
