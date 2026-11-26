@@ -58,6 +58,22 @@
     {
       "path": "/api/jobs/pii-purge",
       "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/jobs/review-request",
+      "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/jobs/campaign-send",
+      "schedule": "30 1 * * *"
+    },
+    {
+      "path": "/api/jobs/dormant",
+      "schedule": "30 18 * * *"
+    },
+    {
+      "path": "/api/jobs/pg-reconcile",
+      "schedule": "0 20 * * *"
     }
   ]
 }

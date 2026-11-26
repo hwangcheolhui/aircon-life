@@ -1,7 +1,8 @@
 'use client';
 // A-DSP-010 배정 보드. 카드를 기사 줄에 끌어 놓거나 [배정] 버튼으로 배정 창을 연다.
 // 배정 창은 고른 기사마다 근무·시간 겹침·숙련·지역 경고와 BR-070·071·072 차단을 미리 보여 준다.
-import type { AssignIssue } from '@aircon/domain';
+// 단계 9: 배정 창 위에 추천 기사 Top 3(F-ADM-DSP-02, 점수·근거)를 보여 주고 [주기사로]로 고른다.
+import type { AssignIssue, ScoredCandidate } from '@aircon/domain';
 import {
   Alert,
   Button,
@@ -23,7 +24,9 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { type Option, labelOf } from '@/admin/crud-screen';
 import type { loadBoard } from '@/server/dispatch';
-import { assign, checkAssign, unassign } from './actions';
+import { assign, checkAssign, recommendAction, unassign } from './actions';
+
+type Recommended = ScoredCandidate;
 
 type Board = NonNullable<Awaited<ReturnType<typeof loadBoard>>>;
 type CardT = Board['cards'][number];
@@ -318,6 +321,14 @@ function AssignModal(p: {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [recs, setRecs] = useState<Recommended[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    recommendAction(p.card.id).then((r) => live && setRecs(r.ok ? (r.data as Recommended[]) : []));
+    return () => {
+      live = false;
+    };
+  }, [p.card.id]);
   const values = useMemo(
     () => ({
       orderId: p.card.id,
@@ -401,6 +412,34 @@ function AssignModal(p: {
           <p className="ac-caption">
             {p.card.devices.map((d) => `${p.L('DEVICE_TYPE', d.deviceType)} ${d.quantity}대`).join(', ')}
           </p>
+          <section aria-label="추천 기사">
+            <p className="ac-label">추천 기사 Top 3</p>
+            {recs === null ? (
+              <p className="ac-caption">추천을 계산하는 중입니다.</p>
+            ) : recs.length === 0 ? (
+              <p className="ac-caption">배정할 수 있는 추천 기사가 없습니다.</p>
+            ) : (
+              <ol className="adm-recommend">
+                {recs.map((r, i) => (
+                  <li key={r.techId} className="adm-recommend__item">
+                    <span>
+                      <strong>{`${i + 1}. ${r.name}`}</strong> <span className="ac-num">{r.score}점</span>
+                      <span className="ac-caption">
+                        {' '}
+                        · {r.zone === 'PRIMARY' ? '주 관할' : r.zone === 'SECONDARY' ? '보조 관할' : '관할 밖'} · 숙련 {Math.round(r.skillRatio * 100)}% · 그날 {r.dayJobs}건
+                        {r.extraTravelMin !== null ? ` · 이동 +${r.extraTravelMin}분` : ''}
+                        {r.ratingAvg !== null ? ` · 평점 ${r.ratingAvg}` : ''}
+                        {r.windowViolation ? ' · 시간창 위반 우려' : ''}
+                      </span>
+                    </span>
+                    <Button size="sm" variant="outline" aria-pressed={main === String(r.techId)} onClick={() => setMain(String(r.techId))}>
+                      {main === String(r.techId) ? '선택됨' : '주기사로'}
+                    </Button>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
           {p.card.requiredTechCount > 1 ? (
             <Alert tone="warning">
               {p.card.requiredTechCount}인 작업입니다. 보조 기사를 함께 정해야 배정할 수 있습니다.

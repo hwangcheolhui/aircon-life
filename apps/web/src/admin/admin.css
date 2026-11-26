@@ -157,3 +157,10 @@
 .adm-bars__tip { position: absolute; bottom: calc(100% + var(--space-1)); white-space: nowrap; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--color-bg-inverse); color: var(--color-text-inverse); font-size: var(--text-caption-size); opacity: 0; pointer-events: none; }
 .adm-bars__col:hover .adm-bars__tip, .adm-bars__col:focus-visible .adm-bars__tip { opacity: 1; }
 @media (max-width: 1280px) { .adm-stat-grid, .adm-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- 단계 9: 코스 모니터링(A-DSP-070) · 추천 기사(A-DSP-010) ---------- */
+.adm-monitor { display: grid; grid-template-columns: minmax(360px, 2fr) 3fr; gap: var(--space-4); align-items: start; }
+.adm-monitor .ac-table tbody tr { cursor: pointer; }
+.adm-recommend { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.adm-recommend__item { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+@media (max-width: 1280px) { .adm-monitor { grid-template-columns: 1fr; } }
