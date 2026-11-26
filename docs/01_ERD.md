@@ -1124,10 +1124,10 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 | support_role_rate | DECIMAL(5,2) | | 지원(2인) 기사 배분율 | 30.00 |
 | withholding_rate | DECIMAL(5,2) | | 원천징수율 | 3.30 |
 | valid_from / valid_to | DATE | | | |
-| 공통컬럼 | | | | |
+| 공통컬럼 + deleted_at | | | 소프트 삭제(단계 7: 지난 정산의 근거로 남김) | |
 
 #### 2.11.2 `settlement_batch` — 정산 회차(주 단위)
-`id`, `batch_no`(UK, `S2026-W47`), `period_start`, `period_end`, `branch_id`(FK, NULL=전체), `status`(`DRAFT`/`CALCULATED`/`CONFIRMED`/`PAID`/`CLOSED`), `scheduled_pay_date`, `confirmed_by`(FK→admin_user), `confirmed_at`, `total_pay_amount`, 공통컬럼
+`id`, `batch_no`(VARCHAR(30), UK, `S2026-W47` = ISO 주차, 거점 회차는 `S2026-W47-{거점코드}`), `period_start`, `period_end`, `branch_id`(FK, NULL=전체), `status`(`DRAFT`/`CALCULATED`/`CONFIRMED`/`PAID`/`CLOSED`), `scheduled_pay_date`, `confirmed_by`(FK→admin_user), `confirmed_at`, `total_pay_amount`, 공통컬럼
 
 #### 2.11.3 `settlement` — 기사별 정산서
 
@@ -1153,14 +1153,25 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 | UK(batch_id, technician_id) | | | |
 
 #### 2.11.4 `settlement_item` — 정산 상세(작업 건별)
-`id`, `settlement_id`(FK), `work_order_id`(FK), `order_id`(FK), `role`(`MAIN`/`SUPPORT`/`ACCOMPANY`), `sales_amount`, `share_rate`, `pay_amount`, `item_type`(`JOB`/`EXTRA`/`INCENTIVE`/`DEDUCTION`/`ADJUST`), `memo`
+`id`, `settlement_id`(FK), `work_order_id`(FK), `order_id`(FK), `role`(`MAIN`/`SUPPORT`/`ACCOMPANY`), `sales_amount`, `share_rate`, `pay_amount`, `item_type`(`JOB`/`EXTRA`/`INCENTIVE`/`DEDUCTION`/`ADJUST`), `memo`, 공통컬럼(단계 7)
+
+#### 2.11.5 `settlement_status_history` — 정산 상태 이력 (단계 7 추가, §0.3-9)
+`id`, `batch_id`(FK→settlement_batch, NN), `settlement_id`(FK→settlement, NULL = 회차 상태 변경), `from_status`, `to_status`(NN), `actor_type`(`ACTOR_TYPE`), `actor_id`, `memo`(VARCHAR(500), 기사 미응답 확정·이의 처리 내용·이체 참조 등), `created_at`. **INSERT ONLY.**
+
+> 단계 7 구현(F-ADM-STL-01~04, F-TEC-STL-01·02, F-SYS-10, BR-080~084):
+> - **정산 대상(BR-081)**: `work_order.status`=`DONE`, `is_settlement_target`=true, 주문 `COMPLETED`이고, 주문이 `COMPLETED`가 된 시각(`order_status_history`)이 기간 끝(일요일 24시, 한국 시간) 전이며, 아직 어느 `settlement_item`에도 없는 작업. 지난 회차에 빠진 작업(미수였다가 나중에 결제된 건 등)은 다음 회차가 자동으로 가져갑니다. 거점 회차는 그 거점 주문만.
+> - **수수료 정책 선택**: 거점·등급·계약형태가 맞거나 비어 있는(전체) 정책 중 기간 끝 날짜에 유효한 것, 더 구체적인 정책 우선(거점 > 등급 > 계약형태), 같으면 늦게 시작한 정책. 작업의 배분은 **주기사 정책**으로 정하고, 원천징수율은 기사마다 자기 정책의 값을 씁니다. 정책이 없는 기사가 있으면 계산이 멈춥니다.
+> - **건별 항목**: 작업비 = 주문 `total_amount` − `extra_amount`. `RATE` = 작업비 × `tech_share_rate`%, `PER_UNIT` = `per_unit_amount` × 작업 대수(작업 불가 제외 `order_item.quantity` 합), `MIXED` = 둘의 합. 2인 작업은 주기사 (100 − `support_role_rate`)%, 지원기사 `support_role_rate`%(여럿이면 똑같이 나눔, 반올림 차이는 주기사 몫). 추가요금은 `extra_amount` × `extra_charge_share_rate`%로 **주기사에게만**(`item_type`=`EXTRA`). 교육 동행은 0원 `JOB` 항목. `share_rate`는 실제 적용 비율, `memo`에 정책명·대당 계산식.
+> - **합계**: `pay_amount`는 지급액에 더하는 부호 있는 값입니다(`INCENTIVE` +, `DEDUCTION` −, `ADJUST` ±). `incentive` = 인센티브 + 양수 조정, `deduction` = 공제 + 음수 조정. `taxable_amount` = `base_pay` + `extra_pay` + `incentive` − `deduction`, `withholding_tax` = 도급(`FREELANCER`)만 과세 대상 × 원천징수율(10원 미만 절사, BR-083), `cash_collected` = 정산에 들어간 주문에서 그 기사가 직접 받은 결제(`payment.collected_by_tech_id`, 승인) 합계(BR-082), `net_pay` = 과세 대상 − 원천세 − 현장 수금(0 이하면 이체 없음). `job_count`·`gross_sales`는 주기사·지원 작업만.
+> - **잠금(BR-084)**: `settlement_item`·`settlement_status_history`는 INSERT ONLY 트리거, `settlement`이 `CONFIRMED`·`PAID`면 금액 칸 변경·항목 추가를 트리거가 막고, 정산서·회차는 삭제할 수 없습니다. 조정 항목은 회차가 `CALCULATED`이고 정산서가 `CALCULATED`·`DISPUTED`일 때만 넣을 수 있고(그 기사 정산서가 없으면 새로 만듦), 기사가 확인했거나 확정된 뒤의 수정은 다음 회차 `ADJUST`로 넣습니다.
+> - **지급 파일**: 은행 대량이체 CSV(은행코드·계좌번호 원문·예금주·금액·적요·기사코드), 실지급액 > 0이고 계좌가 있는 정산서만. 다운로드는 `audit_log`(`EXPORT`, `settlement_batch`). 송금 API는 이후.
 
 ---
 
 ### D12. CRM·마케팅·품질
 
 #### 2.12.1 `notification_template` — 알림 템플릿
-`id`, `template_code`(UK, `ORDER_CONFIRMED`, `ORDER_CHANGED`(일정 변경, 단계 2), `ORDER_CANCELED`(취소, 단계 2), `VISIT_REMINDER`(방문 전날 18:00, 단계 2), `TECH_ASSIGNED`, `ON_THE_WAY`, `WORK_DONE`, `PAYMENT_DONE`, `REVISIT_11M`, `REVIEW_REQUEST`, `AREA_OPENED`(서비스 지역 오픈 안내, F-ADM-DSP-11), 단계 4-1: `TECH_ASSIGNED`(고객 기사 배정 안내, `#{기사명}`), `TECH_JOB_ASSIGNED`·`TECH_JOB_CHANGED`·`TECH_TRANSFER_REJECTED`(기사 앱 푸시), `UNASSIGNED_WARNING`(운영자 미지정 경고 푸시, F-SYS-09), 단계 4-2: `VISIT_TIME_NOTICE`·`VISIT_TIME_CHANGED`(고객 방문 예정 시간 안내·변경, `#{방문예정}`), `ROUTE_DRAFT_READY`·`ROUTE_CONFIRM_REMIND`·`ROUTE_AUTO_CONFIRMED`(기사 코스 푸시, `#{코스일자}`·`#{방문건수}`), `SELF_ASSIGN_REQUESTED`(운영자)·`SELF_ASSIGN_APPROVED`·`SELF_ASSIGN_REJECTED`(기사 푸시), 단계 5-1: `ON_THE_WAY`(기사 출발·도착 예정, `#{기사명}`·`#{도착예정}`), `WORK_DONE`(작업 완료·리포트, `#{리포트링크}`·`#{금액}`), 단계 5-2: `EXTRA_CHARGE_REQUEST`(고객 추가요금 동의 요청, `#{추가요금}`·`#{동의링크}`), `PENDING_ABSENT`(고객 방문 부재 안내), `EXTRA_CHARGE_RESULT`(기사 푸시, `#{결과}`), `EXTRA_APPROVAL_REQUESTED`·`PENDING_OVERDUE`(운영자 푸시), 단계 6-1: `PAYMENT_REQUEST`(고객 앱 결제 요청 알림톡, `#{결제금액}`·`#{결제링크}`), `PAYMENT_LINK`(결제 링크 문자), `PAYMENT_DONE`(결제 완료, `#{결제금액}`)), `channel`(`ALIMTALK`/`SMS`/`PUSH`/`EMAIL`), `target`(`CUSTOMER`/`TECHNICIAN`/`ADMIN`), `title`, `body`(치환변수 `#{고객명}` 등), `kakao_template_id`, `is_active`, 공통컬럼
+`id`, `template_code`(UK, `ORDER_CONFIRMED`, `ORDER_CHANGED`(일정 변경, 단계 2), `ORDER_CANCELED`(취소, 단계 2), `VISIT_REMINDER`(방문 전날 18:00, 단계 2), `TECH_ASSIGNED`, `ON_THE_WAY`, `WORK_DONE`, `PAYMENT_DONE`, `REVISIT_11M`, `REVIEW_REQUEST`, `AREA_OPENED`(서비스 지역 오픈 안내, F-ADM-DSP-11), 단계 4-1: `TECH_ASSIGNED`(고객 기사 배정 안내, `#{기사명}`), `TECH_JOB_ASSIGNED`·`TECH_JOB_CHANGED`·`TECH_TRANSFER_REJECTED`(기사 앱 푸시), `UNASSIGNED_WARNING`(운영자 미지정 경고 푸시, F-SYS-09), 단계 4-2: `VISIT_TIME_NOTICE`·`VISIT_TIME_CHANGED`(고객 방문 예정 시간 안내·변경, `#{방문예정}`), `ROUTE_DRAFT_READY`·`ROUTE_CONFIRM_REMIND`·`ROUTE_AUTO_CONFIRMED`(기사 코스 푸시, `#{코스일자}`·`#{방문건수}`), `SELF_ASSIGN_REQUESTED`(운영자)·`SELF_ASSIGN_APPROVED`·`SELF_ASSIGN_REJECTED`(기사 푸시), 단계 5-1: `ON_THE_WAY`(기사 출발·도착 예정, `#{기사명}`·`#{도착예정}`), `WORK_DONE`(작업 완료·리포트, `#{리포트링크}`·`#{금액}`), 단계 5-2: `EXTRA_CHARGE_REQUEST`(고객 추가요금 동의 요청, `#{추가요금}`·`#{동의링크}`), `PENDING_ABSENT`(고객 방문 부재 안내), `EXTRA_CHARGE_RESULT`(기사 푸시, `#{결과}`), `EXTRA_APPROVAL_REQUESTED`·`PENDING_OVERDUE`(운영자 푸시), 단계 6-1: `PAYMENT_REQUEST`(고객 앱 결제 요청 알림톡, `#{결제금액}`·`#{결제링크}`), `PAYMENT_LINK`(결제 링크 문자), `PAYMENT_DONE`(결제 완료, `#{결제금액}`), 단계 7: `STL_CONFIRM_REQUEST`·`STL_PAID`(기사 푸시, `#{정산회차}`·`#{실지급액}`), `STL_DISPUTED`(운영자 푸시, `#{기사명}`·`#{정산회차}`)), `channel`(`ALIMTALK`/`SMS`/`PUSH`/`EMAIL`), `target`(`CUSTOMER`/`TECHNICIAN`/`ADMIN`), `title`, `body`(치환변수 `#{고객명}` 등), `kakao_template_id`, `is_active`, 공통컬럼
 
 #### 2.12.2 `notification_log` — 알림 발송 이력
 `id`, `template_id`(FK), `receiver_type`, `receiver_id`, `receiver_phone_masked`, `channel`, `related_type`(`ORDER`/`CAMPAIGN`/...), `related_id`, `status`(`QUEUED`/`SENT`/`FAILED`/`FALLBACK_SMS`), `sent_at`, `fail_reason`, `created_at`(단계 2 추가: 실패 건도 시각을 남기고 고객 알림함 C-NTF-010 정렬에 사용)
@@ -1330,6 +1341,8 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 ### 3.3 정산 상태
 `settlement_batch`: `DRAFT → CALCULATED → CONFIRMED → PAID → CLOSED`
 `settlement`(기사별): `CALCULATED → TECH_CONFIRMED | DISPUTED → CONFIRMED → PAID`
+
+단계 7 구현 전이표(`packages/domain` `settlement-rules`): 회차 `DRAFT → CALCULATED`([계산], 기사별 정산서 `CALCULATED`로 생성 + 기사 `STL_CONFIRM_REQUEST`), `CALCULATED → CONFIRMED`([확정], 이의(`DISPUTED`)가 남아 있으면 불가), `CONFIRMED → PAID`([지급 완료], 기사 `STL_PAID`), `PAID → CLOSED`([마감]). 기사별 `CALCULATED → TECH_CONFIRMED`(기사 [확인]) / `DISPUTED`(기사 [이의 제기], `dispute_note` 필수, 운영자 `STL_DISPUTED`), `DISPUTED → CONFIRMED`(관리자 이의 처리, 처리 내용 필수), `TECH_CONFIRMED → CONFIRMED`(회차 확정), **`CALCULATED → CONFIRMED`(회차 확정 때 기사가 아직 답하지 않은 정산서도 함께 확정, 이력 memo "기사 미응답 상태로 회차 확정")**, `CONFIRMED → PAID`(회차 지급 완료, `paid_at`·`transfer_ref`). 모든 변경은 `settlement_status_history`에 1행 INSERT.
 
 ### 3.4 기사 상태
 `APPLICANT → TRAINING → ACTIVE ⇄ PAUSED → LEFT` (등급은 별도: `TRAINEE → REGULAR → LEADER`)
@@ -1535,6 +1548,15 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 |---|---|---|
 | `TAX_DOC_TYPE` | CASH_RECEIPT_INCOME 현금영수증(소득공제) / CASH_RECEIPT_EXPENSE 현금영수증(지출증빙) / TAX_INVOICE 세금계산서 / CARD_SLIP 카드 영수증 | tax_document.doc_type (단계 6-1) |
 | `TAX_ISSUE_STATUS` | REQUESTED 발행 요청 / ISSUED 발행 / FAILED 발행 실패 / CANCELED 취소 | tax_document.issue_status (§3.11) |
+
+**단계 7에서 추가한 그룹**
+
+| group_code | 코드 목록 | 사용 컬럼 |
+|---|---|---|
+| `COMMISSION_CALC_TYPE` | RATE 매출 × 배분율 / PER_UNIT 대당 고정 / MIXED 배분율 + 대당 | commission_policy.calc_type |
+| `SETTLEMENT_BATCH_STATUS` | DRAFT 작성 / CALCULATED 계산 완료 / CONFIRMED 확정 / PAID 지급 완료 / CLOSED 마감 | settlement_batch.status (§3.3) |
+| `SETTLEMENT_STATUS` | CALCULATED 확인 대기 / TECH_CONFIRMED 기사 확인 / DISPUTED 이의 제기 / CONFIRMED 확정 / PAID 지급 완료 | settlement.status (§3.3) |
+| `SETTLEMENT_ITEM_TYPE` | JOB 작업 배분 / EXTRA 추가요금 배분 / INCENTIVE 인센티브 / DEDUCTION 공제 / ADJUST 조정 | settlement_item.item_type |
 
 ---
 

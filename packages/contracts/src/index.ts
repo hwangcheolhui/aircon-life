@@ -1033,3 +1033,75 @@ export const pendingCancelInput = z.object({
   }),
   memo: optStr(300),
 });
+
+/* ---------- 단계 7 정산 (F-ADM-STL-01~04, F-TEC-STL-02) ---------- */
+
+/** 비율(%) 0~100, 소수 둘째 자리까지 — DECIMAL(5,2) 문자열 */
+const optRate = (label: string) =>
+  z.preprocess(
+    (v) => blankToNull(trimmed(v)),
+    z
+      .string()
+      .regex(/^\d{1,3}(\.\d{1,2})?$/, `${label}은(는) 0~100 사이 숫자(소수 둘째 자리까지)여야 합니다.`)
+      .refine((s) => Number(s) <= 100, `${label}은(는) 0~100 사이 숫자(소수 둘째 자리까지)여야 합니다.`)
+      .nullable()
+      .default(null),
+  );
+
+/** A-STL-010 수수료 정책 · F-ADM-STL-01 (계산 방식별 필수값은 domain checkCommissionPolicy) */
+export const commissionPolicyInput = z
+  .object({
+    policyName: reqStr('정책명', 50),
+    techGrade: z.preprocess(blankToNull, z.enum(['TRAINEE', 'REGULAR', 'LEADER']).nullable().default(null)),
+    contractType: z.preprocess(blankToNull, z.enum(['EMPLOYEE', 'FREELANCER', 'PARTNER']).nullable().default(null)),
+    branchId: optId(),
+    calcType: z.enum(['RATE', 'PER_UNIT', 'MIXED'], { errorMap: () => ({ message: MSG.required('계산 방식') }) }),
+    techShareRate: optRate('기사 배분율'),
+    perUnitAmount: optInt(0),
+    extraChargeShareRate: optRate('추가요금 배분율'),
+    supportRoleRate: optRate('지원기사 배분율'),
+    withholdingRate: optRate('원천징수율'),
+    validFrom: dateStr('적용 시작일'),
+    validTo: optDate(),
+  })
+  .refine((v) => v.validTo === null || v.validTo >= v.validFrom, {
+    path: ['validTo'],
+    message: '적용 종료일은 시작일 이후여야 합니다.',
+  });
+
+/** F-ADM-STL-02 회차 생성: 시작일(월요일)·거점(비우면 전체) */
+export const settlementBatchInput = z.object({
+  periodStart: dateStr('정산 시작일(월요일)'),
+  branchId: optId(),
+});
+
+export const settlementBatchActionInput = z.object({
+  batchId: reqId('정산 회차'),
+  action: z.enum(['CALCULATE', 'CONFIRM', 'PAID', 'CLOSE']),
+  transferRef: optStr(100),
+});
+
+/** F-ADM-STL-03 조정 추가: 인센티브·공제는 양수, 조정은 ± (domain checkAdjustment) */
+export const settlementAdjustInput = z.object({
+  batchId: reqId('정산 회차'),
+  technicianId: reqId('기사'),
+  itemType: z.enum(['INCENTIVE', 'DEDUCTION', 'ADJUST'], { errorMap: () => ({ message: MSG.required('조정 구분') }) }),
+  amount: z.preprocess(
+    (v) => (blankToNull(v) === null ? undefined : Number(String(v).replace(/,/g, ''))),
+    z.number({ required_error: MSG.required('금액'), invalid_type_error: '금액은(는) 숫자여야 합니다.' }).int('금액은 원 단위 정수여야 합니다.'),
+  ),
+  memo: reqStr('사유', 300),
+});
+
+/** F-ADM-STL-03 이의 처리 */
+export const settlementResolveInput = z.object({
+  settlementId: reqId('정산서'),
+  note: reqStr('처리 내용', 400),
+});
+
+/** F-TEC-STL-02 기사 확인·이의 */
+export const techSettlementResponseInput = z.object({
+  settlementId: reqId('정산서'),
+  action: z.enum(['CONFIRM', 'DISPUTE']),
+  note: optStr(500),
+});

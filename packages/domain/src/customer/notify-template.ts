@@ -37,6 +37,10 @@ export const NOTIFICATION_TEMPLATE_CODES = [
   // 단계 6: 작업 후 결제 요청(앱 알림톡·결제 링크 문자, F-TEC-PAY-01)·결제 완료(PAYMENT_DONE)
   'PAYMENT_REQUEST',
   'PAYMENT_LINK',
+  // 단계 7: 정산 확인 요청·지급 완료(기사 푸시, F-ADM-STL-02·04)·이의 제기(운영자 푸시, F-TEC-STL-02)
+  'STL_CONFIRM_REQUEST',
+  'STL_DISPUTED',
+  'STL_PAID',
 ] as const;
 export type NotificationTemplateCode = (typeof NOTIFICATION_TEMPLATE_CODES)[number];
 
@@ -62,4 +66,6 @@ export const TEMPLATE_VARIABLES = [
   '결과',
   '결제금액',
   '결제링크',
+  '정산회차',
+  '실지급액',
 ] as const;

@@ -140,7 +140,7 @@ test('슈퍼관리자가 기준 데이터를 등록한다', async ({ page }) => 
   // 목록은 마스킹 (BR-100)
   await expect(page.getByText('010-****-0001')).toBeVisible();
   await expect(page.getByText('상담원일')).toHaveCount(0);
-  await expect(await menuNames(page)).toEqual(['상담', '접수·주문', '배정·일정', '처리', '고객', '기사', '상품·가격', '결제', 'CRM·VOC', '시스템']);
+  await expect(await menuNames(page)).toEqual(['상담', '접수·주문', '배정·일정', '처리', '고객', '기사', '상품·가격', '결제', '정산', 'CRM·VOC', '시스템']);
   await logout(page);
 });
 
@@ -155,7 +155,7 @@ test('역할별로 보이는 메뉴가 다르다 (03 §4.4)', async ({ page }) =
   await logout(page);
 
   await login(page, 'bp01', 'Bp-pass-01');
-  expect(await menuNames(page)).toEqual(['상담', '접수·주문', '배정·일정', '처리', '고객', '기사', '상품·가격', '결제', 'CRM·VOC']);
+  expect(await menuNames(page)).toEqual(['상담', '접수·주문', '배정·일정', '처리', '고객', '기사', '상품·가격', '결제', '정산', 'CRM·VOC']);
   // BR-102 거점장은 자기 거점 관할 지역만 본다
   await page.goto('/admin/dsp/areas');
   await expect(page.locator('table tbody tr')).toHaveCount(1);
