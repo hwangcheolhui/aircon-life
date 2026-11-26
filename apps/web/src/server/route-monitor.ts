@@ -26,7 +26,7 @@ import { getDb } from './db';
 import { toLatLng } from './geo';
 import { alreadyNotifiedRelated, notifyOrder, notifyStaffWith } from './notify';
 import type { Actor } from './orders';
-import { decrypt } from './pii';
+import { decryptOrNull } from './pii';
 import { changeWindowOpen } from './route-plans';
 import { getSettingNumber } from './settings';
 import { assertInScope, scopeCond } from './voc';
@@ -226,7 +226,7 @@ export async function monitorBoard(filter: BranchFilter, date: string, now = new
           status: x.s.status,
           orderNo: x.orderNo,
           orderStatus: x.orderStatus,
-          customerName: x.customerName ? maskName(decrypt(x.customerName)) : null,
+          customerName: x.customerName ? maskName(decryptOrNull(x.customerName)) : null,
           address: x.roadAddress ? shortAddress(x.roadAddress) : null,
           point: toLatLng(x.s.lat, x.s.lng),
           plannedArrival: x.s.plannedArrival,

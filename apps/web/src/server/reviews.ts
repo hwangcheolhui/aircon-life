@@ -29,7 +29,7 @@ import { loadCodes } from './codes';
 import { getDb } from './db';
 import { alreadyNotified, notifyCustomer } from './notify';
 import { type Tx, isUniqueViolation } from './orders';
-import { decrypt } from './pii';
+import { decryptOrNull } from './pii';
 import { getSettingNumber } from './settings';
 import { assertInScope, insertVocInTx, mainTechOf, scopeCond } from './voc';
 
@@ -189,7 +189,7 @@ export async function listReviews(filter: BranchFilter, q: { from: string | null
   return rows.map((x) => ({
     id: x.r.id,
     orderNo: x.orderNo,
-    customerName: maskName(decrypt(x.customerName)),
+    customerName: maskName(decryptOrNull(x.customerName)),
     techName: x.techName,
     rating: x.r.rating,
     npsScore: x.r.npsScore,

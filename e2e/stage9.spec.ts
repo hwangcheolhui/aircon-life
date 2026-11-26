@@ -74,8 +74,10 @@ test('준비: 서비스 지역·상품·가격, 고객 가입 + 등록 기기, �
   await sql`INSERT INTO service_product (category_id, product_code, name, device_type, clean_level, base_duration_min)
     VALUES (${cat!.id}, 'AC-WALL-FULL', '벽걸이 완전분해 세척', 'WALL', 'FULL', 90) ON CONFLICT (product_code) DO NOTHING`;
   const [p] = await sql<{ id: string }[]>`SELECT id FROM service_product WHERE product_code = 'AC-WALL-FULL'`;
+  // 앞 단계 E2E가 만든 벽걸이 FULL 상품(가격 없음)도 견적 엔진이 고를 수 있으므로 공통 단가를 채워 둔다
   await sql`INSERT INTO price_policy (product_id, branch_id, unit_price, valid_from)
-    SELECT ${p!.id}, NULL, 90000, '2026-01-01' WHERE NOT EXISTS (SELECT 1 FROM price_policy WHERE product_id = ${p!.id} AND branch_id IS NULL)`;
+    SELECT sp.id, NULL, 90000, '2026-01-01' FROM service_product sp
+    WHERE sp.device_type = 'WALL' AND sp.clean_level = 'FULL' AND NOT EXISTS (SELECT 1 FROM price_policy pp WHERE pp.product_id = sp.id AND pp.branch_id IS NULL)`;
 
   const cu = await customerPage(browser);
   await customerLogin(cu, '/my/devices');
@@ -196,7 +198,7 @@ test('A-CRM-030 쿠폰 등록 → C-MY-020 쿠폰함에 코드로 받는다 (F-C
   await customerLogin(cu, '/my/coupons');
   await cu.getByRole('textbox', { name: '쿠폰 코드' }).fill('welcome9');
   await cu.getByRole('button', { name: '등록' }).click();
-  await expect(cu.getByText('재방문 5천원')).toBeVisible({ timeout: 30_000 });
+  await expect(cu.getByText('재방문 5천원', { exact: true })).toBeVisible({ timeout: 30_000 });
   await cu.getByRole('textbox', { name: '쿠폰 코드' }).fill('WELCOME9');
   await cu.getByRole('button', { name: '등록' }).click();
   await expect(cu.locator('.ac-alert')).toContainText('이미');

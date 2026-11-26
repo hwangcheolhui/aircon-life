@@ -13,7 +13,7 @@ import { UserError, ValidationFailed } from './action-result';
 import { getDb } from './db';
 import { notifyStaffWith } from './notify';
 import type { Actor } from './orders';
-import { decrypt } from './pii';
+import { decryptOrNull } from './pii';
 import { assertInScope, scopeCond } from './voc';
 
 export async function listInspections(filter: BranchFilter, q: { status: string | null; from: string | null; to: string | null }) {
@@ -54,7 +54,7 @@ export async function listInspections(filter: BranchFilter, q: { status: string 
     workOrderId: r.w.id,
     orderNo: r.orderNo,
     orderStatus: r.orderStatus,
-    customerName: maskName(decrypt(r.customerName)),
+    customerName: maskName(decryptOrNull(r.customerName)),
     techName: r.techName,
     finishedAt: r.w.finishedAt,
     workMinutes: r.w.workMinutes,

@@ -145,7 +145,14 @@ export async function rebookDevices(customerId: number, deviceIds: number[], now
   const { lines, skipped } = rebookLines(devices, choices.products);
   if (!lines.length) throw new UserError('지금 이 주소에서 예약할 수 있는 기기가 없어요. 견적 받기에서 다시 골라 주세요.');
   const r = await issueQuote({ legalDongCode: addr.legalDongCode, lines, options: [], customerType: 'PERSONAL', visit: null }, 'APP', now);
-  if (!r.ok) throw new UserError('이 주소는 지금 견적을 낼 수 없어요. 고객센터로 문의해 주세요.');
+  if (!r.ok) {
+    console.warn('재예약 견적 실패', r);
+    throw new UserError(
+      r.reason === 'NOT_SERVICEABLE'
+        ? '이 주소는 지금 서비스하지 않는 지역이에요. 고객센터로 문의해 주세요.'
+        : '지금 이 기기는 바로 견적을 낼 수 없어요. 견적 받기에서 다시 골라 주세요.',
+    );
+  }
   const [q] = await db
     .update(quote)
     .set({ customerId, addressId, updatedAt: now, updatedBy: customerId })
