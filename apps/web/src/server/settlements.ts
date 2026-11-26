@@ -338,6 +338,8 @@ interface TargetJob {
 
 /** BR-081 정산 대상 작업: 기간 끝까지 결제 완료(COMPLETED)되었고 아직 정산 항목이 없는 작업 */
 async function targetJobs(tx: Tx, b: BatchRow): Promise<TargetJob[]> {
+  // 단계 9 작업 결과 검수(F-ADM-PRC-03): 반려 건은 정산 제외, INSPECTION_REQUIRED=Y 면 승인 건만
+  const inspectionRequired = (await getSettingString(SETTING_KEYS.INSPECTION_REQUIRED)) === 'Y';
   const completedAt = sql`(SELECT max(h.created_at) FROM ${orderStatusHistory} h WHERE h.order_id = ${serviceOrder.id} AND h.to_status = 'COMPLETED')`;
   return tx
     .select({
@@ -355,6 +357,9 @@ async function targetJobs(tx: Tx, b: BatchRow): Promise<TargetJob[]> {
         eq(workOrder.status, 'DONE'),
         eq(workOrder.isSettlementTarget, true),
         eq(serviceOrder.status, 'COMPLETED'),
+        inspectionRequired
+          ? eq(workOrder.inspectionStatus, 'APPROVED')
+          : sql`(${workOrder.inspectionStatus} IS NULL OR ${workOrder.inspectionStatus} <> 'REJECTED')`,
         b.branchId ? eq(serviceOrder.branchId, b.branchId) : undefined,
         sql`${completedAt} < ${periodEndExclusive(b.periodEnd).toISOString()}::timestamptz`,
         sql`NOT EXISTS (SELECT 1 FROM ${settlementItem} si WHERE si.work_order_id = ${workOrder.id})`,

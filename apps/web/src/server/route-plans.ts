@@ -6,7 +6,7 @@ import 'server-only';
  *   확정된 코스의 작업이 바뀌면 다시 작성중(DRAFT)이 되어 재확정해야 한다(마감 후면 자동 확정 배치가 재확정).
  * - 계산은 packages/domain computeSchedule·optimizeRoute·canConfirmRoute (BR-112·114), 마감은 routeConfirmDeadline (BR-113).
  * - 상태 변경은 assertRouteTransition 을 거친다(01 §3.6). 확정하면 배정의 route_order 를 갱신하고, 주기사 코스만 고객에게 방문 예정 시간을 안내한다
- *   (처음이면 VISIT_TIME_NOTICE, 안내한 시각이 바뀐 고객만 VISIT_TIME_CHANGED). 마감 후 확정 코스의 순서 변경은 막는다(운영자 승인은 단계 9 A-DSP-070).
+ *   (처음이면 VISIT_TIME_NOTICE, 안내한 시각이 바뀐 고객만 VISIT_TIME_CHANGED). 마감 후 확정 코스의 순서 변경은 막는다(단계 9: 기사 요청 → 운영자 승인 A-DSP-070 후 다시 확정할 때까지 편집 가능, changeWindowOpen).
  */
 import {
   assignment,
@@ -495,6 +495,9 @@ export interface RouteStopView {
   violation: boolean;
   overWorkEnd: boolean;
   notifiedArrival: string | null;
+  /** 단계 9 진행 중 ETA(위치·작업 종료로 재계산)와 안내 시각 대비 지연(분) */
+  eta: string | null;
+  etaDelayMin: number | null;
 }
 
 export interface RouteView {
@@ -505,8 +508,10 @@ export interface RouteView {
   confirmedAt: string | null;
   deadline: string;
   afterDeadline: boolean;
-  /** 마감 후 확정 코스 → 순서 변경 불가 */
+  /** 마감 후 확정 코스 → 순서 변경 불가 (단계 9: 변경 승인 후 다시 확정 전까지는 풀림) */
   locked: boolean;
+  /** 단계 9 코스 변경 요청 상태 */
+  changeRequest: { status: string; note: string | null; handleNote: string | null; open: boolean } | null;
   start: LatLng;
   totals: { travelMin: number; distanceM: number; workMin: number; jobs: number };
   violations: number;
@@ -516,6 +521,13 @@ export interface RouteView {
   stops: RouteStopView[];
   /** 좌표를 몰라 코스에서 빠진 작업 */
   missing: string[];
+}
+
+/** 진행 중 ETA 와 지연(안내 시각, 없으면 계획 도착 대비). 아직 도착하지 않은 정류장만 */
+function etaOf(row: StopRow | undefined): { eta: string | null; etaDelayMin: number | null } {
+  if (!row?.eta || row.status !== 'PLANNED') return { eta: null, etaDelayMin: null };
+  const ref = row.notifiedArrival ?? row.plannedArrival;
+  return { eta: row.eta.toISOString(), etaDelayMin: ref ? Math.round((row.eta.getTime() - ref.getTime()) / 60_000) : null };
 }
 
 function toView(
@@ -534,7 +546,10 @@ function toView(
     confirmedAt: syn.plan.confirmedAt?.toISOString() ?? null,
     deadline: syn.ctx.deadline.toISOString(),
     afterDeadline: after,
-    locked: after && isConfirmedRoute(syn.plan.status),
+    locked: after && isConfirmedRoute(syn.plan.status) && !changeWindowOpen(syn.plan),
+    changeRequest: syn.plan.changeRequestStatus
+      ? { status: syn.plan.changeRequestStatus, note: syn.plan.changeRequestNote, handleNote: syn.plan.changeHandleNote, open: changeWindowOpen(syn.plan) }
+      : null,
     start: syn.start,
     totals: {
       travelMin: s.totalTravelMin,
@@ -571,6 +586,7 @@ function toView(
         violation: st.violation,
         overWorkEnd: st.overWorkEnd,
         notifiedArrival: rowByKey.get(st.key)?.notifiedArrival?.toISOString() ?? null,
+        ...etaOf(rowByKey.get(st.key)),
       };
     }),
     missing: syn.jobs.filter((j) => !j.point).map((j) => j.orderNo),
@@ -639,8 +655,16 @@ export async function previewRoute(techId: number, date: string, edit: RouteEdit
   return toView(syn, s);
 }
 
+/**
+ * 단계 9 코스 변경 승인(F-ADM-DSP-09, A-DSP-070): 운영자가 승인한 뒤 다시 확정할 때까지는 마감 후에도 편집할 수 있다.
+ * 다시 확정하면(confirmed_at > change_handled_at) 다시 잠긴다. 열려 있는 동안은 자동 확정이 기사 편집을 덮어쓰지 않는다.
+ */
+export function changeWindowOpen(plan: Pick<PlanRow, 'changeRequestStatus' | 'changeHandledAt' | 'confirmedAt'>) {
+  return plan.changeRequestStatus === 'APPROVED' && plan.changeHandledAt !== null && (!plan.confirmedAt || plan.confirmedAt < plan.changeHandledAt);
+}
+
 function assertEditable(syn: Synced, now = new Date()) {
-  if (isAfterDeadline(now, syn.ctx.deadline) && isConfirmedRoute(syn.plan.status))
+  if (isAfterDeadline(now, syn.ctx.deadline) && isConfirmedRoute(syn.plan.status) && !changeWindowOpen(syn.plan))
     throw new UserError('확정 마감이 지나 코스를 바꿀 수 없습니다. 바꿔야 하면 거점에 요청해 주세요.');
   if (syn.plan.status === 'IN_PROGRESS' || syn.plan.status === 'DONE')
     throw new UserError('진행 중이거나 끝난 코스는 바꿀 수 없습니다.');
@@ -772,6 +796,7 @@ export async function autoConfirm(
   const sys: Actor = { type: 'SYSTEM', id: null };
   const syn = await syncPlan(techId, date, sys);
   if (!syn || isConfirmedRoute(syn.plan.status)) return 'SKIPPED';
+  if (changeWindowOpen(syn.plan)) return 'SKIPPED'; // 단계 9 승인된 변경은 기사가 직접 다시 확정
   if (!syn.schedule.stops.some((s) => s.type === 'JOB')) return 'SKIPPED';
   const r = await applyRecommendation(techId, date, sys);
   if (r.after.violations > 0) return 'BLOCKED';

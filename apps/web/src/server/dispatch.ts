@@ -43,7 +43,11 @@ import {
   MSG,
   maskName,
   needsAccompany,
+  parseRecommendWeights,
+  type RecommendCandidate,
   shortAddress,
+  soloSkillRatio,
+  topCandidates,
 } from '@aircon/domain';
 import { and, asc, eq, gte, inArray, isNull, lt, ne, sql } from 'drizzle-orm';
 import { UserError } from './action-result';
@@ -52,6 +56,7 @@ import { getDb } from './db';
 import { alreadyNotified, notifyOrder, notifyStaff } from './notify';
 import { type Actor, type Tx, transitionOrder } from './orders';
 import { decrypt } from './pii';
+import { insertionPreview } from './route-plans';
 import { getSettingNumber, getSettingString } from './settings';
 
 type Db = ReturnType<typeof getDb>;
@@ -652,4 +657,76 @@ export async function countUrgentUnassigned(filter: BranchFilter, now = new Date
       ),
     );
   return r?.n ?? 0;
+}
+
+/* ---------- 단계 9 F-ADM-DSP-02 자동 배정 추천 (A-DSP-010 Top3) ---------- */
+
+/**
+ * 주문 1건의 추천 기사 상위 3명. 점수 = 관할 일치 + 숙련(기기 유형) + 당일 부하 + 기존 코스에 넣을 때 늘어나는 이동시간 + 평점
+ * (가중치 RECOMMEND_WEIGHTS, 하루 적정 건수 RECOMMEND_DAY_JOB_CAP). 차단 사유(BLOCK)가 있는 기사는 빼고, 경고는 함께 보여 준다.
+ * 추천만 보여 주고 배정은 운영자가 기존 배정 흐름으로 한다(제안 행을 만들지 않음).
+ */
+export async function recommendTechs(orderId: number, filter: BranchFilter) {
+  const db = getDb();
+  const ctx = await loadOrderForAssign(db, orderId);
+  assertOrderInScope(ctx.order, filter);
+  const techRows = await db
+    .select()
+    .from(technician)
+    .where(and(eq(technician.branchId, ctx.order.branchId), inArray(technician.status, ['ACTIVE', 'TRAINING']), isNull(technician.deletedAt)));
+  if (!techRows.length) return [];
+  const ids = techRows.map((t) => t.id);
+  const { from, to } = dayRange(ctx.date);
+  const [areas, skills, devices, loads, weightsRaw, dayCap] = await Promise.all([
+    ctx.legalDongCode
+      ? db.select().from(technicianArea).where(and(inArray(technicianArea.technicianId, ids), eq(technicianArea.legalDongCode, ctx.legalDongCode)))
+      : Promise.resolve([]),
+    db.select().from(technicianSkill).where(inArray(technicianSkill.technicianId, ids)),
+    orderDeviceTypes(db, [orderId]),
+    db
+      .select({ techId: assignment.technicianId, n: sql<number>`count(*)::int` })
+      .from(assignment)
+      .innerJoin(serviceOrder, eq(serviceOrder.id, assignment.orderId))
+      .where(
+        and(
+          inArray(assignment.technicianId, ids),
+          inArray(assignment.status, [...ACTIVE_ASSIGN_STATUSES]),
+          ne(serviceOrder.id, orderId),
+          ne(serviceOrder.status, 'CANCELED'),
+          gte(serviceOrder.promisedAt, from),
+          lt(serviceOrder.promisedAt, to),
+        ),
+      )
+      .groupBy(assignment.technicianId),
+    getSettingString(SETTING_KEYS.RECOMMEND_WEIGHTS),
+    getSettingNumber(SETTING_KEYS.RECOMMEND_DAY_JOB_CAP),
+  ]);
+  const deviceTypes = (devices.get(orderId) ?? []).map((d) => d.deviceType);
+  const candidates: RecommendCandidate[] = [];
+  for (const t of techRows) {
+    const issues = await validatePlan(db, ctx, [{ role: 'MAIN', technicianId: t.id }]).catch(() => null);
+    if (!issues || blocking(issues).length) continue;
+    const area = areas.find((a) => a.technicianId === t.id);
+    const ins = ctx.order.addressId
+      ? await insertionPreview(t.id, ctx.date, {
+          id: ctx.order.id,
+          addressId: ctx.order.addressId,
+          promisedAt: ctx.order.promisedAt,
+          arrivalWindowStart: ctx.order.arrivalWindowStart,
+          arrivalWindowEnd: ctx.order.arrivalWindowEnd,
+        }).catch(() => null)
+      : null;
+    candidates.push({
+      techId: t.id,
+      name: t.displayName || t.name,
+      zone: area ? (area.priority === 1 ? 'PRIMARY' : 'SECONDARY') : null,
+      skillRatio: soloSkillRatio(deviceTypes, skills.filter((s) => s.technicianId === t.id)),
+      dayJobs: loads.find((l) => l.techId === t.id)?.n ?? 0,
+      extraTravelMin: ins ? ins.addedTravelMin : null,
+      windowViolation: ins ? !ins.ok : false,
+      ratingAvg: t.ratingAvg === null ? null : Number(t.ratingAvg),
+      warnings: issues.map((i) => i.message),
+    });
+  }
+  return topCandidates(candidates, parseRecommendWeights(weightsRaw), dayCap);
 }

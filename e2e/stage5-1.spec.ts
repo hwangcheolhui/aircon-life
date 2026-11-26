@@ -226,6 +226,7 @@ test('BR-041 작업 후 사진이 없으면 완료가 막히고, 사진·결과�
   await p.getByRole('button', { name: '저장하고 다음' }).click();
   // 단계 5-2: 결과 다음은 추가요금(T-WRK-040) → 처리 저장
   await expect(p.getByRole('heading', { name: '추가요금' })).toBeVisible({ timeout: 30_000 });
+  await p.getByRole('link', { name: '다음: 자재 사용' }).click(); // 단계 9 T-WRK-050
   await p.getByRole('link', { name: '다음: 처리 저장' }).click();
   await expect(p.getByRole('heading', { name: '처리 저장' })).toBeVisible({ timeout: 30_000 });
   await expect(p.getByText(/작업 후 사진이 없습니다/)).toBeVisible();

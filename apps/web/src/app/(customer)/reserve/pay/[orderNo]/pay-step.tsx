@@ -4,6 +4,7 @@ import { mockPaymentId } from '@aircon/integrations/payment';
 import { Alert, Button, Card } from '@aircon/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition } from 'react';
+import { CouponPicker, type CouponChoices } from '@/customer/coupon-picker';
 import { formatWon } from '@/customer/format';
 import { type PortOneConfig, portonePayment } from '@/customer/portone';
 import { QuoteBottomBar } from '@/customer/quote-flow';
@@ -18,9 +19,11 @@ interface Props {
   portone: PortOneConfig | null;
   returnedPaymentId: string | null;
   demoQuery: string;
+  /** 단계 9 쿠폰 선택지 (체험 모드 null) */
+  coupons: CouponChoices | null;
 }
 
-export function PayStep({ orderNo, amount, items, driver, portone, returnedPaymentId, demoQuery }: Props) {
+export function PayStep({ orderNo, amount, items, driver, portone, returnedPaymentId, demoQuery, coupons }: Props) {
   const router = useRouter();
   const [mockNo, setMockNo] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -89,6 +92,7 @@ export function PayStep({ orderNo, amount, items, driver, portone, returnedPayme
             <span className="ac-num">{formatWon(amount)}</span>
           </div>
         </Card>
+        {coupons ? <CouponPicker orderNo={orderNo} data={coupons} /> : null}
         {mockNo ? (
           <div className="cus-mock-box" role="dialog" aria-label="모의 결제창">
             <strong className="ac-body">모의 결제창 (개발용)</strong>

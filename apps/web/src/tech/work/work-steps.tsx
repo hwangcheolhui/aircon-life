@@ -1,5 +1,5 @@
 // 현장작업 풀스크린 스텝 플로우 상단 (03 §3.2 T-WRK S1~S7): 제목 + 진행바(.ac-progress) + 단계 이름(.ac-steps)
-// 출발·도착(T-WRK-010) → 안전(T-WRK-011) → 사진(T-WRK-020) → 결과(T-WRK-030) → 추가요금(T-WRK-040, 단계 5-2) → 완료(T-WRK-060).
+// 출발·도착(T-WRK-010) → 안전(T-WRK-011) → 사진(T-WRK-020) → 결과(T-WRK-030) → 추가요금(T-WRK-040, 단계 5-2) → 자재(T-WRK-050, 단계 9) → 완료(T-WRK-060).
 // 미처리 저장(T-WRK-061)은 단계가 아니라 어느 단계에서든 들어가는 화면.
 import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -10,6 +10,7 @@ export const WORK_STEPS = [
   { key: 'photos', label: '사진', path: '/photos' },
   { key: 'result', label: '결과', path: '/result' },
   { key: 'extra', label: '추가요금', path: '/extra' },
+  { key: 'materials', label: '자재', path: '/materials' },
   { key: 'complete', label: '완료', path: '/complete' },
 ] as const;
 export type WorkStepKey = (typeof WORK_STEPS)[number]['key'];

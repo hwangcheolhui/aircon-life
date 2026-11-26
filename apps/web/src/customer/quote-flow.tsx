@@ -18,6 +18,8 @@ export interface QuoteDraft {
   lines: Record<string, { quantity: number; cleanLevel: string }>;
   /** C-QUO-030 옵션 ID → 수량 */
   options: Record<string, number>;
+  /** 단계 9 C-QUO-021 사진 인식 이미지 ID (견적 발행 때 연결) */
+  imageIds?: number[];
 }
 
 const EMPTY: QuoteDraft = { address: null, deviceTypes: [], lines: {}, options: {} };

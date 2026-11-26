@@ -6,13 +6,15 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   timestamp,
   varchar,
 } from 'drizzle-orm/pg-core';
 import type { QuoteSnapshot } from '@aircon/domain';
 import { branch } from './d1-org';
-import { customer, customerAddress } from './d2-customer';
+import { customer, customerAddress, customerDevice } from './d2-customer';
+import { attachment } from './d13-system';
 import { serviceOption, serviceProduct, surchargeRule } from './d3-product';
 import { auditColumns, idColumn } from './common';
 
@@ -45,7 +47,7 @@ export const quote = pgTable(
   (t) => [index('quote_status_expires_idx').on(t.status, t.expiresAt)],
 );
 
-/** 2.4.2 견적 상세. customer_device_id 의 FK는 customer_device 테이블이 생기는 단계에서 건다. */
+/** 2.4.2 견적 상세. customer_device_id = 원클릭 재예약(F-CUS-DEV-02)의 대상 기기(단계 9) */
 export const quoteItem = pgTable(
   'quote_item',
   {
@@ -57,10 +59,35 @@ export const quoteItem = pgTable(
     productId: bigint('product_id', { mode: 'number' }).references(() => serviceProduct.id),
     optionId: bigint('option_id', { mode: 'number' }).references(() => serviceOption.id),
     surchargeRuleId: bigint('surcharge_rule_id', { mode: 'number' }).references(() => surchargeRule.id),
-    customerDeviceId: bigint('customer_device_id', { mode: 'number' }),
+    customerDeviceId: bigint('customer_device_id', { mode: 'number' }).references(() => customerDevice.id),
     quantity: integer('quantity').notNull(),
     unitPrice: integer('unit_price').notNull(),
     amount: integer('amount').notNull(),
   },
   (t) => [index('quote_item_quote_idx').on(t.quoteId)],
+);
+
+/**
+ * 2.4.3 기기 이미지 인식 (단계 9, F-CUS-QUO-05). 비회원 견적 중에 올리므로 처음엔 quote_id 가 비어 있고,
+ * 견적을 발행하면 연결한다. 인식은 이미지 인식 어댑터(VISION_DRIVER=mock, 실연동은 업체 선정 후).
+ */
+export const deviceImage = pgTable(
+  'device_image',
+  {
+    id: idColumn(),
+    quoteId: bigint('quote_id', { mode: 'number' }).references(() => quote.id),
+    customerDeviceId: bigint('customer_device_id', { mode: 'number' }).references(() => customerDevice.id),
+    fileId: bigint('file_id', { mode: 'number' })
+      .notNull()
+      .references(() => attachment.id),
+    purpose: varchar('purpose', { length: 20 }).notNull(), // IMAGE_PURPOSE
+    recognizedType: varchar('recognized_type', { length: 30 }),
+    recognizedBrand: varchar('recognized_brand', { length: 30 }),
+    dirtLevel: varchar('dirt_level', { length: 10 }), // DIRT_LEVEL
+    confidence: numeric('confidence', { precision: 4, scale: 3 }),
+    userConfirmed: boolean('user_confirmed'),
+    confirmedType: varchar('confirmed_type', { length: 30 }), // 고객이 확인·수정한 형태(단계 9)
+    ...auditColumns,
+  },
+  (t) => [index('device_image_quote_idx').on(t.quoteId)],
 );

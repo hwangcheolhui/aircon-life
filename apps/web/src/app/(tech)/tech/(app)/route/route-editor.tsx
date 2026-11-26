@@ -1,7 +1,8 @@
 'use client';
 // T-RTE-010 코스 편집기: 상단 지도(경로선) + 하단 순서 리스트(끌어 놓기·▲▼, 🔒 고정), 지점별 도착 예정·이동·허용 시간창, 위반 경고, 총 이동시간·거리
+// 단계 9: 마감 후 [코스 변경 요청](승인되면 편집·재확정), 진행 중 ETA·지연 예상 표시와 [고객에게 지연 안내](F-TEC-RTE-06)
 import type { LatLng } from '@aircon/domain';
-import { Alert, Button, Modal, StatusBadge, Tag, useToast } from '@aircon/ui';
+import { Alert, Button, Field, Modal, StatusBadge, Tag, Textarea, useToast } from '@aircon/ui';
 import { ArrowDown, ArrowUp, Coffee, GripVertical, Lock, LockOpen, Package, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { type DragEvent, useState, useTransition } from 'react';
@@ -13,7 +14,9 @@ import {
   confirmRouteAction,
   previewRouteAction,
   recommendRouteAction,
+  requestRouteChangeAction,
   saveRouteAction,
+  sendVisitDelayAction,
 } from './actions';
 
 type EditStop = { key: string; type: 'JOB' | 'BREAK' | 'MATERIAL'; locked: boolean; workMin?: number };
@@ -43,7 +46,7 @@ function stopTitle(s: RouteStopView) {
   return `${s.customerName ?? ''} · ${s.address ?? ''}`;
 }
 
-export function RouteEditor({ initial }: { initial: RouteView }) {
+export function RouteEditor({ initial, delayAlertMin }: { initial: RouteView; delayAlertMin: number }) {
   const router = useRouter();
   const toast = useToast();
   const [view, setView] = useState(initial);
@@ -53,6 +56,8 @@ export function RouteEditor({ initial }: { initial: RouteView }) {
   const [rec, setRec] = useState<Rec | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [dragKey, setDragKey] = useState<string | null>(null);
+  const [changeOpen, setChangeOpen] = useState(false);
+  const [changeNote, setChangeNote] = useState('');
   const [pending, start] = useTransition();
   const readOnly = view.locked || view.status === 'IN_PROGRESS' || view.status === 'DONE';
 
@@ -190,9 +195,17 @@ export function RouteEditor({ initial }: { initial: RouteView }) {
       {!view.working ? (
         <Alert tone="warning">이 날짜는 근무일이 아닙니다. 거점에 근무 일정을 확인하세요.</Alert>
       ) : null}
-      {view.locked ? (
-        <Alert tone="warning">확정 마감이 지나 순서를 바꿀 수 없습니다. 바꿔야 하면 거점에 요청하세요.</Alert>
+      {view.locked && view.changeRequest?.status !== 'REQUESTED' ? (
+        <Alert tone="warning">
+          확정 마감이 지나 순서를 바꿀 수 없습니다. 바꿔야 하면 거점에 요청하세요.{' '}
+          <Button variant="text" size="sm" onClick={() => setChangeOpen(true)}>
+            코스 변경 요청
+          </Button>
+        </Alert>
       ) : null}
+      {view.changeRequest?.status === 'REQUESTED' ? <Alert>코스 변경을 요청했습니다. 거점 확인을 기다리는 중입니다.</Alert> : null}
+      {view.changeRequest?.status === 'REJECTED' ? <Alert tone="danger">코스 변경 요청이 반려됐습니다. {view.changeRequest.handleNote ?? ''}</Alert> : null}
+      {view.changeRequest?.open ? <Alert tone="success">코스 변경이 승인됐습니다. 순서를 바꾼 뒤 다시 확정해 주세요.</Alert> : null}
       {error ? <Alert tone="danger">{error}</Alert> : null}
 
       <ol className="tec-route-list" aria-label="방문 순서">
@@ -224,6 +237,7 @@ export function RouteEditor({ initial }: { initial: RouteView }) {
                 )}
                 <strong className="ac-num">도착 {hm(s.arrival)}</strong>
                 {s.violation ? <Tag tone="danger">시간창 위반</Tag> : null}
+                {s.etaDelayMin !== null && s.etaDelayMin >= delayAlertMin ? <Tag tone="danger">{s.etaDelayMin}분 지연 예상</Tag> : null}
                 {s.waitMin > 0 ? <Tag>대기 {s.waitMin}분</Tag> : null}
               </div>
               <p>{stopTitle(s)}</p>
@@ -246,7 +260,30 @@ export function RouteEditor({ initial }: { initial: RouteView }) {
                     · 고객 안내 <span className="ac-num">{hm(s.notifiedArrival)}</span>
                   </>
                 ) : null}
+                {s.eta ? (
+                  <>
+                    {' '}
+                    · 지금 예상 <span className="ac-num">{hm(s.eta)}</span>
+                  </>
+                ) : null}
               </p>
+              {s.type === 'JOB' && s.role === 'MAIN' && s.orderNo && s.etaDelayMin !== null && s.etaDelayMin >= delayAlertMin ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={pending}
+                  onClick={() =>
+                    start(async () => {
+                      const r = (await sendVisitDelayAction(s.orderNo)) as Res;
+                      if (!r.ok) return setError(errOf(r));
+                      toast('고객에게 늦어지는 도착 시각을 안내했습니다.');
+                      router.refresh();
+                    })
+                  }
+                >
+                  고객에게 지연 안내
+                </Button>
+              ) : null}
               {!readOnly ? (
                 <div className="tec-route-stop__tools">
                   <Button
@@ -424,6 +461,39 @@ export function RouteEditor({ initial }: { initial: RouteView }) {
           </>
         }
       />
+      <Modal
+        open={changeOpen}
+        title="코스 변경을 요청하시겠습니까?"
+        description="거점이 승인하면 순서를 바꾸고 다시 확정할 수 있습니다."
+        onClose={() => setChangeOpen(false)}
+        actions={
+          <>
+            <Button variant="outline" onClick={() => setChangeOpen(false)}>
+              취소
+            </Button>
+            <Button
+              variant="primary"
+              loading={pending}
+              onClick={() =>
+                start(async () => {
+                  const r = (await requestRouteChangeAction({ date: view.date, note: changeNote })) as Res;
+                  if (!r.ok) return setError(errOf(r));
+                  setChangeOpen(false);
+                  setChangeNote('');
+                  toast('코스 변경을 요청했습니다.');
+                  router.refresh();
+                })
+              }
+            >
+              요청
+            </Button>
+          </>
+        }
+      >
+        <Field label="요청 사유" required>
+          {(id) => <Textarea id={id} rows={3} maxLength={300} value={changeNote} onChange={(e) => setChangeNote(e.target.value)} />}
+        </Field>
+      </Modal>
     </>
   );
 }

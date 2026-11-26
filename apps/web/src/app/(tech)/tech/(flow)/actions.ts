@@ -3,8 +3,10 @@
 // 기기별 결과·발견 이슈 F-TEC-WRK-04·10 · 처리 저장(완료) F-TEC-WRK-07(BR-041) · 활동내역 F-TEC-WRK-09
 // 단계 6: 현장 결제 F-TEC-PAY-01·02 · 증빙 F-TEC-PAY-03
 // 단계 5-2: 추가요금 등록·철회·현장 서명 F-TEC-WRK-05(BR-040·042) · 미처리 저장 F-TEC-WRK-08(BR-031)
+// 단계 9: 자재 사용 F-TEC-WRK-06(T-WRK-050, 청구 자재는 추가요금으로 동의 BR-040)
 import {
   activityInput,
+  materialUsageInput,
   extraChargeInput,
   extraChargeRefInput,
   fieldPaymentInput,
@@ -19,10 +21,12 @@ import {
   workPhotoInput,
   workResultInput,
   workSafetyInput,
+  z,
 } from '@aircon/contracts';
 import { revalidatePath } from 'next/cache';
 import { UserError, handle, parse } from '@/server/action-result';
 import { addExtraCharge, signExtraCharge, withdrawExtraCharge } from '@/server/extra-charges';
+import { addMaterialUsage, removeMaterialUsage } from '@/server/materials';
 import { collectInField, techMarkReceivable, techRequestPayment, techRequestTaxDoc } from '@/server/payments';
 import { extraAgreeUrl, siteOrigin } from '@/server/site-origin';
 import { requireTechAction } from '@/server/tech-session';
@@ -213,5 +217,26 @@ export async function requestJobTaxDoc(values: Record<string, unknown>) {
     const v = parse(taxDocRequestInput, values);
     await techRequestTaxDoc(me.id, v);
     refreshPay(v.orderNo);
+  });
+}
+
+/* ---------- 단계 9 T-WRK-050 자재 사용 (F-TEC-WRK-06) ---------- */
+
+export async function addJobMaterial(values: Record<string, unknown>) {
+  return handle(async () => {
+    const me = await requireTechAction();
+    const v = parse(materialUsageInput, values);
+    const r = await addMaterialUsage(me.id, v, extraAgreeUrl(await siteOrigin()));
+    refresh(v.orderNo);
+    return r;
+  });
+}
+
+export async function removeJobMaterial(values: Record<string, unknown>) {
+  return handle(async () => {
+    const me = await requireTechAction();
+    const v = parse(z.object({ orderNo: z.string().min(1).max(20), usageId: z.coerce.number().int().positive() }), values);
+    await removeMaterialUsage(me.id, v.orderNo, v.usageId);
+    refresh(v.orderNo);
   });
 }
