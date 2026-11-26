@@ -141,7 +141,7 @@ export function FollowupTab({ data, codes, canWrite, onSaved }: { data: ConsoleD
           보내기
         </Button>
       </div>
-      <ConfirmModal open={confirm} message="보내시겠습니까?" onConfirm={save} onCancel={() => setConfirm(false)} />
+      <ConfirmModal open={confirm} message="보내시겠습니까?" confirmLabel="보내기" onConfirm={save} onCancel={() => setConfirm(false)} />
     </div>
   );
 }

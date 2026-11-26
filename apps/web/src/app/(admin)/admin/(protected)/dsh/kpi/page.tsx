@@ -1,13 +1,13 @@
 // A-DSH-020 KPI 대시보드 · F-ADM-DSH-02: ERD §5 KPI 카드(값·목표·달성 여부), 최근 6개월 매출 추이. 목표값은 system_setting KPI_TARGET_*
 import { kstDate } from '@aircon/domain';
 import { Tag } from '@aircon/ui';
-import { won } from '@/admin/crud-screen';
 import { requireScreen } from '@/server/auth';
 import { currentBranchFilter } from '@/server/branch-selection';
 import { type KpiCard, kpiDashboard } from '@/server/ops';
 import { Bars } from '../bars';
 import { MonthPicker } from './month-picker';
 
+const won = (n: number) => `${n.toLocaleString()}원`;
 export const dynamic = 'force-dynamic';
 
 const fmt = (v: number | null, unit: KpiCard['unit']) => (v === null ? '-' : unit === '원' ? won(v) : unit === '%' ? `${v}%` : `${v.toLocaleString()}건`);

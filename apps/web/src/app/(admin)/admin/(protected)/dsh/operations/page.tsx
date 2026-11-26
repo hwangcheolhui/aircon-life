@@ -1,7 +1,6 @@
 // A-DSH-010 운영 현황(오늘) · F-ADM-DSH-01: 상태별 카운트 카드, 거점 슬롯 가동률, 긴급(약속 임박 미배정)·장기 미처리 목록, 기사 현황
 import { StatusBadge } from '@aircon/ui';
 import Link from 'next/link';
-import { labelOf } from '@/admin/crud-screen';
 import { formatDateTime } from '@/customer/format';
 import { requireScreen } from '@/server/auth';
 import { currentBranchFilter } from '@/server/branch-selection';
@@ -160,7 +159,7 @@ export default async function OperationsPage() {
                       <Link href={`/admin/ord/orders/${o.id}`}>{o.orderNo}</Link>
                     </td>
                     <td>{o.branchName}</td>
-                    <td>{o.pendingReason ? labelOf(codes.PENDING_REASON, o.pendingReason) : '-'}</td>
+                    <td>{o.pendingReason ? (codes.PENDING_REASON?.find((c) => c.value === o.pendingReason)?.label ?? o.pendingReason) : '-'}</td>
                   </tr>
                 ))}
               </tbody>

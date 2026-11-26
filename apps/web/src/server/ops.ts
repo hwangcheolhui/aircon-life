@@ -54,7 +54,7 @@ export async function operationsToday(filter: BranchFilter, now = new Date()) {
     db
       .execute(
         sql`select count(distinct h.order_id)::int as n from order_status_history h join service_order o on o.id = h.order_id
-          where h.to_status = 'WORK_DONE' and h.created_at >= ${start} and h.created_at < ${end}
+          where h.to_status = 'WORK_DONE' and h.created_at >= ${start.toISOString()}::timestamptz and h.created_at < ${end.toISOString()}::timestamptz
           ${filter.kind === 'BRANCH' ? sql`and o.branch_id = ${filter.branchId}` : filter.kind === 'NONE' ? sql`and false` : sql``}`,
       )
       .then((r) => Number((r as unknown as { n: number }[])[0]?.n ?? 0)),
@@ -197,7 +197,7 @@ export async function kpiDashboard(filter: BranchFilter, month: string, now = ne
       .then((r) => r[0]?.n ?? 0),
     db
       .execute(
-        sql`select count(*)::int as n from customer c where c.created_at >= ${kstStart(from)} and c.created_at < ${kstStart(to)}
+        sql`select count(*)::int as n from customer c where c.created_at >= ${kstStart(from).toISOString()}::timestamptz and c.created_at < ${kstStart(to).toISOString()}::timestamptz
           ${filter.kind === 'BRANCH' ? sql`and exists (select 1 from customer_address a where a.customer_id = c.id and a.branch_id = ${filter.branchId})` : filter.kind === 'NONE' ? sql`and false` : sql``}`,
       )
       .then((r) => Number((r as unknown as { n: number }[])[0]?.n ?? 0)),
