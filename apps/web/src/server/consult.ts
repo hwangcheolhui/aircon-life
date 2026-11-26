@@ -58,6 +58,7 @@ import {
   timeTableDates,
   validatePromisedAt,
   visitSurchargeNotice,
+  OPEN_VOC_STATUSES,
 } from '@aircon/domain';
 import { and, asc, desc, eq, gte, inArray, isNull, like, lt, lte, or, sql, type SQL } from 'drizzle-orm';
 import { UserError } from './action-result';
@@ -69,7 +70,8 @@ import { findDuplicateReservations } from './orders';
 import { decrypt, encrypt, phoneHash } from './pii';
 import { computeQuote, findServiceArea } from './quote';
 import { getSettingNumber, getSettingString } from './settings';
-import { insertVocInTx } from './voc';
+import { customerIncidents } from './incidents';
+import { customerVocs, insertVocInTx } from './voc';
 
 type Db = ReturnType<typeof getDb>;
 
@@ -184,8 +186,9 @@ export async function getConsoleCustomer(customerId: number, filter: BranchFilte
     customerOrders(customerId),
     getSettingNumber(SETTING_KEYS.PRIVACY_REASK_MONTHS),
   ]);
+  // 단계 8: 클레임 이력·미완료 클레임 알림은 VOC 기준(F-ADM-VOC-01), 보상이력은 안전사고(F-ADM-VOC-02)
+  const [vocs, incidents] = await Promise.all([customerVocs(customerId), customerIncidents(customerId)]);
   const open = consults.filter((x) => (OPEN_CONSULT_STATUSES as readonly string[]).includes(x.status));
-  const claims = consults.filter((x) => x.consultType === 'CLAIM');
   return {
     customer: {
       id: c.id,
@@ -218,12 +221,13 @@ export async function getConsoleCustomer(customerId: number, filter: BranchFilte
     })),
     needsConsent: needsConsentPrompt({ status: c.privacyAgreeStatus, lastAnsweredAt: lastConsent[0]?.createdAt ?? null, now, reaskMonths }),
     alerts: consoleAlerts({
-      openConsults: open.filter((x) => x.consultType !== 'CLAIM').length,
-      openClaims: open.filter((x) => x.consultType === 'CLAIM').length,
+      openConsults: open.filter((x) => x.consultType !== 'CLAIM' && x.channel !== 'APP_CHAT').length,
+      openClaims: vocs.filter((v) => (OPEN_VOC_STATUSES as readonly string[]).includes(v.status)).length,
       todayConsults: consults.filter((x) => x.createdAt >= todayStart).length,
     }),
     orders,
-    claims: claims.map(consultRow),
+    vocs,
+    incidents,
   };
 }
 

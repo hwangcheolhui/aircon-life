@@ -1,5 +1,5 @@
 'use client';
-// A-CSL-050 일반문의·클레임 탭 (F-ADM-CSL-13). 클레임은 미완료로 남겨 다음 통화 때 Alert 한다(BR-022). VOC 생성은 단계 8.
+// A-CSL-050 일반문의·클레임 탭 (F-ADM-CSL-13). 클레임은 VOC(접수)로 함께 만들어지고 VOC가 완료될 때까지 다음 통화 때 Alert 한다(BR-022, 단계 8).
 import { Alert, Button, Check, ConfirmModal, Field, MSG, Select, Textarea, useToast } from '@aircon/ui';
 import { useState } from 'react';
 import { type Option, labelOf } from '@/admin/crud-screen';
@@ -77,7 +77,7 @@ export function InquiryTab({ data, codes, canWrite, onSaved }: { data: ConsoleDa
         {f.consultType === 'INQUIRY' ? (
           <Check label="통화 중 처리 완료" checked={f.done} onChange={(e) => setF({ ...f, done: e.target.checked })} />
         ) : (
-          <p className="ac-body-sm adm-span-2">클레임은 미완료로 저장되어 처리할 때까지 이 고객 상담 시 알림이 뜹니다.</p>
+          <p className="ac-body-sm adm-span-2">클레임은 VOC로 접수되어 처리를 마칠 때까지 이 고객 상담 시 알림이 뜹니다.</p>
         )}
       </div>
       <div className="adm-toolbar">

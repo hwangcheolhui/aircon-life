@@ -1,5 +1,6 @@
 'use client';
 // A-CSL-060 이력 탭: 작업이력(n) | VOC이력(n) | 보상이력(n) (F-ADM-CSL-14). 작업이력 더블클릭 → 주문 요약 + 주문 상세(A-ORD-020) 이동
+// 단계 8: VOC이력 = voc(A-VOC-011 카드로 이동), 보상이력 = 안전사고(A-VOC-020)
 import { Button, Empty, Modal, StatusBadge, Tabs } from '@aircon/ui';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -13,14 +14,15 @@ export function HistoryTabs({ data, codes }: { data: ConsoleData | null; codes: 
   const [tab, setTab] = useState<Tab>('orders');
   const [open, setOpen] = useState<ConsoleData['orders'][number] | null>(null);
   const orders = data?.orders ?? [];
-  const claims = data?.claims ?? [];
+  const vocs = data?.vocs ?? [];
+  const incidents = data?.incidents ?? [];
   return (
     <section className="ac-card adm-csl-history" aria-label="고객 이력">
       <Tabs
         items={[
           { value: 'orders', label: `작업이력(${orders.length})` },
-          { value: 'voc', label: `VOC이력(${claims.length})` },
-          { value: 'comp', label: '보상이력(0)' },
+          { value: 'voc', label: `VOC이력(${vocs.length})` },
+          { value: 'comp', label: `보상이력(${incidents.length})` },
         ]}
         value={tab}
         onChange={setTab}
@@ -67,36 +69,69 @@ export function HistoryTabs({ data, codes }: { data: ConsoleData | null; codes: 
           </div>
         )
       ) : tab === 'voc' ? (
-        claims.length === 0 ? (
+        vocs.length === 0 ? (
           <Empty />
         ) : (
           <div className="ac-table-wrap">
             <table className="ac-table">
               <thead>
                 <tr>
-                  <th scope="col">상담번호</th>
+                  <th scope="col">VOC 번호</th>
                   <th scope="col">상태</th>
-                  <th scope="col">세부 유형</th>
-                  <th scope="col">내용</th>
+                  <th scope="col">유형</th>
+                  <th scope="col">분류</th>
+                  <th scope="col">제목</th>
                   <th scope="col">접수일시</th>
                 </tr>
               </thead>
               <tbody>
-                {claims.map((c) => (
-                  <tr key={c.id}>
-                    <td className="ac-num">{c.consultNo}</td>
-                    <td>{labelOf(codes.CONSULT_STATUS, c.status)}</td>
-                    <td>{labelOf(codes.INQUIRY_SUB_TYPE, c.subType)}</td>
-                    <td className="adm-csl-ellipsis">{c.content}</td>
-                    <td className="ac-num">{formatDateTime(c.createdAt)}</td>
+                {vocs.map((v) => (
+                  <tr key={v.id}>
+                    <td className="ac-num">
+                      <Link href={`/admin/voc/vocs/${v.id}`}>{v.vocNo}</Link>
+                    </td>
+                    <td>{labelOf(codes.VOC_STATUS, v.status)}</td>
+                    <td>{labelOf(codes.VOC_TYPE, v.vocType)}</td>
+                    <td>{v.categoryL ? labelOf(codes.VOC_CATEGORY_L, v.categoryL) : '-'}</td>
+                    <td className="adm-csl-ellipsis">{v.title}</td>
+                    <td className="ac-num">{formatDateTime(v.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )
-      ) : (
+      ) : incidents.length === 0 ? (
         <Empty />
+      ) : (
+        <div className="ac-table-wrap">
+          <table className="ac-table">
+            <thead>
+              <tr>
+                <th scope="col">사고번호</th>
+                <th scope="col">진행상태</th>
+                <th scope="col">피해유형</th>
+                <th scope="col" className="is-num">
+                  보상 금액
+                </th>
+                <th scope="col">접수일시</th>
+              </tr>
+            </thead>
+            <tbody>
+              {incidents.map((i) => (
+                <tr key={i.id}>
+                  <td className="ac-num">
+                    <Link href="/admin/voc/incidents">{i.incidentNo}</Link>
+                  </td>
+                  <td>{labelOf(codes.INCIDENT_STATUS, i.status)}</td>
+                  <td>{labelOf(codes.DAMAGE_TYPE, i.damageType)}</td>
+                  <td className="is-num ac-num">{i.compensationAmount === null ? '-' : won(i.compensationAmount)}</td>
+                  <td className="ac-num">{formatDateTime(i.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
       <Modal
         open={open !== null}
