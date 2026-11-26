@@ -69,6 +69,7 @@ import { findDuplicateReservations } from './orders';
 import { decrypt, encrypt, phoneHash } from './pii';
 import { computeQuote, findServiceArea } from './quote';
 import { getSettingNumber, getSettingString } from './settings';
+import { insertVocInTx } from './voc';
 
 type Db = ReturnType<typeof getDb>;
 
@@ -633,11 +634,21 @@ async function nextConsultNo(tx: Tx, now: Date, bump = 0) {
   return formatConsultNo(now, (last ? Number(last.no.slice(prefix.length)) : 0) + 1 + bump);
 }
 
-async function insertConsultation(
+/** 상담 1건 생성 (상담 번호 발급 포함). 단계 8: 1:1 문의(APP_CHAT)·독촉(FOLLOWUP)·안전사고(SAFETY)도 이 함수로 만든다 */
+export async function insertConsultation(
   tx: Tx,
   now: Date,
   bump: number,
-  v: { customerId: number; callLogId: number | null; consultType: string; subType: string | null; relatedOrderId: number | null; content: string | null; status: ConsultStatus },
+  v: {
+    customerId: number;
+    callLogId: number | null;
+    consultType: string;
+    subType: string | null;
+    relatedOrderId: number | null;
+    content: string | null;
+    status: ConsultStatus;
+    channel?: string;
+  },
   actor: Actor,
 ) {
   assertConsultTransition(null, v.status);
@@ -648,13 +659,13 @@ async function insertConsultation(
       consultNo,
       customerId: v.customerId,
       callLogId: v.callLogId,
-      channel: 'PHONE',
+      channel: v.channel ?? 'PHONE',
       consultType: v.consultType,
       subType: v.subType,
       relatedOrderId: v.relatedOrderId,
       content: v.content,
       status: v.status,
-      agentAdminId: actor.id,
+      agentAdminId: actor.type === 'ADMIN' ? actor.id : null,
       completedAt: v.status === 'DONE' ? now : null,
       createdBy: actor.id,
       updatedBy: actor.id,
@@ -810,7 +821,7 @@ export async function createPhoneOrder(input: PhoneOrderInput, filter: BranchFil
 
 /**
  * 상담 내용 기록. 일반문의는 [처리 완료]면 DONE, 아니면 OPEN. 클레임은 OPEN 으로 남겨 다음 통화 때 Alert(BR-022)한다.
- * VOC 테이블(01 §2.6.6)·VOC 생성은 단계 8에서 붙인다.
+ * 단계 8: 클레임은 VOC(01 §2.6.6, 접수)도 함께 만든다.
  */
 export async function recordConsult(input: z.output<typeof consultRecordInput>, filter: BranchFilter, actor: Actor, now = new Date()) {
   await assertCustomerInScope(input.customerId, filter);
@@ -833,6 +844,18 @@ export async function recordConsult(input: z.output<typeof consultRecordInput>, 
           actor,
         );
         if (input.callLogId) await tx.update(callLog).set({ endedAt: now, updatedAt: now, updatedBy: actor.id }).where(eq(callLog.id, input.callLogId));
+        // 단계 8: 클레임은 VOC(접수)로 함께 만든다(F-ADM-VOC-01). VOC 를 완료하면 이 상담도 완료된다
+        if (input.consultType === 'CLAIM') {
+          await insertVocInTx(tx, now, attempt, {
+            consultationId: r.id,
+            customerId: input.customerId,
+            orderId: input.relatedOrderId,
+            channel: 'PHONE_IN',
+            vocType: 'COMPLAINT',
+            subType: input.subType,
+            content: input.content,
+          }, actor);
+        }
         return r;
       });
     } catch (e) {

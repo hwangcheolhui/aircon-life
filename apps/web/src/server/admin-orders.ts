@@ -54,7 +54,7 @@ import { isQuoteDemoMode } from './quote-demo';
 /** 일정 변경이 가능한 상태 (기사 출발 전) */
 export const RESCHEDULABLE_STATUSES = ['QUOTED', 'RECEIVED', 'ASSIGN_WAIT', 'ASSIGNED'];
 
-export function branchCond(filter: BranchFilter, col = serviceOrder.branchId): SQL | undefined {
+export function branchCond(filter: BranchFilter, col: Parameters<typeof eq>[0] = serviceOrder.branchId): SQL | undefined {
   if (filter.kind === 'BRANCH') return eq(col, filter.branchId);
   if (filter.kind === 'NONE') return eq(col, -1);
   return undefined;

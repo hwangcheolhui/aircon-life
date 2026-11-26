@@ -111,8 +111,8 @@ export async function notifyStaff(
  */
 export async function notifyStaffWith(
   code: NotificationTemplateCode,
-  receiver: { type: 'TECHNICIAN'; id: number } | { type: 'ADMIN'; id: null },
-  related: { type: 'ORDER' | 'ROUTE_PLAN' | 'SETTLEMENT'; id: number },
+  receiver: { type: 'TECHNICIAN'; id: number } | { type: 'ADMIN'; id: number | null },
+  related: { type: 'ORDER' | 'ROUTE_PLAN' | 'SETTLEMENT' | 'FOLLOWUP' | 'INCIDENT'; id: number },
   vars: Record<string, string>,
   link?: string,
 ): Promise<void> {
@@ -164,4 +164,84 @@ export async function alreadyNotified(code: NotificationTemplateCode, orderId: n
     .where(and(eq(notificationLog.templateId, t.id), eq(notificationLog.relatedType, 'ORDER'), eq(notificationLog.relatedId, orderId)))
     .limit(1);
   return Boolean(hit);
+}
+
+/**
+ * 고객 알림 — 주문이 없거나 치환 변수를 직접 넘길 때 (단계 8: 1:1 문의 답변·재방문 캠페인).
+ * 고객명·거점전화는 자동으로 채운다. 결과는 notification_log 에 남기고 상태를 돌려준다(캠페인 대상 성과용).
+ */
+export async function notifyCustomer(
+  code: NotificationTemplateCode,
+  customerId: number,
+  vars: Record<string, string>,
+  related: { type: 'ORDER' | 'CAMPAIGN' | 'CONSULT' | 'AS'; id: number },
+): Promise<'SENT' | 'FALLBACK_SMS' | 'FAILED' | 'SKIPPED'> {
+  if (!isDbConfigured()) return 'SKIPPED';
+  const db = getDb();
+  try {
+    const [t] = await db.select().from(notificationTemplate).where(eq(notificationTemplate.templateCode, code));
+    if (!t || !t.isActive) return 'SKIPPED';
+    const contact = await getCustomerContact(customerId);
+    if (!contact?.phone) return 'SKIPPED';
+    const all: Record<string, string> = { 고객명: contact.name, ...vars };
+    const preferred = t.channel === 'ALIMTALK' ? 'ALIMTALK' : 'SMS';
+    const outcome = await sendWithFallback(
+      createNotifyTransport(),
+      {
+        to: contact.phone,
+        text: renderTemplate(t.body, all),
+        title: t.title,
+        kakaoTemplateId: t.kakaoTemplateId ?? undefined,
+        variables: Object.fromEntries(Object.entries(all).map(([k, v]) => [`#{${k}}`, v])),
+      },
+      preferred,
+    ).catch((e: Error) => ({ status: 'FAILED' as const, channel: null, failReason: e.message }));
+    await db.insert(notificationLog).values({
+      templateId: t.id,
+      receiverType: 'CUSTOMER',
+      receiverId: customerId,
+      receiverPhoneMasked: maskPhone(contact.phone),
+      channel: outcome.channel ?? preferred,
+      relatedType: related.type,
+      relatedId: related.id,
+      status: outcome.status,
+      sentAt: outcome.status === 'FAILED' ? null : new Date(),
+      failReason: outcome.failReason?.slice(0, 300) ?? null,
+    });
+    return outcome.status as 'SENT' | 'FALLBACK_SMS' | 'FAILED';
+  } catch (e) {
+    console.error('고객 알림 발송 실패', code, customerId, e);
+    return 'FAILED';
+  }
+}
+
+/** 외부 수신자 문자 (단계 8 안전사고 수동 수신자). 템플릿 본문을 그대로 문자로 보낸다 */
+export async function notifyPhone(code: NotificationTemplateCode, phone: string, vars: Record<string, string>, related: { type: 'INCIDENT'; id: number }) {
+  if (!isDbConfigured()) return 'SKIPPED' as const;
+  const db = getDb();
+  try {
+    const [t] = await db.select().from(notificationTemplate).where(eq(notificationTemplate.templateCode, code));
+    if (!t || !t.isActive) return 'SKIPPED' as const;
+    const outcome = await sendWithFallback(createNotifyTransport(), { to: phone, text: renderTemplate(t.body, vars), title: t.title }, 'SMS').catch((e: Error) => ({
+      status: 'FAILED' as const,
+      channel: null,
+      failReason: e.message,
+    }));
+    await db.insert(notificationLog).values({
+      templateId: t.id,
+      receiverType: 'ADMIN',
+      receiverId: null,
+      receiverPhoneMasked: maskPhone(phone),
+      channel: outcome.channel ?? 'SMS',
+      relatedType: related.type,
+      relatedId: related.id,
+      status: outcome.status,
+      sentAt: outcome.status === 'FAILED' ? null : new Date(),
+      failReason: outcome.failReason?.slice(0, 300) ?? null,
+    });
+    return outcome.status;
+  } catch (e) {
+    console.error('문자 발송 실패', code, e);
+    return 'FAILED' as const;
+  }
 }

@@ -1105,3 +1105,171 @@ export const techSettlementResponseInput = z.object({
   action: z.enum(['CONFIRM', 'DISPUTE']),
   note: optStr(500),
 });
+
+/* ---------- 단계 8-1 사후관리 ---------- */
+
+const enumOf = <T extends readonly [string, ...string[]]>(label: string, values: T) =>
+  z.preprocess((v) => (blankToNull(v) === null ? undefined : v), z.enum(values, { errorMap: () => ({ message: MSG.required(label) }) }));
+const optEnum = <T extends readonly [string, ...string[]]>(values: T) => z.preprocess((v) => blankToNull(v), z.enum(values).nullable().default(null));
+const optMoney = () =>
+  z.preprocess(
+    (v) => (blankToNull(v ?? null) === null ? null : Number(String(v).replace(/,/g, ''))),
+    z.number({ invalid_type_error: '금액은(는) 숫자여야 합니다.' }).int('금액은 원 단위 정수여야 합니다.').min(0).nullable(),
+  );
+const optDateTime = () =>
+  z.preprocess((v) => blankToNull(v), z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/, '일시 형식이 올바르지 않습니다.').nullable().default(null));
+
+/** A-CSL-030 독촉/전달 · F-ADM-CSL-11 (회차·받는 사람·80자 검사는 domain) */
+export const followupInput = z.object({
+  customerId: reqId('고객'),
+  callLogId: optId(),
+  targetType: enumOf('독촉 구분', ['CONSULT', 'ORDER'] as const),
+  targetOrderId: optId(),
+  followupType: enumOf('독촉 유형', ['SCHEDULE_DELAY', 'NO_CONTACT', 'RESULT_COMPLAINT', 'MESSAGE_DELIVERY'] as const),
+  cause: optStr(30),
+  message: reqStr('전달 내용', 80),
+  receiverAdminId: optId(),
+});
+
+/** F-TEC-NTF-02 기사 회신 */
+export const followupReplyInput = z.object({ id: reqId('독촉·전달'), reply: reqStr('회신 내용', 500) });
+/** A-PRC-060 종결 */
+export const followupCloseInput = z.object({ id: reqId('독촉·전달') });
+
+const MEDIA = ['PRESS', 'INTERNET', 'POLICE', 'FIRE', 'INSURANCE', 'ETC'] as const;
+/** A-CSL-040 안전사고 · F-ADM-CSL-12 (BR-060 언론·인터넷이면 escalationConfirmed 필수) */
+export const incidentInput = z.object({
+  customerId: reqId('고객'),
+  callLogId: optId(),
+  orderId: optId(),
+  damageType: enumOf('피해 유형', ['DEVICE_BREAK', 'WATER_LEAK', 'PROPERTY', 'INJURY', 'FIRE_ELECTRIC'] as const),
+  occurredAt: optDateTime(),
+  circumstance: reqStr('발생 경위', 4000),
+  damageDetail: reqStr('피해 내용', 2000),
+  customerDemand: optStr(4000),
+  responseAction: optStr(2000),
+  mediaFlags: z.array(z.enum(MEDIA)).default([]),
+  escalationConfirmed: bool(false),
+  extraRecipients: z
+    .array(z.object({ name: reqStr('수신자 이름', 50), org: optStr(50), phone: optStr(20), email: optStr(100) }))
+    .max(10)
+    .default([]),
+});
+
+/** A-VOC-020 안전사고 관리 · F-ADM-VOC-02 */
+export const incidentUpdateInput = z.object({
+  id: reqId('안전사고'),
+  status: enumOf('진행 상태', ['REPORTED', 'INVESTIGATING', 'NEGOTIATING', 'COMPENSATED', 'CLOSED'] as const),
+  insuranceClaimNo: optStr(50),
+  compensationAmount: optMoney(),
+  responseAction: optStr(2000),
+});
+export const incidentRecipientInput = z.object({
+  incidentId: reqId('안전사고'),
+  name: reqStr('수신자 이름', 50),
+  org: optStr(50),
+  phone: optStr(20),
+  email: optStr(100),
+});
+
+const VOC_STATUS = ['RECEIVED', 'CONFIRMING', 'PROCESSING', 'DONE'] as const;
+/** A-VOC-010 VOC 등록 (접수번호로 고객·기사 연결) */
+export const vocCreateInput = z.object({
+  orderNo: reqStr('접수번호', 20),
+  channel: enumOf('접수 매체', ['PHONE_IN', 'APP', 'REVIEW', 'SNS'] as const),
+  vocType: enumOf('VOC 유형', ['COMPLAINT', 'PRAISE', 'SUGGESTION', 'INQUIRY'] as const),
+  categoryL: optStr(30),
+  categoryM: optStr(30),
+  title: reqStr('제목', 200),
+  content: reqStr('내용', 4000),
+  severity: optEnum(['LOW', 'MID', 'HIGH'] as const),
+});
+/** A-VOC-011 VOC 카드 처리 */
+export const vocUpdateInput = z.object({
+  id: reqId('VOC'),
+  status: enumOf('진행 상태', VOC_STATUS),
+  severity: optEnum(['LOW', 'MID', 'HIGH'] as const),
+  isAlert: bool(false),
+  categoryL: optStr(30),
+  categoryM: optStr(30),
+  handlerAdminId: optId(),
+  technicianId: optId(),
+  rootCause: optStr(500),
+  customerAction: optStr(500),
+  memo: optStr(500),
+});
+
+const AS_REASON = ['DIRT_REMAIN', 'LEAK', 'NOISE', 'ODOR', 'BROKEN'] as const;
+/** C-AS-010 고객 AS 요청 · F-CUS-AS-01 */
+export const customerAsInput = z.object({
+  orderNo: reqStr('접수번호', 20),
+  reason: enumOf('AS 사유', AS_REASON),
+  content: reqStr('내용', 1000),
+});
+/** A-VOC-030 관리자 AS 등록(전화·VOC 연결) */
+export const adminAsInput = z.object({
+  orderNo: reqStr('접수번호', 20),
+  reason: enumOf('AS 사유', AS_REASON),
+  content: optStr(1000),
+  vocId: optId(),
+});
+/** A-VOC-030 처리: 승인(보증 판정)·반려·재방문 주문 생성·완료 */
+export const asDecisionInput = z.object({
+  id: reqId('AS 요청'),
+  action: z.enum(['ACCEPT', 'REJECT', 'DONE']),
+  isWarranty: bool(false),
+  note: optStr(500),
+});
+export const asRevisitInput = z.object({
+  id: reqId('AS 요청'),
+  slotDate: dateStr('방문일'),
+  slotHour: reqInt('방문 시각', 0).pipe(z.number().max(23)),
+});
+
+/** C-CS-020 1:1 문의 · F-CUS-CS-02 */
+export const customerInquiryInput = z.object({
+  subType: enumOf('문의 유형', ['PRICE', 'SCHEDULE', 'SERVICE', 'QUALITY', 'ATTITUDE', 'EXTRA_CHARGE', 'DELAY', 'ETC'] as const),
+  orderNo: optStr(20),
+  content: reqStr('문의 내용', 2000),
+});
+/** A-CSL-080 답변 */
+export const inquiryReplyInput = z.object({ id: reqId('문의'), reply: reqStr('답변', 2000) });
+export const inquiryRefInput = z.object({ id: reqId('문의') });
+
+/* ---------- 단계 8-2 운영 마감 ---------- */
+
+/** A-CRM-010 재방문 자동 캠페인 규칙 */
+export const revisitCampaignInput = z.object({
+  running: bool(false),
+  branchIds: z.array(z.coerce.number().int().positive()).default([]),
+});
+
+/** A-CNT-010 공지 (BR-102 작성 범위는 domain canWriteNotice) */
+export const noticeInput = z
+  .object({
+    id: optId(),
+    noticeType: enumOf('공지 유형', ['ALL', 'SAFETY', 'BRANCH', 'CUSTOMER'] as const),
+    targetAudience: enumOf('대상', ['TECHNICIAN', 'ADMIN', 'CUSTOMER', 'ALL'] as const),
+    branchId: optId(),
+    title: reqStr('제목', 200),
+    content: reqStr('내용', 10000),
+    isPinned: bool(false),
+    isPopup: bool(false),
+    publishFrom: dateStr('게시 시작일'),
+    publishTo: optDate(),
+  })
+  .refine((v) => v.publishTo === null || v.publishTo >= v.publishFrom, { path: ['publishTo'], message: '게시 종료일은 시작일 이후여야 합니다.' });
+
+/** A-CNT-020 FAQ */
+export const faqInput = z.object({
+  id: optId(),
+  category: enumOf('분류', ['PRICE', 'RESERVATION', 'SERVICE', 'AS', 'ETC'] as const),
+  audience: enumOf('대상', ['CUSTOMER', 'TECHNICIAN'] as const),
+  question: reqStr('질문', 300),
+  answer: reqStr('답변', 5000),
+  isPublished: bool(false),
+  sortOrder: optInt(0),
+});
+
+/** A-CUS-030 일괄 파기 승인 */
+export const purgeApproveInput = z.object({ customerIds: z.array(z.coerce.number().int().positive()).min(1, '파기할 고객을 선택하세요.').max(500) });

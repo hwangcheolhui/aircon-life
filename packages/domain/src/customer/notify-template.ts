@@ -41,6 +41,16 @@ export const NOTIFICATION_TEMPLATE_CODES = [
   'STL_CONFIRM_REQUEST',
   'STL_DISPUTED',
   'STL_PAID',
+  // 단계 8: 독촉·전달(F-ADM-CSL-11·F-TEC-NTF-02)·안전사고 통보(BR-060·061)·AS(F-CUS-AS-01·F-ADM-VOC-03)·1:1 문의 답변·재방문(REVISIT_11M, F-SYS-06)
+  'FOLLOWUP_SENT',
+  'FOLLOWUP_ADMIN',
+  'FOLLOWUP_REPLIED',
+  'SAFETY_INCIDENT',
+  'SAFETY_ESCALATED',
+  'AS_RECEIVED',
+  'AS_SCHEDULED',
+  'AS_REJECTED',
+  'INQUIRY_ANSWERED',
 ] as const;
 export type NotificationTemplateCode = (typeof NOTIFICATION_TEMPLATE_CODES)[number];
 
@@ -68,4 +78,14 @@ export const TEMPLATE_VARIABLES = [
   '결제링크',
   '정산회차',
   '실지급액',
+  '독촉회차',
+  '전달내용',
+  '회신',
+  '사고번호',
+  '피해유형',
+  'AS번호',
+  '보증안내',
+  '사유',
+  '경과개월',
+  '예약링크',
 ] as const;
