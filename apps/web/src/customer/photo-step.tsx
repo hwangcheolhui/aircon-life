@@ -92,7 +92,6 @@ export function PhotoStep({ deviceTypes, dirtLevels, brands }: { deviceTypes: Op
             {previews.length ? (
               <div className="cus-photo-grid">
                 {previews.map((u, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img key={u} src={u} alt={`올린 사진 ${i + 1}`} className="cus-photo-thumb" />
                 ))}
               </div>
@@ -105,7 +104,6 @@ export function PhotoStep({ deviceTypes, dirtLevels, brands }: { deviceTypes: Op
                 <Card>
                   <div className="ac-row">
                     {previews[i] ? (
-                      // eslint-disable-next-line @next/next/no-img-element
                       <img src={previews[i]} alt={`사진 ${i + 1}`} className="cus-photo-thumb" />
                     ) : (
                       <Camera aria-hidden />

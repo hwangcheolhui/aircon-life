@@ -7,7 +7,7 @@
 import { MSG } from '../messages';
 import { addMonthsToDate } from '../ops/ops-rules';
 
-export type FieldErrors = Record<string, string>;
+import type { FieldErrors } from '../payment/payment-rules';
 
 /* ---------- 쿠폰 ---------- */
 

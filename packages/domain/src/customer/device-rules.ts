@@ -15,7 +15,7 @@ export const DIRT_LEVELS = ['LOW', 'MID', 'HIGH'] as const;
 /** 사진 인식 결과를 그대로 믿어도 되는 신뢰도 하한. 이보다 낮으면 화면에서 "확인해 주세요"를 강조한다 */
 export const RECOGNITION_CONFIDENT = 0.7;
 
-export type FieldErrors = Record<string, string>;
+import type { FieldErrors } from '../payment/payment-rules';
 
 /** C-DEV-020 기기 등록·수정 입력 검증 */
 export function checkDeviceInput(i: {

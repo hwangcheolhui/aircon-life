@@ -70,7 +70,7 @@ export function CouponsScreen(p: { rows: Row[]; categories: Option[]; branches: 
         })}
         defaults={{ discountType: 'FIXED', validFrom: today, isActive: true, minOrderAmount: '0' }}
         fields={[
-          { name: 'code', label: '쿠폰 코드', required: true, lockOnEdit: true, help: '영문 대문자·숫자 4~30자. 고객이 쿠폰함에서 입력합니다.' },
+          { name: 'code', label: '쿠폰 코드', required: true, lockOnEdit: true, help: '영문 대문자·숫자 4~20자. 고객이 쿠폰함에서 입력합니다.' },
           { name: 'name', label: '쿠폰명', required: true },
           { name: 'discountType', label: '할인 방식', type: 'select', required: true, options: TYPES },
           { name: 'discountValue', label: '할인 값', type: 'number', required: true, inputMode: 'numeric', help: '정액은 원, 정률은 % (1~100)' },

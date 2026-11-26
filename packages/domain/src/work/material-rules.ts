@@ -6,7 +6,7 @@
  */
 import { MSG } from '../messages';
 
-export type FieldErrors = Record<string, string>;
+import type { FieldErrors } from '../payment/payment-rules';
 
 export const MATERIAL_QTY_MAX = 99;
 

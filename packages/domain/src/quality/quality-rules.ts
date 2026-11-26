@@ -7,7 +7,7 @@
  */
 import { MSG } from '../messages';
 
-export type FieldErrors = Record<string, string>;
+import type { FieldErrors } from '../payment/payment-rules';
 
 /* ---------- 후기 ---------- */
 

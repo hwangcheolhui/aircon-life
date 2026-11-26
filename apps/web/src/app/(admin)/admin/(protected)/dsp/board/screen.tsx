@@ -322,9 +322,14 @@ function AssignModal(p: {
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [recs, setRecs] = useState<Recommended[] | null>(null);
+  const [recError, setRecError] = useState<string | null>(null);
   useEffect(() => {
     let live = true;
-    recommendAction(p.card.id).then((r) => live && setRecs(r.ok ? (r.data as Recommended[]) : []));
+    recommendAction(p.card.id).then((r) => {
+      if (!live) return;
+      setRecs(r.ok ? (r.data as Recommended[]) : []);
+      setRecError(r.ok ? null : (r.message ?? '추천을 계산하지 못했습니다.'));
+    });
     return () => {
       live = false;
     };
@@ -417,7 +422,7 @@ function AssignModal(p: {
             {recs === null ? (
               <p className="ac-caption">추천을 계산하는 중입니다.</p>
             ) : recs.length === 0 ? (
-              <p className="ac-caption">배정할 수 있는 추천 기사가 없습니다.</p>
+              <p className="ac-caption">{recError ?? '배정할 수 있는 추천 기사가 없습니다.'}</p>
             ) : (
               <ol className="adm-recommend">
                 {recs.map((r, i) => (

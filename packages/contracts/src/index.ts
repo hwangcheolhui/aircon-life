@@ -1315,7 +1315,7 @@ export const applyCouponInput = z.object({ orderNo: reqStr('접수번호', 20), 
 /** A-CRM-030 쿠폰 (F-ADM-CRM-03). 형식·기간 검증은 domain checkCouponInput */
 export const couponInput = z.object({
   id: optId(),
-  code: reqStr('쿠폰 코드', 30),
+  code: reqStr('쿠폰 코드', 20),
   name: reqStr('쿠폰명', 100),
   discountType: enumOf('할인 방식', ['FIXED', 'RATE'] as const),
   discountValue: reqInt('할인 값', 1),
