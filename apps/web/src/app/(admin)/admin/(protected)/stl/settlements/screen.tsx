@@ -302,7 +302,7 @@ function AdjustModal(p: { batch: Batch; techs: Option[]; technicianId: string; c
   return (
     <>
       <Modal
-        open={!pending}
+        open
         form
         title="조정 추가"
         description={`${p.batch.batchNo} · 인센티브·공제는 금액만, 조정은 지난 회차 차액을 + / − 로 넣습니다. 사유는 기사 앱에도 보입니다.`}
@@ -389,7 +389,7 @@ function ResolveModal({ d, onClose }: { d: Detail; onClose: () => void }) {
   return (
     <>
       <Modal
-        open={!confirming}
+        open
         form
         title="이의 처리"
         description="필요한 금액 조정은 먼저 [조정 추가]로 넣은 뒤 처리하세요. 처리하면 이 정산서는 확정되어 더 바꿀 수 없습니다."

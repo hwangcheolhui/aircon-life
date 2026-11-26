@@ -5,6 +5,7 @@ import {
   locationInput,
   techPasswordSetInput,
   techProfileInput,
+  techSettlementResponseInput,
   transferRequestInput,
 } from '@aircon/contracts';
 import { SETTING_KEYS, validatePasswordRule } from '@aircon/domain';
@@ -13,6 +14,7 @@ import { redirect } from 'next/navigation';
 import { UserError, handle, parse } from '@/server/action-result';
 import { requestTransfer } from '@/server/dispatch';
 import { getSettingNumber } from '@/server/settings';
+import { techRespond } from '@/server/settlements';
 import { agreeLocation, endDuty, recordLocation, startDuty } from '@/server/tech-duty';
 import { revealTechJobContact, updateTechIntro } from '@/server/tech-jobs';
 import { endTechSession, requireTechAction, setTechPassword } from '@/server/tech-session';
@@ -88,5 +90,15 @@ export async function sendLocation(values: unknown) {
     const me = await requireTechAction();
     const v = parse(locationInput, values);
     return recordLocation(me.id, v);
+  });
+}
+
+/** F-TEC-STL-02 정산 [확인] / [이의 제기(사유)] (T-STL-020) */
+export async function respondSettlement(values: Record<string, unknown>) {
+  return handle(async () => {
+    const me = await requireTechAction();
+    const v = parse(techSettlementResponseInput, values);
+    await techRespond(me.id, v.settlementId, v.action, v.note ?? '');
+    revalidatePath('/tech/settlements', 'layout');
   });
 }

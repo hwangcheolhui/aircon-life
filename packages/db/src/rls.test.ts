@@ -385,4 +385,60 @@ d('RLS (BR-102, F-ADM-SYS-02)', () => {
       expect(t).toHaveLength(3);
     });
   });
+  describe('단계 7 정산', () => {
+    let s1 = 0;
+    beforeAll(async () => {
+      const [t1] = await sql`SELECT id FROM technician WHERE tech_code = 'T51'`;
+      const [t2] = await sql`INSERT INTO technician (tech_code, name, phone, branch_id, grade, contract_type, status)
+        VALUES ('T72', '정산기사', 'enc', ${b2}, 'REGULAR', 'EMPLOYEE', 'ACTIVE') RETURNING id`;
+      const [b] = await sql`INSERT INTO settlement_batch (batch_no, period_start, period_end, status)
+        VALUES ('S2027-W12', '2027-03-15', '2027-03-21', 'CALCULATED') RETURNING id`;
+      for (const t of [t1!, t2!]) {
+        const [s] = await sql`INSERT INTO settlement (batch_id, technician_id, job_count, gross_sales, base_pay, taxable_amount, net_pay, status)
+          VALUES (${b!.id}, ${t.id}, 1, 90000, 49500, 49500, 47870, 'CALCULATED') RETURNING id`;
+        await sql`INSERT INTO settlement_item (settlement_id, item_type, pay_amount, memo) VALUES (${s!.id}, 'INCENTIVE', 1000, '테스트')`;
+        if (!s1) s1 = Number(s!.id);
+      }
+    });
+
+    it('BR-100 비로그인(anon)·정산 권한 없는 상담원은 정산을 읽을 수 없다', async () => {
+      for (const t of ['commission_policy', 'settlement_batch', 'settlement', 'settlement_item']) {
+        expect(await as(null, (tx) => tx.unsafe(`SELECT * FROM ${t}`))).toHaveLength(0);
+        expect(await as(ids.cs, (tx) => tx.unsafe(`SELECT * FROM ${t}`))).toHaveLength(0);
+      }
+    });
+
+    it('BR-102 거점장은 자기 거점 기사의 정산서·항목만 조회한다', async () => {
+      expect(await as(ids.branchMgr, (tx) => tx`SELECT id FROM settlement`)).toHaveLength(1);
+      expect(await as(ids.branchMgr, (tx) => tx`SELECT id FROM settlement_item`)).toHaveLength(1);
+      expect(await as(ids.super, (tx) => tx`SELECT id FROM settlement`)).toHaveLength(2);
+    });
+
+    it('정산 수정은 서버 전용: 브라우저 키(관리자)로는 정산서를 바꿀 수 없다', async () => {
+      expect(await as(ids.super, (tx) => tx`UPDATE settlement SET net_pay = 1 RETURNING id`)).toHaveLength(0);
+    });
+
+    it('정산 상세·상태 이력은 INSERT ONLY', async () => {
+      await expect(sql`UPDATE settlement_item SET pay_amount = 1`).rejects.toThrow(/INSERT ONLY/);
+      await expect(sql`DELETE FROM settlement_item`).rejects.toThrow(/INSERT ONLY/);
+    });
+
+    it('BR-084 확정된 정산서는 금액을 바꾸거나 항목을 더할 수 없고, 상태(지급)만 바뀐다', async () => {
+      await sql`UPDATE settlement SET status = 'CONFIRMED' WHERE id = ${s1}`;
+      await expect(sql`UPDATE settlement SET net_pay = 1 WHERE id = ${s1}`).rejects.toThrow(/BR-084/);
+      await expect(sql`INSERT INTO settlement_item (settlement_id, item_type, pay_amount) VALUES (${s1}, 'ADJUST', 1)`).rejects.toThrow(/BR-084/);
+      await expect(sql`DELETE FROM settlement WHERE id = ${s1}`).rejects.toThrow();
+      const paid = await sql`UPDATE settlement SET status = 'PAID', paid_at = now() WHERE id = ${s1} RETURNING id`;
+      expect(paid).toHaveLength(1);
+    });
+
+    it('정산 코드·알림 템플릿·기본 수수료 정책이 있다', async () => {
+      const codes = await sql`SELECT code FROM common_code WHERE group_code = 'SETTLEMENT_STATUS' ORDER BY sort_order`;
+      expect(codes.map((c) => c.code)).toEqual(['CALCULATED', 'TECH_CONFIRMED', 'DISPUTED', 'CONFIRMED', 'PAID']);
+      const t = await sql`SELECT template_code FROM notification_template WHERE template_code LIKE 'STL_%'`;
+      expect(t).toHaveLength(3);
+      const [p] = await sql`SELECT tech_share_rate, withholding_rate FROM commission_policy WHERE deleted_at IS NULL`;
+      expect([Number(p!.tech_share_rate), Number(p!.withholding_rate)]).toEqual([55, 3.3]);
+    });
+  });
 });

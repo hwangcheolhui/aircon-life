@@ -356,7 +356,7 @@ async function targetJobs(tx: Tx, b: BatchRow): Promise<TargetJob[]> {
         eq(workOrder.isSettlementTarget, true),
         eq(serviceOrder.status, 'COMPLETED'),
         b.branchId ? eq(serviceOrder.branchId, b.branchId) : undefined,
-        sql`${completedAt} < ${periodEndExclusive(b.periodEnd)}`,
+        sql`${completedAt} < ${periodEndExclusive(b.periodEnd).toISOString()}::timestamptz`,
         sql`NOT EXISTS (SELECT 1 FROM ${settlementItem} si WHERE si.work_order_id = ${workOrder.id})`,
       ),
     )
