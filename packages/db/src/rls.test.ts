@@ -473,7 +473,7 @@ d('RLS (BR-102, F-ADM-SYS-02)', () => {
 
     it('BR-102 거점장은 전체 공지 + 자기 거점 공지만 본다', async () => {
       const rows = await as(ids.branchMgr, (tx) => tx`SELECT title FROM notice ORDER BY title`);
-      expect(rows.map((r) => r.title)).toEqual(['거점 공지 0', '안전 공지']);
+      expect(rows.map((r) => r.title).sort()).toEqual(['거점 공지 0', '안전 공지'].sort());
     });
 
     it('마케팅 권한 없는 상담원은 캠페인을 읽을 수 없다', async () => {
