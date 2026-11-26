@@ -171,8 +171,8 @@ export async function kpiDashboard(filter: BranchFilter, month: string, now = ne
     .select({ joinedAt: technician.joinedAt, status: technician.status })
     .from(technician)
     .where(and(branchCond(filter, technician.branchId), isNull(technician.deletedAt)));
-  const lastDay = addMonthsToDate(to, 0);
-  const retentionAsOf = kstDate(now) < lastDay ? kstDate(now) : addMonthsToDate(from, 1);
+  // 지난달을 보면 그달 말(다음 달 1일) 기준, 이번 달이면 오늘 기준
+  const retentionAsOf = kstDate(now) < to ? kstDate(now) : to;
   const retention = kpiRetention(techs, retentionAsOf);
 
   // 최근 12개월 월별 매출·건수 (추이 + 비수기/성수기 비)
