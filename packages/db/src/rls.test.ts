@@ -441,4 +441,69 @@ d('RLS (BR-102, F-ADM-SYS-02)', () => {
       expect([Number(p!.tech_share_rate), Number(p!.withholding_rate)]).toEqual([55, 3.3]);
     });
   });
+  describe('단계 8 사후관리·운영 마감', () => {
+    let orders: { id: number; customer_id: number }[] = [];
+    beforeAll(async () => {
+      orders = (await sql`SELECT id, customer_id FROM service_order WHERE order_no IN ('2703201000A1', '2703201000A2') ORDER BY order_no`) as unknown as typeof orders;
+      for (const [i, o] of orders.entries()) {
+        const branchId = i === 0 ? b1 : b2;
+        const [v] = await sql`INSERT INTO voc (voc_no, customer_id, order_id, branch_id, channel, voc_type, title, content, status)
+          VALUES (${'V2703200000' + i}, ${o.customer_id}, ${o.id}, ${branchId}, 'PHONE_IN', 'COMPLAINT', '불만', '내용', 'RECEIVED') RETURNING id`;
+        await sql`INSERT INTO voc_history (voc_id, to_status, actor_type) VALUES (${v!.id}, 'RECEIVED', 'SYSTEM')`;
+        await sql`INSERT INTO as_request (as_no, original_order_id, customer_id, branch_id, reason, is_warranty, status)
+          VALUES (${'A2703200000' + i}, ${o.id}, ${o.customer_id}, ${branchId}, 'LEAK', true, 'REQUESTED')`;
+        await sql`INSERT INTO notice (notice_type, target_audience, branch_id, title, content, publish_from)
+          VALUES ('BRANCH', 'TECHNICIAN', ${branchId}, ${'거점 공지 ' + i}, '내용', now())`;
+      }
+      await sql`INSERT INTO notice (notice_type, target_audience, title, content, publish_from) VALUES ('SAFETY', 'TECHNICIAN', '안전 공지', '내용', now())`;
+    });
+
+    it('BR-100 비로그인(anon)은 VOC·AS·안전사고·독촉·캠페인·공지를 읽을 수 없다', async () => {
+      for (const t of ['voc', 'voc_history', 'as_request', 'safety_incident', 'incident_recipient', 'followup_request', 'campaign', 'campaign_target', 'notice', 'notice_read', 'faq']) {
+        expect(await as(null, (tx) => tx.unsafe(`SELECT * FROM ${t}`))).toHaveLength(0);
+      }
+    });
+
+    it('BR-102 거점장은 자기 거점 VOC·AS만 조회한다', async () => {
+      expect(await as(ids.branchMgr, (tx) => tx`SELECT id FROM voc`)).toHaveLength(1);
+      expect(await as(ids.branchMgr, (tx) => tx`SELECT id FROM voc_history`)).toHaveLength(1);
+      expect(await as(ids.branchMgr, (tx) => tx`SELECT id FROM as_request`)).toHaveLength(1);
+      expect(await as(ids.super, (tx) => tx`SELECT id FROM voc`)).toHaveLength(2);
+    });
+
+    it('BR-102 거점장은 전체 공지 + 자기 거점 공지만 본다', async () => {
+      const rows = await as(ids.branchMgr, (tx) => tx`SELECT title FROM notice ORDER BY title`);
+      expect(rows.map((r) => r.title)).toEqual(['거점 공지 0', '안전 공지']);
+    });
+
+    it('마케팅 권한 없는 상담원은 캠페인을 읽을 수 없다', async () => {
+      expect(await as(ids.cs, (tx) => tx`SELECT id FROM campaign`)).toHaveLength(0);
+      expect(await as(ids.super, (tx) => tx`SELECT id FROM campaign`)).toHaveLength(1);
+    });
+
+    it('VOC 처리 이력은 INSERT ONLY', async () => {
+      await expect(sql`UPDATE voc_history SET memo = 'x'`).rejects.toThrow(/INSERT ONLY/);
+      await expect(sql`DELETE FROM voc_history`).rejects.toThrow(/INSERT ONLY/);
+    });
+
+    it('BR-051 한 주문에 진행 중 AS 는 1건만', async () => {
+      const o = orders[0]!;
+      await expect(
+        sql`INSERT INTO as_request (as_no, original_order_id, customer_id, reason, is_warranty, status) VALUES ('A27032000099', ${o.id}, ${o.customer_id}, 'NOISE', true, 'REQUESTED')`,
+      ).rejects.toThrow(/as_request_open_uk/);
+    });
+
+    it('단계 8 코드·기준값·알림 템플릿·기본 FAQ·재방문 캠페인이 있다', async () => {
+      const codes = await sql`SELECT code FROM common_code WHERE group_code = 'VOC_STATUS' ORDER BY sort_order`;
+      expect(codes.map((c) => c.code)).toEqual(['RECEIVED', 'CONFIRMING', 'PROCESSING', 'DONE']);
+      const [s] = await sql`SELECT setting_value FROM system_setting WHERE setting_key = 'PURGE_APPROVAL_MODE'`;
+      expect(s?.setting_value).toBe('Y');
+      const t = await sql`SELECT template_code FROM notification_template WHERE template_code IN ('FOLLOWUP_SENT', 'SAFETY_ESCALATED', 'AS_RECEIVED', 'INQUIRY_ANSWERED', 'REVISIT_11M')`;
+      expect(t).toHaveLength(5);
+      const faq = await sql`SELECT id FROM faq WHERE is_published`;
+      expect(faq.length).toBeGreaterThan(0);
+      const [c] = await sql`SELECT campaign_type, status FROM campaign`;
+      expect([c?.campaign_type, c?.status]).toEqual(['REVISIT_AUTO', 'STOPPED']);
+    });
+  });
 });

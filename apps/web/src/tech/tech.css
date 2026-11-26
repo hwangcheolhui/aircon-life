@@ -442,3 +442,8 @@
   justify-content: space-between;
   gap: var(--space-3);
 }
+
+/* 단계 8: 공지 본문·홈 공지 목록 */
+.tec-notice-body { white-space: pre-wrap; word-break: break-word; }
+.tec-notice-list { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-2); }
+.tec-notice-list a { display: flex; gap: var(--space-2); align-items: center; min-height: 48px; color: var(--color-text); text-decoration: none; }

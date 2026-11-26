@@ -46,6 +46,18 @@
     {
       "path": "/api/jobs/settlement-weekly",
       "schedule": "0 21 * * 0"
+    },
+    {
+      "path": "/api/jobs/revisit-campaign",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/jobs/daily-aggregate",
+      "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/jobs/pii-purge",
+      "schedule": "0 18 * * *"
     }
   ]
 }

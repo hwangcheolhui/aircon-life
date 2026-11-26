@@ -1,5 +1,6 @@
-// T-NTF-010 알림 · F-TEC-NTF-01: 신규 배정·배정 변경·이관 반려 (독촉·전달·추가요금 동의 결과·공지는 해당 단계에서 추가)
-import { Empty } from '@aircon/ui';
+// T-NTF-010 알림 · F-TEC-NTF-01: 신규 배정·배정 변경·이관 반려 · 단계 8: 독촉·전달(T-NTF-020, F-TEC-NTF-02) 목록을 위에 따로 보인다
+import { Empty, Tag } from '@aircon/ui';
+import { listTechFollowups } from '@/server/followups';
 import Link from 'next/link';
 import { formatDateTime } from '@/customer/format';
 import { listTechNotifications } from '@/server/tech-jobs';
@@ -10,10 +11,31 @@ export const metadata = { title: '알림' };
 
 export default async function TechNotificationsPage() {
   const me = await requireTech();
-  const rows = await listTechNotifications(me.id);
+  const [rows, followups] = await Promise.all([listTechNotifications(me.id), listTechFollowups(me.id)]);
   return (
     <main className="tec-page__body">
       <TechTopbar title="알림" back={{ href: '/tech', label: '홈' }} />
+      {followups.length ? (
+        <section className="tec-section" aria-labelledby="followup-title">
+          <h2 id="followup-title" className="ac-h3">
+            독촉·전달
+          </h2>
+          <ul className="ac-list">
+            {followups.map((f) => (
+              <li key={f.id} className="ac-list-item">
+                <Link href={`/tech/notifications/followups/${f.id}`} className="ac-list-item__body">
+                  {f.status === 'SENT' ? <Tag tone="danger">새 전달</Tag> : f.status === 'READ' ? <Tag tone="warning">회신 필요</Tag> : <Tag>회신함</Tag>}{' '}
+                  <span className="ac-body">{f.message}</span>
+                  <span className="ac-caption ac-num">
+                    {' '}
+                    · {f.followupCount}차{f.orderNo ? ` · ${f.orderNo}` : ''} · {formatDateTime(f.createdAt)}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       {rows.length ? (
         <ul className="ac-list">
           {rows.map((n) => (
