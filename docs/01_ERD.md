@@ -294,6 +294,7 @@ erDiagram
 | status | VARCHAR(20) | NN | 상태 | `ACTIVE`, `DORMANT`(휴면), `WITHDRAWN`(탈퇴), `PURGED`(파기) |
 | withdrawn_at | DATETIME | | 탈퇴일 | |
 | purge_due_date | DATE | | 파기 예정일(보관기간 만료일) | |
+| dormant_at | DATETIME | | 휴면 전환 시각(F-SYS-13, 단계 9). 다시 로그인하면 NULL·`ACTIVE` | |
 | 공통컬럼 + deleted_at | | | | |
 
 #### 2.2.2 `customer_address` — 고객 주소 (복수 보유)
@@ -335,9 +336,13 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 | is_inverter | BOOLEAN | | 인버터 여부 | |
 | has_heating | BOOLEAN | | 냉난방 겸용 여부(겨울 수요) | |
 | last_cleaned_at | DATE | | 최근 청소일 | |
+| last_clean_level | VARCHAR(20) | | 최근 청소 수준(단계 9) | `CLEAN_LEVEL` |
+| recommend_months | SMALLINT | | 다음 청소 권장 개월(작업 결과 `recommend_next`, 없으면 `DEVICE_RECOMMEND_MONTHS`) | 12 |
 | recognized_by_ai | BOOLEAN | 기본 false | 이미지 인식으로 등록 여부 | |
 | photo_file_id | BIGINT | FK→attachment | 대표 사진 | |
 | 공통컬럼 + deleted_at | | | | |
+
+> 단계 9 구현(F-CUS-DEV-01·02): 고객이 C-DEV-020에서 직접 등록·수정·삭제(소프트 삭제)하고, 작업 완료 때 작업 결과의 기기(`order_item`·`unit_no`)를 같은 주소·형태의 기기에 연결(없으면 새로 만듦)해 `last_cleaned_at`·`last_clean_level`·`recommend_months`를 갱신하고 `work_result.customer_device_id`를 채웁니다. 다음 권장일 = `last_cleaned_at` + `recommend_months`개월, 지나면 "청소할 때예요". [다시 예약]은 고른 기기(한 주소)로 견적을 새로 내고(`quote.customer_id`·`address_id`, `quote_item.customer_device_id`) 예약 단계(C-RSV)로 보냅니다. 예약 때 견적의 기기 연결은 `order_item`으로 복사됩니다.
 
 #### 2.2.4 `consent_history` — 개인정보·약관 동의 이력 (INSERT ONLY)
 하이런 "고객정보 수집 동의 팝업(동의/미동의/질의못함)", "개인정보 철회"를 이력으로 보존.
@@ -527,7 +532,10 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 | dirt_level | VARCHAR(10) | | 오염도 | `LOW`, `MID`, `HIGH` |
 | confidence | DECIMAL(4,3) | | 신뢰도 | 0.932 |
 | user_confirmed | BOOLEAN | | 고객이 결과 확인/수정 | |
+| confirmed_type | VARCHAR(30) | | 고객이 확인·수정한 형태(단계 9) | `DEVICE_TYPE` |
 | 공통컬럼 | | | | |
+
+> 단계 9 구현(C-QUO-021, F-CUS-QUO-05): 사진(최대 5장, 4MB)은 `attachment`(`ref_type`=`DEVICE_IMAGE`)에 두고 인식 어댑터(`VISION_DRIVER`, 지금은 Mock)가 형태·제조사·오염도·신뢰도를 채웁니다. 고객이 확인한 형태로 기기 수량을 채우고, 견적을 내면 `quote_id`를 연결합니다. 원본 사진은 다시 보여 주지 않으므로 파일 내려받기(`/api/files`)에서 주지 않습니다.
 
 ---
 
@@ -566,7 +574,7 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 | total_amount | INT | NN | 최종 청구 금액 | |
 | paid_amount | INT | 기본 0 | 결제 완료 금액 | |
 | payment_status | VARCHAR(20) | NN | 결제 상태 | `UNPAID`, `PREPAID`(예약금/선결제), `PAID`, `PARTIAL_REFUND`, `REFUNDED`, `RECEIVABLE`(미수) |
-| coupon_id | BIGINT | FK→customer_coupon | 적용 쿠폰 | |
+| coupon_id | BIGINT | FK→coupon | 적용 쿠폰(단계 9, F-CUS-PAY-04). 고객 보유분은 `customer_coupon.used_order_id`로 연결. 할인은 `order_item`(`item_type`=`DISCOUNT`, 상품·옵션·규칙 없음) 1행 + `discount_amount`에 더해 재계산 가능 | |
 | is_duplicate_checked | BOOLEAN | 기본 false | 이중접수 확인 완료 여부 | |
 | completed_at | DATETIME | | 작업 완료 일시 | |
 | canceled_at | DATETIME | | | |
@@ -918,6 +926,12 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 | confirmed_at | DATETIME | | 확정 시각 | |
 | confirm_deadline | DATETIME | | 확정 마감(전날 18:00, 설정값). 이후 변경은 운영자 승인 | |
 | version | INT | 기본 1 | 확정 후 변경 횟수 | |
+| change_request_status | VARCHAR(20) | | 확정·마감 후 기사의 변경 요청 상태(단계 9, §3.18) | `ROUTE_CHANGE_STATUS` |
+| change_request_note | VARCHAR(300) | | 변경 요청 사유 | |
+| change_requested_at | DATETIME | | 요청 시각 | |
+| change_handled_by | BIGINT | FK→admin_user | 승인·반려한 관리자 | |
+| change_handled_at | DATETIME | | 처리 시각 | |
+| change_handle_note | VARCHAR(300) | | 처리 메모(반려 사유 필수) | |
 | 공통컬럼 | | | | |
 | UK(technician_id, plan_date) | | | | |
 
@@ -1002,12 +1016,16 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 | final_amount | INT | | 최종 청구 금액 | |
 | received_amount | INT | 기본 0 | 현장 영수 금액 | |
 | is_settlement_target | BOOLEAN | 기본 false | 정산 대상 확정(완료+결제 확인 시 true) | |
+| inspection_status | VARCHAR(20) | | 작업 결과 검수(단계 9, §3.17). NULL = 검수 대기 | `INSPECTION_STATUS` |
+| inspection_note | VARCHAR(500) | | 검수 메모(반려 사유 필수) | |
+| inspected_by | BIGINT | FK→admin_user | 검수자 | |
+| inspected_at | DATETIME | | 검수 시각 | |
 | 공통컬럼 | | | | |
 
 #### 2.9.2 `work_result` — 기기별 처리 결과
 `id`, `work_order_id`(FK), `order_item_id`(FK), `unit_no`(SMALLINT, 기본 1, 단계 5-1), `customer_device_id`(FK), `result`(`DONE`/`SKIPPED`/`PARTIAL`, 코드 `WORK_RESULT`), `condition_note`(기기 상태), `recommend_next`(차기 권장 시기, 개월 1~36), 공통컬럼
 
-> 단계 5-1: 기기 = (`order_item_id`, `unit_no`). 주문 항목(상품) 수량만큼 기기가 있고 1번부터 번호를 붙입니다(고객 보유 기기 `customer_device` 연결은 단계 9). 유니크 (`work_order_id`, `order_item_id`, `unit_no`) — 결과는 다시 저장하면 덮어씁니다. 완료 때 항목별 결과로 `order_item.status`를 맞춥니다.
+> 단계 5-1: 기기 = (`order_item_id`, `unit_no`). 주문 항목(상품) 수량만큼 기기가 있고 1번부터 번호를 붙입니다(고객 보유 기기 `customer_device` 연결은 단계 9: 작업 완료 때 같은 주소·형태의 기기에 연결, §2.2.3). 유니크 (`work_order_id`, `order_item_id`, `unit_no`) — 결과는 다시 저장하면 덮어씁니다. 완료 때 항목별 결과로 `order_item.status`를 맞춥니다.
 
 #### 2.9.3 `work_photo` — 작업 전·후 사진 (분쟁 예방·마케팅 소재)
 
@@ -1056,7 +1074,9 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 > 단계 5-2 상태(별도 컬럼 없음, `packages/domain` `extraChargeState`): `deleted_at` 있음 → 철회 / `approval_status`=`REQUESTED` → 관리자 승인 대기 / `REJECTED` → 반려(청구 안 함) / `agreed_at` 없음 → 고객 동의 대기 / `customer_agreed` 참 → 동의, 거짓 → 거절(청구 안 함). BR-040: 동의한 금액 합계만 `work_order.extra_amount`·`service_order.extra_amount`로 청구합니다. 응답 전(승인 대기 포함) 추가요금이 있으면 완료할 수 없고(F-TEC-WRK-07 ④), 미처리로 저장하면 응답 전 추가요금은 자동 철회됩니다. 고객 응답은 작업이 도착·작업중일 때만 받습니다. 증빙·서명 파일은 `attachment.ref_type`=`EXTRA_CHARGE`(서명은 `SIGNATURE`)로 두고, 고객 본인·담당 기사·A-PRC-040 조회 권한 관리자(거점 범위)만 봅니다.
 
 #### 2.9.5 `material_usage` — 자재 사용(ALP '오늘의 자재')
-`id`, `work_order_id`(FK), `material_id`(FK), `quantity`, `unit_cost`, `charge_to_customer`(BOOLEAN), `sale_amount`, 공통컬럼
+`id`, `work_order_id`(FK), `material_id`(FK), `quantity`(1~99), `unit_cost`(사용 시점 원가 스냅샷), `charge_to_customer`(BOOLEAN), `sale_amount`(판매가 × 수량, 청구하지 않으면 0), `extra_charge_id`(FK→extra_charge, 고객 청구 자재, 단계 9), 공통컬럼
+
+> 단계 9 구현(T-WRK-050, F-TEC-WRK-06): 고객에게 청구하는 자재는 추가요금(`charge_type`=`MATERIAL`, 항목명 "자재: 이름 × 수량")을 함께 만들어 고객 동의를 받은 금액만 청구합니다(BR-040). 판매가가 자재 마스터에 미리 정한 단가라 증빙 사진은 받지 않습니다. 그래서 `work_order.material_amount`는 0으로 두고(이중 청구 방지) 청구 금액은 `extra_amount`에 들어갑니다. 고객이 아직 응답하지 않은 자재만 지울 수 있고(추가요금 철회), 원가 합계는 KPI 마진율의 자재원가(§5)입니다.
 
 #### 2.9.6 `technician_material_stock` — 기사 보유 자재
 `technician_id`(FK), `material_id`(FK), `quantity`, `updated_at`. PK(technician_id, material_id)
@@ -1209,7 +1229,9 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 | status | VARCHAR(20) | | `DRAFT`, `SCHEDULED`, `RUNNING`, `DONE`, `STOPPED` | |
 | 공통컬럼 | | | | |
 
-> 단계 8 구현(F-ADM-CRM-01, F-SYS-06): 마이그레이션이 자동 재방문 캠페인 1행(`campaign_type`=`REVISIT_AUTO`, `schedule_type`=`DAILY_AUTO`, `status`=`STOPPED`, 템플릿 `REVISIT_11M`)을 만들고 A-CRM-010에서 [실행]/[중지]와 대상 거점만 바꿉니다. `target_rule_json`은 `{"branchIds":[…]}`(비면 전체 거점, 고객 거점 = 기본 주소 거점)이고 경과 개월은 `system_setting` `REVISIT_MONTHS`에서 읽습니다. `coupon_id`는 쿠폰이 생기는 단계 9에서 씁니다.
+> 단계 8 구현(F-ADM-CRM-01, F-SYS-06): 마이그레이션이 자동 재방문 캠페인 1행(`campaign_type`=`REVISIT_AUTO`, `schedule_type`=`DAILY_AUTO`, `status`=`STOPPED`, 템플릿 `REVISIT_11M`)을 만들고 A-CRM-010에서 [실행]/[중지]와 대상 거점만 바꿉니다. `target_rule_json`은 `{"branchIds":[…]}`(비면 전체 거점, 고객 거점 = 기본 주소 거점)이고 경과 개월은 `system_setting` `REVISIT_MONTHS`에서 읽습니다. 단계 9: `coupon_id`(FK→coupon)를 고르면 재방문 안내와 함께 쿠폰을 발급합니다.
+
+> 단계 9 구현(F-ADM-CRM-02): 시즌(`SEASON`)·휴면(`WINBACK`)·교차 판매(`CROSS_SELL`) 캠페인은 `schedule_type`=`ONCE`, `target_rule_json` = `{"branchIds":[…], "deviceTypes":[…], "housingTypes":[…], "lastServiceMonthsMin":N, "lastServiceMonthsMax":N}`(빈 조건은 전체), 대상은 마케팅 수신 동의 활동 고객만(BR-091·101, 최대 5,000명). 템플릿은 `CAMPAIGN_MESSAGE`, 상태는 §3.16.
 
 #### 2.12.4 `campaign_target` — 캠페인 대상·성과
 `id`, `campaign_id`(FK), `customer_id`(FK), `sent_at`, `opened_at`, `converted_order_id`(FK→service_order, 전환 추적), `status`(`SENT`/`FAILED`/`CONVERTED`, 단계 8), 공통컬럼
@@ -1217,8 +1239,10 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 > 단계 8: 매일 10:00 발송 때 1행 INSERT(알림 실패면 `FAILED`). 같은 고객은 마지막 발송 이후 다시 작업하기 전까지 또 보내지 않습니다(BR-091, domain `isRevisitTarget`). 매일 02:00 집계(F-SYS-11)가 발송 후 `CAMPAIGN_CONVERSION_DAYS`일 안의 첫 주문(취소 제외)을 `converted_order_id`에 연결하고 `CONVERTED`로 바꿉니다.
 
 #### 2.12.5 `coupon` / 2.12.6 `customer_coupon` — 쿠폰
-`coupon`: `id`, `code`(UK), `name`, `discount_type`(`FIXED`/`RATE`), `discount_value`, `max_discount`, `min_order_amount`, `valid_from`, `valid_to`, `issue_limit`, `issued_count`, `target_category_id`, 공통컬럼
-`customer_coupon`: `id`, `coupon_id`(FK), `customer_id`(FK), `status`(`ISSUED`/`USED`/`EXPIRED`), `used_order_id`(FK), `issued_at`, `used_at`
+`coupon`: `id`, `code`(UK, VARCHAR(20), 영문 대문자·숫자 4~20자), `name`, `discount_type`(`FIXED`/`RATE`), `discount_value`(정액 원 / 정률 1~100%), `max_discount`, `min_order_amount`(기본 0), `valid_from`, `valid_to`(NN), `issue_limit`(NULL = 제한 없음), `issued_count`, `target_category_id`(FK→service_category, NULL = 전체), `is_active`(기본 true, 단계 9), 공통컬럼 + `deleted_at`
+`customer_coupon`: `id`, `coupon_id`(FK), `customer_id`(FK), `status`(`ISSUED`/`USED`/`EXPIRED`), `used_order_id`(FK), `issued_at`, `used_at`, `campaign_id`(FK→campaign, 캠페인 동봉 발급, 단계 9), `issued_by`(발급 관리자, 코드 등록이면 NULL)
+
+> 단계 9 구현(F-CUS-CPN-01, F-CUS-PAY-04, F-ADM-CRM-03): 같은 쿠폰은 고객당 1장(UK `customer_coupon_uk`(coupon_id, customer_id)), 한 주문에 쿠폰 1장. 발급은 고객 쿠폰함 코드 등록, A-CRM-030 개별(고객번호)·일괄(마케팅 동의 활동 고객), 캠페인 동봉 세 가지이고 `issued_count`는 한도 안에서만 늘어납니다(조건부 UPDATE). 결제 전(`QUOTED`·`RECEIVED`·`ASSIGN_WAIT`·`ASSIGNED`) 주문에만 적용·변경할 수 있고, 주문을 취소하면 `USED` → `ISSUED`로 돌려줍니다. `EXPIRED`는 저장하지 않고 `valid_to`가 지나면 화면에서 만료로 보여 줍니다. 발급한 쿠폰은 지우지 못하고 사용 안 함(`is_active`=false)으로 바꿉니다.
 
 #### 2.12.7 `review` — 후기·평점
 
@@ -1236,7 +1260,12 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 | is_public | BOOLEAN | 기본 true | |
 | admin_reply | VARCHAR(1000) | | |
 | is_hidden | BOOLEAN | 기본 false | 관리자 숨김 |
+| branch_id | BIGINT | FK→branch | 주문 거점(BR-102 조회 범위, 단계 9) |
+| replied_at | DATETIME | | 답글 시각(단계 9) |
+| voc_id | BIGINT | FK→voc | BR-090 저평점 자동 VOC(단계 9) |
 | 공통컬럼 | | | |
+
+> 단계 9 구현(C-REV-010, F-CUS-REV-01, F-ADM-VOC-04, BR-090): 주문당 1건(UK `review_order_uk`), 작업 완료 후 `REVIEW_WRITABLE_DAYS`일 안에만 씁니다. `tags`는 `REVIEW_TAG` 코드 쉼표 목록, `photo_file_ids`는 첨부(`ref_type`=`REVIEW`) id 쉼표 목록(최대 3장). 평점이 `REVIEW_VOC_MAX_RATING`(2) 이하면 같은 트랜잭션에서 VOC(`channel`=`REVIEW`, `voc_type`=`COMPLAINT`, 1점 `HIGH`·2점 `MID`)를 만들고 `voc_id`에 연결합니다. 숨긴 후기는 고객 화면 답글과 기사 평균 평점(`technician.rating_avg`)에서 빠집니다. 작업 완료 `REVIEW_REQUEST_DELAY_HOURS`시간 뒤 후기 요청 알림(F-SYS-05)을 1회 보냅니다.
 
 #### 2.12.8 `as_request` — AS·보증 재방문
 `id`, `as_no`(UK), `original_order_id`(FK), `new_order_id`(FK, 재방문 주문 생성 시), `customer_id`(FK), `branch_id`(FK→branch, 원 주문 거점, BR-102, 단계 8), `reason`(`DIRT_REMAIN`/`LEAK`/`NOISE`/`ODOR`/`BROKEN`), `content`, `photo_file_ids`(첨부 id 쉼표 목록, 최대 3장), `is_warranty`(보증기간 내 무상 여부 자동판정), `warranty_until`(DATE, 원 주문 완료일 + 상품 `warranty_days`, 단계 8), `responsible_tech_id`(FK), `status`(`REQUESTED`/`ACCEPTED`/`SCHEDULED`/`DONE`/`REJECTED`), `handled_by`, `handle_note`(VARCHAR(500), 승인·반려 사유, 단계 8), 공통컬럼
@@ -1318,7 +1347,7 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 `id`, `actor_type`, `actor_id`, `action`(`VIEW_PII`/`EXPORT`/`UPDATE`/`DELETE`/`LOGIN`/`PERMISSION_CHANGE`), `target_table`, `target_id`(VARCHAR(50): 문자열 PK 테이블 대응), `ip_address`, `user_agent`, `detail_json`, `created_at`. **INSERT ONLY**: DB 트리거로 UPDATE·DELETE를 막습니다.
 
 #### 2.13.8 `system_setting` — 시스템 설정(키-값)
-`setting_key`(PK, 예: `QUOTE_EXPIRE_DAYS`=7, `REVISIT_MONTHS`=11, `PURGE_YEARS`=…, `SETTLEMENT_WEEKDAY`=`WED`, `POPUP_DEFAULT_TIME`=08:30, `DUPLICATE_CHECK_DAYS`=30, `ROUTE_CONFIRM_DEADLINE`=전날 18:00, `ROUTE_TRAVEL_BUFFER_MIN`=10, `ARRIVAL_WINDOW_HOURS`=2, `LOCATION_INTERVAL_SEC`=60, `LOCATION_RETENTION_DAYS`=90, `SELF_ASSIGN_ENABLED`=거점별 Y/N, `SELF_ASSIGN_NEEDS_APPROVAL`=Y, `ADMIN_LOGIN_MAX_FAIL`=5, `ADMIN_PASSWORD_MIN_LENGTH`=8, `QUOTE_SITE_SURVEY_MIN_UNITS`=4(시스템·천장형 합계가 이 대수 이상이면 "현장 확인 견적" 안내, 단계 1), 단계 2: `SLOT_DAYS_AHEAD`=14(슬롯 자동 생성·고객 달력 일수), `SLOT_JOBS_PER_TECH_HOUR`=1(기사 1명 시간당 처리 건수), `WORK_DEFAULT_START`=09:00·`WORK_DEFAULT_END`=18:00(근무 시간을 비운 일정의 기본값, 반차는 가운데 시각으로 나눔), `CANCEL_FEE_HOURS`=24·`CANCEL_FEE_AMOUNT`=0(BR-030 방문 N시간 전부터 취소 수수료, 금액은 운영사가 정함), `TERMS_VERSION`=v1.0(동의 이력에 남는 약관 버전), `AREA_OPEN_REQUEST_KEEP_DAYS`=365(오픈 알림 신청 대기 보관일, 지나면 EXPIRED·연락처 삭제, BR-003), 단계 3: `PRIVACY_REASK_MONTHS`=12(BR-023 미동의 고객 재질의 주기, 개월), 단계 4-1: `ASSIGN_TRAVEL_BUFFER_MIN`=30(배정 시간 겹침 판단 때 앞뒤 이동 여유, 분), `TECH_ACCOMPANY_COUNT`=3(신규 기사 등록 시 `accompany_required_count` 기본값, BR-071), `UNASSIGNED_ALERT_HOURS`=4(약속 N시간 이내 미지정 경고, F-SYS-09), `TECH_LOGIN_MAX_FAIL`=5(기사 비밀번호 연속 실패 잠금), `TECH_PASSWORD_MIN_LENGTH`=8(기사 비밀번호 최소 길이), 단계 4-2: `SELF_ASSIGN_DAYS_AHEAD`=7(기사 관할 지도에 보이는 미배정 작업의 약속 범위, 오늘부터 N일), `ROUTE_BREAK_DEFAULT_MIN`=60(코스에 넣는 휴식 기본 분), `ZONE_DONG_RADIUS_M`=600(법정동 선택 구역의 동 중심 반경 근사, m), 단계 5-1: `WORK_NOTE_MIN_LENGTH`=10(처리 저장 때 처리 내용 최소 글자 수, 공백 제외), `WORK_PHOTO_CAMERA_ONLY`=N(Y면 작업 사진을 카메라 촬영으로만 받음), 단계 5-2: `PENDING_OVERDUE_HOURS`=48(미처리 후 이 시간이 지나면 장기 미처리 강조·운영자 알림, BR-032 F-SYS-08), 단계 8: `CAMPAIGN_CONVERSION_DAYS`=60(캠페인 발송 후 이 기간 안 첫 주문을 예약 전환으로 봄), `PURGE_APPROVAL_MODE`=Y(Y면 파기 배치가 대상만 남기고 A-CUS-030 승인 후 파기, N이면 바로 파기), `MARKETING_COST_MONTHLY`=0(월 마케팅비 원, 0이면 CAC 미계산), `KPI_TARGET_MONTHLY_JOBS`=150·`KPI_TARGET_MARGIN_RATE`=30·`KPI_TARGET_REVISIT_RATE`=30·`KPI_TARGET_RETENTION_RATE`=60·`KPI_TARGET_OFFPEAK_RATIO`=40·`KPI_TARGET_AS_RATE`=5·`KPI_TARGET_CAC_RATE`=15(§5 KPI 목표값)), `setting_value`, `description`, `updated_at`, `updated_by`
+`setting_key`(PK, 예: `QUOTE_EXPIRE_DAYS`=7, `REVISIT_MONTHS`=11, `PURGE_YEARS`=…, `SETTLEMENT_WEEKDAY`=`WED`, `POPUP_DEFAULT_TIME`=08:30, `DUPLICATE_CHECK_DAYS`=30, `ROUTE_CONFIRM_DEADLINE`=전날 18:00, `ROUTE_TRAVEL_BUFFER_MIN`=10, `ARRIVAL_WINDOW_HOURS`=2, `LOCATION_INTERVAL_SEC`=60, `LOCATION_RETENTION_DAYS`=90, `SELF_ASSIGN_ENABLED`=거점별 Y/N, `SELF_ASSIGN_NEEDS_APPROVAL`=Y, `ADMIN_LOGIN_MAX_FAIL`=5, `ADMIN_PASSWORD_MIN_LENGTH`=8, `QUOTE_SITE_SURVEY_MIN_UNITS`=4(시스템·천장형 합계가 이 대수 이상이면 "현장 확인 견적" 안내, 단계 1), 단계 2: `SLOT_DAYS_AHEAD`=14(슬롯 자동 생성·고객 달력 일수), `SLOT_JOBS_PER_TECH_HOUR`=1(기사 1명 시간당 처리 건수), `WORK_DEFAULT_START`=09:00·`WORK_DEFAULT_END`=18:00(근무 시간을 비운 일정의 기본값, 반차는 가운데 시각으로 나눔), `CANCEL_FEE_HOURS`=24·`CANCEL_FEE_AMOUNT`=0(BR-030 방문 N시간 전부터 취소 수수료, 금액은 운영사가 정함), `TERMS_VERSION`=v1.0(동의 이력에 남는 약관 버전), `AREA_OPEN_REQUEST_KEEP_DAYS`=365(오픈 알림 신청 대기 보관일, 지나면 EXPIRED·연락처 삭제, BR-003), 단계 3: `PRIVACY_REASK_MONTHS`=12(BR-023 미동의 고객 재질의 주기, 개월), 단계 4-1: `ASSIGN_TRAVEL_BUFFER_MIN`=30(배정 시간 겹침 판단 때 앞뒤 이동 여유, 분), `TECH_ACCOMPANY_COUNT`=3(신규 기사 등록 시 `accompany_required_count` 기본값, BR-071), `UNASSIGNED_ALERT_HOURS`=4(약속 N시간 이내 미지정 경고, F-SYS-09), `TECH_LOGIN_MAX_FAIL`=5(기사 비밀번호 연속 실패 잠금), `TECH_PASSWORD_MIN_LENGTH`=8(기사 비밀번호 최소 길이), 단계 4-2: `SELF_ASSIGN_DAYS_AHEAD`=7(기사 관할 지도에 보이는 미배정 작업의 약속 범위, 오늘부터 N일), `ROUTE_BREAK_DEFAULT_MIN`=60(코스에 넣는 휴식 기본 분), `ZONE_DONG_RADIUS_M`=600(법정동 선택 구역의 동 중심 반경 근사, m), 단계 5-1: `WORK_NOTE_MIN_LENGTH`=10(처리 저장 때 처리 내용 최소 글자 수, 공백 제외), `WORK_PHOTO_CAMERA_ONLY`=N(Y면 작업 사진을 카메라 촬영으로만 받음), 단계 5-2: `PENDING_OVERDUE_HOURS`=48(미처리 후 이 시간이 지나면 장기 미처리 강조·운영자 알림, BR-032 F-SYS-08), 단계 8: `CAMPAIGN_CONVERSION_DAYS`=60(캠페인 발송 후 이 기간 안 첫 주문을 예약 전환으로 봄), `PURGE_APPROVAL_MODE`=Y(Y면 파기 배치가 대상만 남기고 A-CUS-030 승인 후 파기, N이면 바로 파기), `MARKETING_COST_MONTHLY`=0(월 마케팅비 원, 0이면 CAC 미계산), `KPI_TARGET_MONTHLY_JOBS`=150·`KPI_TARGET_MARGIN_RATE`=30·`KPI_TARGET_REVISIT_RATE`=30·`KPI_TARGET_RETENTION_RATE`=60·`KPI_TARGET_OFFPEAK_RATIO`=40·`KPI_TARGET_AS_RATE`=5·`KPI_TARGET_CAC_RATE`=15(§5 KPI 목표값), 단계 9: `DEVICE_RECOMMEND_MONTHS`=12(작업 결과에 권장 시기가 없을 때 다음 청소 권장 개월), `REVIEW_WRITABLE_DAYS`=7(후기 작성 기간), `REVIEW_REQUEST_DELAY_HOURS`=2(완료 후 후기 요청까지 시간), `REVIEW_VOC_MAX_RATING`=2(이 평점 이하 VOC 자동 생성, BR-090), `INSPECTION_REQUIRED`=N(Y면 검수 승인 건만 정산, 반려 건은 항상 제외), `RECOMMEND_WEIGHTS`=30,25,20,15,10(추천 가중치: 관할·숙련·부하·이동·평점), `RECOMMEND_DAY_JOB_CAP`=6(하루 적정 작업 수), `ETA_DELAY_ALERT_MIN`=30(다음 고객이 안내 시각보다 이 분 이상 늦으면 기사 알림), `DORMANT_ENABLED`=N·`DORMANT_MONTHS`=12·`DORMANT_NOTICE_DAYS`=30(휴면 전환, 법무 확인 후 켬)), `setting_value`, `description`, `updated_at`, `updated_by`
 
 ---
 
@@ -1460,6 +1489,15 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 
 ### 3.15 독촉·전달 상태 `followup_request.status` (단계 8)
 `SENT`(발송) → `READ`(읽음, 기사가 처음 열 때 `read_at`) → `REPLIED`(회신, `reply`·`replied_at`) → `CLOSED`(종결, 관리자 A-PRC-060). 읽지 않고 회신하거나 바로 종결할 수 있습니다. 회차(`followup_count`)는 같은 주문의 이전 독촉 최대값 + 1이고 전달 내용은 80자까지입니다.
+
+### 3.16 캠페인 상태 `campaign.status` (단계 9)
+`DRAFT`(작성) → `SCHEDULED`(예약) | `RUNNING`(진행중, 발송 중) | `STOPPED`(중지) · `SCHEDULED` → `DRAFT` | `RUNNING` | `STOPPED` · `RUNNING` → `DONE`(완료) | `STOPPED` · `STOPPED` → `RUNNING` | `DRAFT`. `DONE`은 끝입니다. 내용은 `DRAFT`에서만 고칩니다. [예약]은 지금 이후 `send_at`이 있어야 하고, 예약 시각이 지나면 배치(`/api/jobs/campaign-send`)가 `RUNNING`으로 바꿔 보낸 뒤 `DONE`으로 닫습니다. 자동 재방문(`REVISIT_AUTO`)은 `RUNNING`/`STOPPED`만 씁니다(단계 8). 모든 변경은 domain `assertCampaignTransition`을 거치고 조건부 UPDATE로 동시 처리를 막습니다.
+
+### 3.17 작업 결과 검수 `work_order.inspection_status` (단계 9)
+NULL(검수 대기, 코드 `WAITING`) → `APPROVED`(승인) | `REJECTED`(반려·재작업) · `REJECTED` → `APPROVED`. 작업완료(`DONE`) 작업만, 정산 항목에 들어간 작업은 바꿀 수 없습니다(BR-084). 반려는 사유가 필수이고 주기사에게 앱 알림(`INSPECTION_REJECTED`)이 갑니다. 반려 건은 정산 대상에서 빠지고, `INSPECTION_REQUIRED`=Y면 승인 건만 정산합니다.
+
+### 3.18 코스 변경 요청 `route_plan.change_request_status` (단계 9)
+NULL → `REQUESTED`(기사 요청, 확정 또는 마감 후) → `APPROVED` | `REJECTED`(사유 필수). 승인되면 `confirmed_at` < `change_handled_at`인 동안 기사가 확정 코스를 다시 고친 뒤 재확정할 수 있고(재확정하면 다시 잠김), 마감 자동 확정은 그동안 건너뜁니다. 처리 결과는 기사에게 앱 알림(`ROUTE_CHANGE_APPROVED`/`REJECTED`)으로 갑니다.
 
 ---
 
@@ -1624,6 +1662,21 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 | `FAQ_AUDIENCE` | CUSTOMER 고객 / TECHNICIAN 기사 | faq.audience |
 | `FAQ_CATEGORY` | PRICE 가격·결제 / RESERVATION 예약·변경 / SERVICE 서비스 / AS AS·보증 / ETC 기타 | faq.category |
 | `ATTACHMENT_REF_TYPE` | (추가) AS_REQUEST AS 사진 | attachment.ref_type |
+
+**단계 9에서 추가한 그룹** (마이그레이션 0013 에도 같은 값)
+
+| group_code | 코드 목록 | 사용 컬럼 |
+|---|---|---|
+| `DEVICE_CATEGORY` | AIRCON 에어컨 / WASHER 세탁기 / DRYER 건조기 / HOOD 주방 후드 / MATTRESS 매트리스 | customer_device.device_category |
+| `IMAGE_PURPOSE` | DEVICE_TYPE 기기 형태 / BRAND_LABEL 제조사 라벨 / DIRT_LEVEL 오염도 | device_image.purpose |
+| `REVIEW_TAG` | KIND 친절해요 / CAREFUL 꼼꼼해요 / ON_TIME 시간을 잘 지켜요 / EXPLAIN 설명이 자세해요 / TIDY 뒷정리가 깔끔해요 / LATE 늦었어요 / ROUGH 작업이 아쉬워요 / PRICE 가격이 아쉬워요 | review.tags |
+| `COUPON_DISCOUNT_TYPE` | FIXED 정액 / RATE 정률(%) | coupon.discount_type |
+| `CUSTOMER_COUPON_STATUS` | ISSUED 사용 가능 / USED 사용함 / EXPIRED 만료 | customer_coupon.status |
+| `INSPECTION_STATUS` | WAITING 검수 대기 / APPROVED 승인 / REJECTED 반려(재작업) | work_order.inspection_status (§3.17, 대기는 NULL로 저장) |
+| `ROUTE_CHANGE_STATUS` | REQUESTED 변경 요청 / APPROVED 승인 / REJECTED 반려 | route_plan.change_request_status (§3.18) |
+| `ATTACHMENT_REF_TYPE` | (추가) DEVICE_IMAGE 사진 인식 | attachment.ref_type |
+
+`notification_log.related_type`에 `COUPON`(쿠폰 발급)·`CUSTOMER`(휴면 안내)·`WORK_ORDER`(검수 반려)·`PAYMENT`(PG 대사)를 추가했습니다.
 
 ---
 

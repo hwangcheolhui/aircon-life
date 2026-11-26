@@ -1,5 +1,5 @@
 // A-CRM-030 쿠폰 관리 · F-ADM-CRM-03: 쿠폰 등록(정액·정률·최대 할인·최소 주문·기간·발급 한도·대상 카테고리), 발급(고객번호 개별·마케팅 동의 고객 일괄), 사용 현황.
-// 쿠폰은 고객 1명당 1장(BR-092), 1주문 1쿠폰. 발급 안내 알림은 마케팅 동의 고객에게만(BR-091·101).
+// 같은 쿠폰은 고객 1명당 1장, 1주문 1쿠폰. 발급 안내 알림은 마케팅 동의 고객에게만(BR-091·101).
 import { branch, serviceCategory } from '@aircon/db';
 import { and, asc, eq, isNull } from 'drizzle-orm';
 import { requireScreen } from '@/server/auth';
