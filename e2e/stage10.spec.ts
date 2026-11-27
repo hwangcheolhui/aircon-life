@@ -244,9 +244,9 @@ test('완료 기준: A-TEC-050 6개월 정착률 집계 + 이탈 처리 (F-ADM-T
   cohort.setUTCMonth(cohort.getUTCMonth() - 8, 1);
   const joined = cohort.toISOString().slice(0, 10);
   await sql`INSERT INTO technician (tech_code, name, phone, branch_id, grade, contract_type, status, joined_at)
-    VALUES ('T10-STAY', '정착기사', 'enc', ${branchId}, 'REGULAR', 'FREELANCER', 'ACTIVE', ${joined})`;
+    VALUES ('T10-STAY', '정착기사', ${enc('01010100003')}, ${branchId}, 'REGULAR', 'FREELANCER', 'ACTIVE', ${joined})`;
   await sql`INSERT INTO technician (tech_code, name, phone, branch_id, grade, contract_type, status, joined_at, left_at, leave_reason)
-    VALUES ('T10-GONE', '이탈기사', 'enc', ${branchId}, 'REGULAR', 'FREELANCER', 'LEFT', ${joined}, ${kstDate(-100)}, 'INCOME')`;
+    VALUES ('T10-GONE', '이탈기사', ${enc('01010100004')}, ${branchId}, 'REGULAR', 'FREELANCER', 'LEFT', ${joined}, ${kstDate(-100)}, 'INCOME')`;
 
   await adminLogin(page);
   await page.goto('/admin/tec/retention');
