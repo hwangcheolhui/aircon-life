@@ -6,6 +6,7 @@
  * 단계 8: AS 요청 사진(AS_REQUEST) — 고객 본인, 관리자는 AS 요청(A-VOC-030) 조회 권한 + 거점 범위(BR-102).
  * 단계 9: 후기 사진(REVIEW) — 고객 본인, 관리자는 후기 관리(A-VOC-040) 조회 권한 + 거점 범위. 작업 사진은 검수(A-PRC-030) 조회 권한으로도 본다.
  *        사진 인식 원본(DEVICE_IMAGE)은 화면에 다시 보여 주지 않으므로 내려주지 않는다.
+ * 단계 10: 기술자료 첨부(DOC) — 로그인한 기사 누구나(T-EDU-010), 관리자는 기술자료(A-CNT-030) 조회 권한. 지워진 자료의 첨부는 내려주지 않는다.
  */
 import { hasPermission } from '@aircon/domain';
 import { getCurrentAdmin } from '@/server/auth';
@@ -16,6 +17,7 @@ import { isDbConfigured } from '@/server/db';
 import { adminCanViewWorkFile } from '@/server/process-console';
 import { getCurrentTech } from '@/server/tech-session';
 import { reviewOwnerOf } from '@/server/reviews';
+import { isLiveDocFile } from '@/server/tech-docs';
 import { asFileOwner } from '@/server/voc';
 import { adminCanViewExtraFile, canViewAttachment, photoTypeOfFile } from '@/server/work';
 
@@ -29,6 +31,19 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const f = await readAttachment(id);
   if (!f) return new Response('Not found', { status: 404 });
   if (f.row.refType === 'DEVICE_IMAGE') return new Response('Not found', { status: 404 });
+  if (f.row.refType === 'DOC') {
+    const ok = (tech || (admin && !admin.preview && hasPermission(admin, 'A-CNT-030', 'READ'))) && (await isLiveDocFile(id, f.row.refId));
+    if (!ok) return new Response('Not found', { status: 404 });
+    const inline = f.row.mimeType.startsWith('image/') || f.row.mimeType === 'application/pdf';
+    return new Response(Buffer.from(f.body), {
+      headers: {
+        'Content-Type': inline ? f.row.mimeType : 'application/octet-stream',
+        'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(f.row.originalName)}`,
+        'Cache-Control': 'private, max-age=3600',
+        'X-Content-Type-Options': 'nosniff',
+      },
+    });
+  }
   if (f.row.refType === 'AS_REQUEST' || f.row.refType === 'REVIEW') {
     const isReview = f.row.refType === 'REVIEW';
     const owner = f.row.refId === null ? null : isReview ? await reviewOwnerOf(f.row.refId) : await asFileOwner(f.row.refId);

@@ -640,6 +640,75 @@ export const COMMON_CODE_SEED = [
     ['APPROVED', '승인'],
     ['REJECTED', '반려'],
   ]),
+  // 단계 10 기사 업무지원·교육 (01 §4 "단계 10에서 추가한 그룹", 마이그레이션 0014 에도 같은 값)
+  ...g('MEMO_REPEAT', [
+    ['NONE', '반복 안 함'],
+    ['DAILY', '매일'],
+    ['WEEKLY', '매주'],
+    ['MONTHLY', '매월'],
+    ['YEARLY', '매년'],
+  ]),
+  ...g('MEMO_PRIORITY_SOURCE', [
+    ['BRANCH_MANAGER', '거점장'],
+    ['ADMIN', '관리자'],
+    ['SELF', '본인'],
+  ]),
+  ...g('MATERIAL_REQUEST_STATUS', [
+    ['REQUESTED', '요청'],
+    ['SHIPPED', '이동중'],
+    ['RECEIVED', '수령'],
+    ['CANCELED', '취소'],
+  ]),
+  ...g('TECH_DOC_TYPE', [
+    ['SOP', '분해·세척 SOP'],
+    ['TECH_GUIDE', '기술 가이드'],
+    ['CS_TIP', 'CS 응대 Tip'],
+    ['SAFETY', '안전 매뉴얼'],
+    ['HANDBOOK', '서비스 핸드북'],
+  ]),
+  ...g('COURSE_TYPE', [
+    ['BASIC', '기본'],
+    ['ADVANCED', '심화'],
+    ['SAFETY', '안전'],
+    ['LEADER', '팀장'],
+  ]),
+  ...g('COURSE_STATUS', [
+    ['RECRUITING', '모집중'],
+    ['IN_PROGRESS', '진행중'],
+    ['FINISHED', '종료'],
+  ]),
+  ...g('ENROLLMENT_RESULT', [
+    ['ENROLLED', '수강중'],
+    ['PASSED', '수료'],
+    ['FAILED', '미수료'],
+    ['DROPPED', '중도 포기'],
+  ]),
+  ...g('APPLICATION_STATUS', [
+    ['APPLIED', '지원'],
+    ['INTERVIEW', '면접'],
+    ['ACCEPTED', '합격'],
+    ['REJECTED', '불합격'],
+  ]),
+  ...g('APPLICATION_SOURCE', [
+    ['SNS', 'SNS'],
+    ['JOB_SITE', '구인 사이트'],
+    ['REFERRAL', '지인 추천'],
+    ['GOV_PROGRAM', '지원사업'],
+  ]),
+  ...g('AGE_GROUP', [
+    ['20S', '20대'],
+    ['30S', '30대'],
+    ['40S', '40대'],
+    ['50S', '50대'],
+    ['60S', '60대 이상'],
+  ]),
+  ...g('LEAVE_REASON', [
+    ['INCOME', '수입 부족'],
+    ['WORKLOAD', '업무 강도'],
+    ['SEASONAL', '계절 비수기'],
+    ['HEALTH', '건강'],
+    ['CAREER_CHANGE', '진로 변경'],
+  ]),
   // 단계 8 사후관리·운영 마감 (01 §4 "단계 8에서 추가한 그룹", 마이그레이션 0012 에도 같은 값)
   ...g('FOLLOWUP_TARGET', [
     ['CONSULT', '상담 독촉'],
@@ -963,6 +1032,13 @@ export const QUALITY_TEMPLATE_SEED = [
   { templateCode: 'PG_MISMATCH', channel: 'PUSH', target: 'ADMIN', title: 'PG 대사 불일치', body: "#{대사일} PG 대사에서 불일치 #{건수}건이 나왔습니다. 결제 내역(A-PAY-010)에서 확인해 주세요." },
 ];
 
+/** 단계 10 알림 템플릿: 지정 메모 도착·지원 합격 안내·교육 수료 */
+export const TECH_SUPPORT_TEMPLATE_SEED = [
+  { templateCode: 'TECH_MEMO_ASSIGNED', channel: 'PUSH', target: 'TECHNICIAN', title: '지정 메모 도착', body: "#{기사명} 기사님, 새 메모가 도착했습니다.\n#{메모}\n캘린더 > 메모에서 확인해 주세요." },
+  { templateCode: 'APPLICANT_ACCEPTED', channel: 'ALIMTALK', target: 'TECHNICIAN', title: '기사 지원 합격 안내', body: "#{기사명}님, 기사 지원에 합격하셨습니다.\n교육 일정은 거점에서 따로 안내드립니다.\n기사 앱은 이 휴대폰 번호의 인증번호로 로그인할 수 있어요.\n문의: #{거점전화}" },
+  { templateCode: 'TRAINING_PASSED', channel: 'PUSH', target: 'TECHNICIAN', title: '교육 수료', body: "#{과정명} 과정을 수료했습니다.\n수료증 번호: #{수료증번호}\n더보기 > 내 교육·등급에서 확인해 주세요." },
+];
+
 /** 단계 8 고객 FAQ 기본값(faq 가 비어 있을 때만). 운영 중에는 A-CNT-020에서 고친다 */
 export const FAQ_SEED = [
   { category: 'PRICE', audience: 'CUSTOMER', question: "추가요금이 생길 수 있나요?", answer: "오염이 심하거나 높은 곳 작업 등은 현장에서 기사님이 먼저 설명하고, 고객님이 동의한 경우에만 추가돼요.", isPublished: true, sortOrder: 10 },
@@ -1020,6 +1096,8 @@ export const NOTIFICATION_TEMPLATE_SEED = [
   ...AFTERCARE_TEMPLATE_SEED,
   // ── 단계 9 (마이그레이션 0013 에도 같은 값) ──
   ...QUALITY_TEMPLATE_SEED,
+  // ── 단계 10 (마이그레이션 0014 에도 같은 값) ──
+  ...TECH_SUPPORT_TEMPLATE_SEED,
 ];
 
 /** ERD §0.2 역할. 거점장만 BRANCH 범위이고, 나머지는 소속 거점이 지정되면 BR-102에 따라 그 거점으로 제한된다. */

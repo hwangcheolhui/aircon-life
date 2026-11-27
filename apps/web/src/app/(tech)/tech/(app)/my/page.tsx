@@ -1,6 +1,7 @@
 // T-MY-010 내 정보 · F-TEC-MY-01: 프로필(고객 노출 이름·소개), 정산 계좌(마스킹), 활동지역, 숙련, 비밀번호
-// 계좌·활동지역·숙련 변경은 거점(관리자 A-TEC-020)에서 한다.
+// 계좌·활동지역·숙련 변경은 거점(관리자 A-TEC-020)에서 한다. 단계 10: 퀵메뉴 설정(T-MY-020)·내 교육·등급(T-EDU-020) 바로가기
 import { Card, Empty, Tag } from '@aircon/ui';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { loadCodes } from '@/server/codes';
 import { getTechProfile } from '@/server/tech-jobs';
@@ -20,6 +21,14 @@ export default async function TechMyPage() {
   return (
     <main className="tec-page__body">
       <TechTopbar title="내 정보" back={{ href: '/tech/more', label: '더보기' }} />
+      <div className="tec-btn-row">
+        <Link href="/tech/my/quick-menu" className="ac-btn ac-btn--outline">
+          퀵메뉴 설정
+        </Link>
+        <Link href="/tech/education" className="ac-btn ac-btn--outline">
+          내 교육·등급
+        </Link>
+      </div>
       <Card>
         <dl className="tec-kv ac-body">
           <dt>이름</dt>

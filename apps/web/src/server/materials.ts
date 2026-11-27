@@ -5,11 +5,13 @@ import 'server-only';
  * - 고객 청구 자재는 추가요금(MATERIAL, 금액 = 판매가 × 수량)을 함께 만들어 고객 동의를 받는다(BR-040). 증빙 사진은 받지 않는다
  * - 삭제: 연결된 추가요금이 응답 전이면 함께 철회, 이미 동의·거절됐으면 삭제 불가
  * - 자재원가 합계는 KPI 마진율(materialCostBetween)
+ * - 단계 10: 사용 등록 시 기사 보유 자재(technician_material_stock)를 줄이고, 삭제하면 되돌린다(F-TEC-MAT-01)
  */
 import { extraCharge, material, materialUsage, serviceOrder, workOrder } from '@aircon/db';
 import { canWithdrawExtra, extraChargeState, checkMaterialUsage, materialChargeTitle, materialCostOf, materialSaleAmount } from '@aircon/domain';
 import { and, asc, eq, gte, isNull, lt } from 'drizzle-orm';
 import { UserError, ValidationFailed } from './action-result';
+import { adjustTechStock } from './tech-support';
 import { getDb } from './db';
 import { addExtraCharge, withdrawExtraCharge } from './extra-charges';
 import { mainOnly, workOf } from './work';
@@ -96,6 +98,8 @@ export async function addMaterialUsage(
         updatedAt: now,
       })
       .returning({ id: materialUsage.id });
+    // 단계 10 F-TEC-MAT-01: 현장에서 쓴 만큼 보유 자재를 줄인다(0 아래로는 내려가지 않음)
+    await adjustTechStock(db, techId, mat!.id, -v.quantity, now);
     return { id: row!.id, chargeId };
   } catch (err) {
     if (chargeId) await withdrawExtraCharge(techId, v.orderNo, chargeId).catch(() => undefined);
@@ -119,6 +123,7 @@ export async function removeMaterialUsage(techId: number, orderNo: string, usage
     }
   }
   await db.delete(materialUsage).where(eq(materialUsage.id, u.id));
+  await adjustTechStock(db, techId, u.materialId, u.quantity); // 단계 10: 사용 취소분을 보유 자재로 되돌림
 }
 
 /** KPI 마진율 자재원가: 기간 안 완료 주문의 Σ 원가 × 수량 (거점 선택 시 그 거점) */

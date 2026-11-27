@@ -557,4 +557,67 @@ d('RLS (BR-102, F-ADM-SYS-02)', () => {
       expect(t).toHaveLength(5);
     });
   });
+
+  describe('단계 10 기사 업무지원·교육', () => {
+    beforeAll(async () => {
+      const [t1] = await sql`SELECT id FROM technician WHERE tech_code = 'T51'`;
+      const [t2] = await sql`SELECT id FROM technician WHERE tech_code = 'T72'`;
+      for (const [b, t, code] of [[b1, t1!.id, 'RLS10-A'], [b2, t2!.id, 'RLS10-B']] as const) {
+        const [c] = await sql`INSERT INTO training_course (course_code, name, course_type, branch_id) VALUES (${code}, '기본과정', 'BASIC', ${b}) RETURNING id`;
+        await sql`INSERT INTO training_enrollment (course_id, technician_id) VALUES (${c!.id}, ${t})`;
+        await sql`INSERT INTO technician_application (branch_id, name, phone, phone_hash, source) VALUES (${b}, 'enc', 'enc', ${code}, 'SNS')`;
+        const [mat] = await sql`INSERT INTO material (material_code, name, unit) VALUES (${code}, '필터', 'EA') RETURNING id`;
+        await sql`INSERT INTO material_request (technician_id, material_id, quantity, needed_date) VALUES (${t}, ${mat!.id}, 2, '2027-04-01')`;
+        await sql`INSERT INTO technician_material_stock (technician_id, material_id, quantity) VALUES (${t}, ${mat!.id}, 3)`;
+        const [m] = await sql`INSERT INTO memo (owner_type, owner_id, content, start_date, end_date, priority_source) VALUES ('ADMIN', 1, '지정 메모', '2027-04-01', '2027-04-01', 'ADMIN') RETURNING id`;
+        await sql`INSERT INTO memo_recipient (memo_id, receiver_type, receiver_id) VALUES (${m!.id}, 'TECHNICIAN', ${t})`;
+      }
+      await sql`INSERT INTO memo (owner_type, owner_id, content, start_date, end_date, priority_source) VALUES ('TECHNICIAN', ${t1!.id}, '개인 메모', '2027-04-01', '2027-04-01', 'SELF')`;
+      await sql`INSERT INTO tech_document (doc_type, title, content) VALUES ('SOP', '벽걸이 분해 SOP', '순서')`;
+      await sql`INSERT INTO quick_menu (user_type, user_id, menu_code) VALUES ('TECHNICIAN', ${t1!.id}, 'T-CAL-010')`;
+    });
+
+    it('BR-100 비로그인(anon)은 교육·지원서·자재·기술자료·퀵메뉴·지정 메모를 읽을 수 없다', async () => {
+      for (const t of ['training_course', 'training_enrollment', 'technician_application', 'material_request', 'technician_material_stock', 'tech_document', 'quick_menu', 'memo_recipient']) {
+        expect(await as(null, (tx) => tx.unsafe(`SELECT * FROM ${t}`))).toHaveLength(0);
+      }
+    });
+
+    it('BR-102 거점장은 자기 거점 과정·수강·지원서·자재 요청·지정 메모만 조회한다', async () => {
+      expect(await as(ids.branchMgr, (tx) => tx`SELECT id FROM training_course WHERE course_code LIKE 'RLS10%'`)).toHaveLength(1);
+      expect(await as(ids.branchMgr, (tx) => tx`SELECT e.id FROM training_enrollment e JOIN training_course c ON c.id = e.course_id WHERE c.course_code LIKE 'RLS10%'`)).toHaveLength(1);
+      expect(await as(ids.branchMgr, (tx) => tx`SELECT id FROM technician_application`)).toHaveLength(1);
+      expect(await as(ids.branchMgr, (tx) => tx`SELECT id FROM material_request`)).toHaveLength(1);
+      expect(await as(ids.branchMgr, (tx) => tx`SELECT memo_id FROM memo_recipient`)).toHaveLength(1);
+      expect(await as(ids.branchMgr, (tx) => tx`SELECT id FROM memo WHERE owner_type = 'ADMIN' AND related_order_id IS NULL`)).toHaveLength(1);
+      expect(await as(ids.super, (tx) => tx`SELECT id FROM technician_application`)).toHaveLength(2);
+    });
+
+    it('기사 개인 메모·퀵메뉴는 관리자도 브라우저 키로 읽지 못한다', async () => {
+      expect(await as(ids.super, (tx) => tx`SELECT id FROM memo WHERE owner_type = 'TECHNICIAN'`)).toHaveLength(0);
+      expect(await as(ids.super, (tx) => tx`SELECT id FROM quick_menu`)).toHaveLength(0);
+    });
+
+    it('상담원은 기술자료를 조회만, 쓰기는 서버 전용', async () => {
+      expect(await as(ids.cs, (tx) => tx`SELECT id FROM tech_document`)).toHaveLength(1);
+      await expect(as(ids.super, (tx) => tx`INSERT INTO tech_document (doc_type, title, content) VALUES ('SOP', 'x', 'x')`)).rejects.toThrow(/row-level security/);
+      expect(await as(ids.super, (tx) => tx`UPDATE training_enrollment SET result = 'PASSED' RETURNING id`)).toHaveLength(0);
+    });
+
+    it('같은 과정에 같은 기사는 한 번만, 퀵메뉴는 화면당 한 번', async () => {
+      const [e] = await sql`SELECT course_id, technician_id FROM training_enrollment LIMIT 1`;
+      await expect(sql`INSERT INTO training_enrollment (course_id, technician_id) VALUES (${e!.course_id}, ${e!.technician_id})`).rejects.toThrow(/training_enrollment_uk/);
+      const [q] = await sql`SELECT user_id FROM quick_menu LIMIT 1`;
+      await expect(sql`INSERT INTO quick_menu (user_type, user_id, menu_code) VALUES ('TECHNICIAN', ${q!.user_id}, 'T-CAL-010')`).rejects.toThrow(/quick_menu_uk/);
+    });
+
+    it('단계 10 코드·기준값·알림 템플릿이 있다', async () => {
+      const codes = await sql`SELECT code FROM common_code WHERE group_code = 'MATERIAL_REQUEST_STATUS' ORDER BY sort_order`;
+      expect(codes.map((c) => c.code)).toEqual(['REQUESTED', 'SHIPPED', 'RECEIVED', 'CANCELED']);
+      const [s] = await sql`SELECT setting_value FROM system_setting WHERE setting_key = 'TRAINING_PASS_SCORE'`;
+      expect(s?.setting_value).toBe('80');
+      const t = await sql`SELECT template_code FROM notification_template WHERE template_code IN ('TECH_MEMO_ASSIGNED', 'APPLICANT_ACCEPTED', 'TRAINING_PASSED')`;
+      expect(t).toHaveLength(3);
+    });
+  });
 });

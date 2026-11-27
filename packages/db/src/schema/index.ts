@@ -15,3 +15,4 @@ export * from './d11-settlement';
 export * from './d6-aftercare';
 export * from './d12-crm';
 export * from './d13-content';
+export * from './d14-tech-support';

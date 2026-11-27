@@ -74,6 +74,11 @@ export const SYSTEM_SETTING_SEEDS: readonly SystemSettingSeed[] = [
   { key: 'DORMANT_ENABLED', value: 'N', description: 'Y면 휴면 전환 배치 실행(법무 확인 후 켜기) F-SYS-13' },
   { key: 'DORMANT_MONTHS', value: '12', description: '마지막 이용 후 몇 개월이 지나면 휴면 전환 F-SYS-13' },
   { key: 'DORMANT_NOTICE_DAYS', value: '30', description: '휴면 전환 며칠 전에 사전 안내 F-SYS-13' },
+  // ── 단계 10 기사 업무지원·교육 ──
+  { key: 'TRAINING_PASS_ATTENDANCE', value: '80', description: '교육 수료 기준 출석률(%) 이상 F-ADM-TEC-06' },
+  { key: 'TRAINING_PASS_SCORE', value: '80', description: '교육 수료 기준 실습 점수(100점 만점) 이상 F-ADM-TEC-06' },
+  { key: 'WEEK_GRID_START_HOUR', value: '8', description: '기사 주간 일정 그리드 첫 시각(시) F-TEC-RTE-05' },
+  { key: 'WEEK_GRID_END_HOUR', value: '20', description: '기사 주간 일정 그리드 끝 시각(시, 이 시각 전까지) F-TEC-RTE-05' },
 ];
 
 export const SETTING_KEYS = {
@@ -133,4 +138,8 @@ export const SETTING_KEYS = {
   DORMANT_ENABLED: 'DORMANT_ENABLED',
   DORMANT_MONTHS: 'DORMANT_MONTHS',
   DORMANT_NOTICE_DAYS: 'DORMANT_NOTICE_DAYS',
+  TRAINING_PASS_ATTENDANCE: 'TRAINING_PASS_ATTENDANCE',
+  TRAINING_PASS_SCORE: 'TRAINING_PASS_SCORE',
+  WEEK_GRID_START_HOUR: 'WEEK_GRID_START_HOUR',
+  WEEK_GRID_END_HOUR: 'WEEK_GRID_END_HOUR',
 } as const;

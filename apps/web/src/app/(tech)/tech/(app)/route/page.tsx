@@ -3,6 +3,7 @@
 // 마감이 지난 미확정 코스는 이 화면을 열 때도 자동 확정된다(Vercel Hobby Cron 지연 대비).
 import { SETTING_KEYS, kstDate } from '@aircon/domain';
 import { Empty } from '@aircon/ui';
+import Link from 'next/link';
 import { getRouteView } from '@/server/route-plans';
 import { getSettingNumber } from '@/server/settings';
 import { requireTech } from '@/server/tech-session';
@@ -21,7 +22,12 @@ export default async function TechRoutePage({ searchParams }: { searchParams: Pr
   return (
     <main className="tec-page__body">
       <TechTopbar title="코스 편집" back={{ href: `/tech/map?date=${date}`, label: '출동 지도로' }} />
-      <DateChips base="/tech/route" date={date} />
+      <div className="tec-head-row">
+        <DateChips base="/tech/route" date={date} />
+        <Link href={`/tech/route/week?start=${date}`} className="ac-btn ac-btn--text ac-btn--sm">
+          주간 일정
+        </Link>
+      </div>
       {view ? (
         <RouteEditor key={`${date}-${view.planId}-${view.version}-${view.status}`} initial={view} delayAlertMin={delayAlertMin} />
       ) : (
