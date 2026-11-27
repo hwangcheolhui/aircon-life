@@ -447,3 +447,286 @@
 .tec-notice-body { white-space: pre-wrap; word-break: break-word; }
 .tec-notice-list { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-2); }
 .tec-notice-list a { display: flex; gap: var(--space-2); align-items: center; min-height: 48px; color: var(--color-text); text-decoration: none; }
+
+/* ── 단계 10: 홈 확장 (T-HOM-010) — 퀵메뉴 슬라이드 · 오늘 할 일 · 주간 할일 · 내 지표 ── */
+.tec-quick {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+}
+.tec-quick .ac-chip {
+  min-height: var(--touch-min);
+  scroll-snap-align: start;
+  text-decoration: none;
+}
+.tec-todo-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.tec-todo-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch-min);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.tec-todo-card:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+.tec-todo-card svg {
+  width: 20px;
+  height: 20px;
+  color: var(--color-text-secondary);
+}
+.tec-todo-card strong {
+  margin-left: auto;
+}
+.tec-weekly th a {
+  color: inherit;
+}
+.tec-badges {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+}
+.tec-badges > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-2);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-muted);
+}
+.tec-badges dt {
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption-size);
+}
+.tec-badges dd {
+  margin: 0;
+  font-weight: 700;
+}
+.tec-memo-list .is-done .ac-body {
+  color: var(--color-text-tertiary);
+}
+
+/* ── 단계 10: 캘린더 (T-CAL-010) ── */
+.tec-seg {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-min);
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-full);
+  color: var(--color-text-tertiary);
+  font-weight: 600;
+  text-decoration: none;
+}
+.tec-seg.is-active {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+.tec-cal {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+.tec-cal th {
+  padding: var(--space-1) 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption-size);
+  font-weight: 500;
+}
+.tec-cal td {
+  padding: 2px;
+  vertical-align: top;
+}
+.tec-cal__day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 64px;
+  padding: var(--space-1) 2px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  text-decoration: none;
+}
+.tec-cal__day:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 1px;
+}
+.tec-cal__day.is-today .tec-cal__num {
+  font-weight: 700;
+  color: var(--color-primary);
+}
+.tec-cal__day.is-selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-faint);
+}
+.tec-cal__count {
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+.tec-cal__off {
+  font-size: var(--text-caption-size);
+  color: var(--color-warning);
+  white-space: nowrap;
+}
+.tec-cal__dot {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-danger);
+}
+
+/* ── 단계 10: 주간 일정 (T-RTE-030) ── */
+.tec-week-wrap {
+  overflow-x: auto;
+}
+.tec-week {
+  width: 100%;
+  min-width: 360px;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 2px;
+}
+.tec-week th {
+  font-size: var(--text-caption-size);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+.tec-week thead th a {
+  color: inherit;
+  text-decoration: none;
+}
+.tec-week__off {
+  display: block;
+  color: var(--color-warning);
+}
+.tec-week__cell {
+  height: 28px;
+  border-radius: var(--radius-xs);
+  text-align: center;
+  font-size: var(--text-caption-size);
+}
+.tec-week__cell.is-job {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+.tec-week__cell.is-free {
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success);
+}
+.tec-week__cell.is-off {
+  background: var(--color-warning-bg);
+}
+.tec-week__cell.is-out {
+  background: var(--color-bg-muted);
+}
+.tec-week-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-caption-size);
+}
+.tec-week-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.tec-week-legend .tec-week__cell {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+}
+
+/* ── 단계 10: 더보기 ★ · 퀵메뉴 설정 (T-MORE-010 · T-MY-020) ── */
+.tec-menu-cell {
+  position: relative;
+  display: flex;
+}
+.tec-menu-cell > a {
+  flex: 1;
+}
+.tec-star.is-on svg {
+  fill: currentColor;
+  color: var(--color-warning);
+}
+.tec-menu-grid .tec-star--corner {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-height: var(--touch-min);
+  min-width: var(--touch-min);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-tertiary);
+}
+.tec-menu-grid .tec-star--corner svg {
+  width: 20px;
+  height: 20px;
+}
+.tec-inline-icon {
+  width: 14px;
+  height: 14px;
+  vertical-align: -2px;
+}
+
+/* ── 단계 10: 월 수입 막대 (T-STL-010) ── */
+.tec-bars {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tec-bars li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+.tec-bars__value {
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+}
+.tec-bars__track {
+  display: flex;
+  align-items: flex-end;
+  width: 60%;
+  height: 96px;
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-muted);
+}
+.tec-bars__bar {
+  display: block;
+  width: 100%;
+  border-radius: var(--radius-xs);
+  background: var(--color-text-secondary);
+}

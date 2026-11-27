@@ -1365,3 +1365,111 @@ export const materialUsageInput = z.object({
 export const routeChangeRequestInput = z.object({ date: dateStr('코스 일자'), note: reqStr('요청 사유', 300) });
 /** A-DSP-070 코스 변경 요청 승인·반려 */
 export const routeChangeDecisionInput = z.object({ planId: reqId('코스'), approve: bool(false), note: optStr(300) });
+
+/* ---------- 단계 10 기사 업무지원·교육 ---------- */
+const MEMO_HEADER_CODES = ['RECEIVABLE', 'REVISIT', 'CUSTOMER_CONTACT', 'MANUAL'] as const;
+const MEMO_REPEAT_CODES = ['NONE', 'DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'] as const;
+
+/** T-MEMO-010 메모 등록·수정 (F-TEC-MEMO-01). 기간: 종일(하루) 또는 시작~종료, 반복이면 종료일 = 반복 종료일 */
+export const techMemoInput = z.object({
+  id: optId(),
+  headerCode: enumOf('머리말', MEMO_HEADER_CODES),
+  content: reqStr('내용', 1000),
+  startDate: dateStr('시작일'),
+  endDate: dateStr('종료일'),
+  repeatType: enumOf('반복', MEMO_REPEAT_CODES),
+  relatedOrderNo: optStr(20),
+});
+
+/** A-CNT-040 지정 메모 발송 (F-ADM-CNT-04) */
+export const assignedMemoInput = z.object({
+  technicianIds: z.array(z.coerce.number().int().positive()).min(1, MSG.required('수신 기사')).max(300),
+  headerCode: enumOf('머리말', MEMO_HEADER_CODES),
+  content: reqStr('내용', 1000),
+  startDate: dateStr('시작일'),
+  endDate: dateStr('종료일'),
+  repeatType: enumOf('반복', MEMO_REPEAT_CODES),
+  popupEnabled: bool(false),
+});
+
+/** T-MAT-020 자재 요청 (F-TEC-MAT-02) */
+export const materialRequestInput = z.object({
+  materialId: reqId('자재'),
+  quantity: reqInt('수량', 1),
+  neededDate: dateStr('필요일'),
+  relatedOrderNo: optStr(20),
+});
+
+/** T-MY-020 퀵메뉴 저장 (F-TEC-HOM-04): 화면 ID 순서 그대로 */
+export const quickMenuInput = z.object({ codes: z.array(z.string().max(20)).max(50) });
+
+/** A-CNT-030 기술자료 (F-ADM-CNT-03) — 첨부는 FormData 로 따로 받는다 */
+export const techDocumentInput = z.object({
+  id: optId(),
+  docType: enumOf('유형', ['SOP', 'TECH_GUIDE', 'CS_TIP', 'SAFETY', 'HANDBOOK'] as const),
+  deviceType: optStr(20),
+  title: reqStr('제목', 200),
+  content: reqStr('내용', 20000),
+  isRequiredRead: bool(false),
+  keepFileIds: z.array(z.coerce.number().int().positive()).max(3).default([]),
+});
+
+/** A-TEC-030 지원서 등록·수정 (F-ADM-TEC-04) */
+export const applicationInput = z.object({
+  id: optId(),
+  branchId: reqId('지원 거점'),
+  name: reqStr('이름', 30),
+  phone: phoneInput('연락처'),
+  ageGroup: optStr(10),
+  region: optStr(50),
+  experienceYears: optInt(0),
+  licenses: optStr(200),
+  source: enumOf('유입 경로', ['SNS', 'JOB_SITE', 'REFERRAL', 'GOV_PROGRAM'] as const),
+  supportTargetFlag: bool(false),
+  note: optStr(500),
+});
+/** A-TEC-030 상태 변경: 면접·불합격 */
+export const applicationStatusInput = z.object({ id: reqId('지원서'), status: enumOf('상태', ['INTERVIEW', 'REJECTED'] as const), note: optStr(500) });
+/** A-TEC-030 합격 처리 = 기사 계정 생성 */
+export const applicationAcceptInput = z.object({
+  id: reqId('지원서'),
+  techCode: code('기사 코드', 20),
+  contractType: enumOf('계약 형태', ['EMPLOYEE', 'FREELANCER', 'PARTNER'] as const),
+  branchId: reqId('소속 거점'),
+});
+
+/** A-TEC-040 교육 과정 (F-ADM-TEC-05) */
+export const trainingCourseInput = z
+  .object({
+    id: optId(),
+    courseCode: code('과정 코드', 20),
+    name: reqStr('과정명', 100),
+    courseType: enumOf('과정 유형', ['BASIC', 'ADVANCED', 'SAFETY', 'LEADER'] as const),
+    fee: reqInt('수강료', 0),
+    totalHours: optInt(0),
+    passCriteria: optStr(300),
+    branchId: optId(),
+    startDate: optDate(),
+    endDate: optDate(),
+    capacity: optInt(1),
+    status: enumOf('상태', ['RECRUITING', 'IN_PROGRESS', 'FINISHED'] as const),
+  })
+  .refine((v) => !v.startDate || !v.endDate || v.endDate >= v.startDate, { path: ['endDate'], message: '종료일은 시작일 이후여야 합니다.' });
+
+/** A-TEC-041 수강 등록 */
+export const enrollmentAddInput = z.object({ courseId: reqId('과정'), technicianId: reqId('기사'), paidAmount: reqInt('납부액', 0) });
+/** A-TEC-041 출석·점수 입력 + 판정 */
+export const enrollmentScoreInput = z.object({
+  id: reqId('수강'),
+  attendanceRate: z.preprocess((v) => (blankToNull(v) === null ? null : Number(v)), z.number().min(0, '출석률은 0~100 사이여야 합니다.').max(100, '출석률은 0~100 사이여야 합니다.').nullable()),
+  practicalScore: z.preprocess((v) => (blankToNull(v) === null ? null : Number(v)), z.number().int('실습 점수는 정수여야 합니다.').min(0, '실습 점수는 0~100 사이여야 합니다.').max(100, '실습 점수는 0~100 사이여야 합니다.').nullable()),
+  /** SAVE = 점수만 저장, JUDGE = 기준으로 수료/미수료 판정, DROP = 중도 포기 */
+  action: enumOf('처리', ['SAVE', 'JUDGE', 'DROP'] as const),
+});
+
+/** A-TEC-050 이탈 처리 (F-ADM-TEC-07) */
+export const techLeaveInput = z.object({
+  technicianId: reqId('기사'),
+  leaveReason: enumOf('이탈 사유', ['INCOME', 'WORKLOAD', 'SEASONAL', 'HEALTH', 'CAREER_CHANGE'] as const),
+  leftAt: dateStr('이탈일'),
+});

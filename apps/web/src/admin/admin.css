@@ -164,3 +164,11 @@
 .adm-recommend { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
 .adm-recommend__item { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
 @media (max-width: 1280px) { .adm-monitor { grid-template-columns: 1fr; } }
+
+/* ── 단계 10: 수강·수료 관리(A-TEC-041) 표 안 숫자 입력 · 기술자료(A-CNT-030) 첨부 목록 ── */
+.adm-num-input { width: 88px; text-align: right; }
+.adm-file-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.adm-file-list li { display: flex; align-items: center; gap: var(--space-2); }
+.adm-fieldset { border: 0; padding: 0; margin: 0; }
+.adm-pick-list { max-height: 240px; overflow-y: auto; margin-top: var(--space-2); }
+.adm-pre { white-space: pre-wrap; }

@@ -112,7 +112,7 @@ export async function notifyStaff(
 export async function notifyStaffWith(
   code: NotificationTemplateCode,
   receiver: { type: 'TECHNICIAN'; id: number } | { type: 'ADMIN'; id: number | null },
-  related: { type: 'ORDER' | 'ROUTE_PLAN' | 'SETTLEMENT' | 'FOLLOWUP' | 'INCIDENT' | 'WORK_ORDER' | 'PAYMENT'; id: number },
+  related: { type: 'ORDER' | 'ROUTE_PLAN' | 'SETTLEMENT' | 'FOLLOWUP' | 'INCIDENT' | 'WORK_ORDER' | 'PAYMENT' | 'MEMO' | 'TRAINING'; id: number },
   vars: Record<string, string>,
   link?: string,
 ): Promise<void> {
@@ -215,22 +215,32 @@ export async function notifyCustomer(
   }
 }
 
-/** 외부 수신자 문자 (단계 8 안전사고 수동 수신자). 템플릿 본문을 그대로 문자로 보낸다 */
-export async function notifyPhone(code: NotificationTemplateCode, phone: string, vars: Record<string, string>, related: { type: 'INCIDENT'; id: number }) {
+/**
+ * 전화번호로 보내는 알림 (단계 8 안전사고 수동 수신자 = 문자). 단계 10: 기사 지원 합격 안내(APPLICANT_ACCEPTED)는 알림톡 → 실패 시 문자.
+ * 템플릿 채널이 ALIMTALK 이면 알림톡을 먼저 보내고, 아니면 문자로 보낸다.
+ */
+export async function notifyPhone(
+  code: NotificationTemplateCode,
+  phone: string,
+  vars: Record<string, string>,
+  related: { type: 'INCIDENT' | 'APPLICATION'; id: number },
+  receiver: { type: 'ADMIN' | 'TECHNICIAN'; id: number | null } = { type: 'ADMIN', id: null },
+) {
   if (!isDbConfigured()) return 'SKIPPED' as const;
   const db = getDb();
   try {
     const [t] = await db.select().from(notificationTemplate).where(eq(notificationTemplate.templateCode, code));
     if (!t || !t.isActive) return 'SKIPPED' as const;
-    const outcome = await sendWithFallback(createNotifyTransport(), { to: phone, text: renderTemplate(t.body, vars), title: t.title }, 'SMS').catch((e: Error) => ({
+    const preferred = related.type === 'APPLICATION' && t.channel === 'ALIMTALK' ? 'ALIMTALK' : 'SMS';
+    const outcome = await sendWithFallback(createNotifyTransport(), { to: phone, text: renderTemplate(t.body, vars), title: t.title }, preferred).catch((e: Error) => ({
       status: 'FAILED' as const,
       channel: null,
       failReason: e.message,
     }));
     await db.insert(notificationLog).values({
       templateId: t.id,
-      receiverType: 'ADMIN',
-      receiverId: null,
+      receiverType: receiver.type,
+      receiverId: receiver.id,
       receiverPhoneMasked: maskPhone(phone),
       channel: outcome.channel ?? 'SMS',
       relatedType: related.type,

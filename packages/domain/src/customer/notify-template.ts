@@ -63,6 +63,10 @@ export const NOTIFICATION_TEMPLATE_CODES = [
   'ROUTE_CHANGE_REJECTED',
   'DORMANT_NOTICE',
   'PG_MISMATCH',
+  // 단계 10
+  'TECH_MEMO_ASSIGNED',
+  'APPLICANT_ACCEPTED',
+  'TRAINING_PASSED',
 ] as const;
 export type NotificationTemplateCode = (typeof NOTIFICATION_TEMPLATE_CODES)[number];
 
@@ -100,4 +104,7 @@ export const TEMPLATE_VARIABLES = [
   '사유',
   '경과개월',
   '예약링크',
+  '메모',
+  '과정명',
+  '수료증번호',
 ] as const;

@@ -849,14 +849,20 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 | branch_id | BIGINT | FK→branch | 교육 거점 | |
 | start_date / end_date | DATE | | 기수 일정 | |
 | capacity | INT | | 정원 | |
-| status | VARCHAR(20) | | `RECRUITING`, `IN_PROGRESS`, `FINISHED` | |
-| 공통컬럼 | | | | |
+| status | VARCHAR(20) | NN, 기본 `RECRUITING` | `RECRUITING`, `IN_PROGRESS`, `FINISHED` (§3.21) | |
+| 공통컬럼 + deleted_at | | | 단계 10: 수강생이 없는 과정만 소프트 삭제 | |
+
+> 단계 10 구현(F-ADM-TEC-05): `branch_id`가 비면 전 거점 공통 과정이고 본사(데이터 범위 전체) 관리자만 만들고 고칩니다. 거점 관리자는 공통 과정에 자기 거점 기사를 수강 등록할 수 있습니다. 정원은 이미 수강 중인 인원보다 줄일 수 없습니다. `course_code`는 수료증 번호의 앞자리입니다.
 
 #### 2.7.7 `training_enrollment` — 수강 이력
-`id`, `course_id`(FK), `technician_id`(FK), `paid_amount`, `attendance_rate`, `practical_score`, `result`(`ENROLLED`/`PASSED`/`FAILED`/`DROPPED`), `completed_at`, `certificate_no`, 공통컬럼
+`id`, `course_id`(FK), `technician_id`(FK), `paid_amount`(INT, 기본 0), `attendance_rate`(NUMERIC(5,1), %), `practical_score`(INT, 0~100), `result`(`ENROLLED`/`PASSED`/`FAILED`/`DROPPED`, §3.22), `completed_at`(DATE, 수료일), `certificate_no`(UK, `과정코드-연도-순번` 예: `TR-AC-BASIC-2026-001`), 공통컬럼. UK(course_id, technician_id)
+
+> 단계 10 구현(F-ADM-TEC-06): 판정은 출석률 ≥ `TRAINING_PASS_ATTENDANCE`(80) 그리고 실습 점수 ≥ `TRAINING_PASS_SCORE`(80)이면 수료, 아니면 미수료입니다(§2.13.8). 기본과정(`BASIC`) 수료 시 교육중(`TRAINING`) 기사는 활동(`ACTIVE`)으로 바뀌고 `joined_at`이 비어 있으면 수료일로 채웁니다. 수료하면 기사에게 앱 알림(`TRAINING_PASSED`)이 갑니다.
 
 #### 2.7.8 `technician_application` — 기사 지원서(상시 모집)
-`id`, `name`, `phone`🔒, `age_group`, `region`, `experience_years`, `licenses`, `source`(`SNS`/`JOB_SITE`/`REFERRAL`/`GOV_PROGRAM`), `support_target_flag`(시니어·여성 등 지원사업 가점), `status`(`APPLIED`/`INTERVIEW`/`ACCEPTED`/`REJECTED`), `technician_id`(FK, 합격 후 생성), 공통컬럼
+`id`, `branch_id`(FK→branch, NN, 지원 거점 — 단계 10 추가: 거점 범위 BR-102), `name`, `phone`🔒, `phone_hash`(VARCHAR(64), NN, 검색·중복 확인용 — 단계 10 추가), `age_group`(`AGE_GROUP`), `region`, `experience_years`, `licenses`, `source`(`SNS`/`JOB_SITE`/`REFERRAL`/`GOV_PROGRAM`), `support_target_flag`(시니어·여성 등 지원사업 가점), `status`(`APPLIED`/`INTERVIEW`/`ACCEPTED`/`REJECTED`, §3.20), `note`(VARCHAR(500), 면접 메모 — 단계 10 추가), `technician_id`(FK, 합격 후 생성), 공통컬럼 + `deleted_at`(단계 10 추가)
+
+> 단계 10 구현(F-ADM-TEC-04): 같은 연락처로 진행 중(`APPLIED`/`INTERVIEW`)인 지원서가 있으면 새로 받지 않습니다. **합격하면 기사 계정이 바로 만들어집니다**: `technician`(상태 `TRAINING`, 등급 `TRAINEE`, `login_id` = 지원서 `phone_hash`, 연락처 암호문 그대로) + `technician_grade_history` 1행, 지원서 `technician_id` 연결, 합격 안내(`APPLICANT_ACCEPTED` 알림톡, 실패 시 문자, `notification_log.related_type`=`APPLICATION`). 교육 과정 수강은 이 기사 계정으로 등록하고, 기본과정을 수료하면 활동으로 바뀝니다(§2.7.7). 합격한 지원서는 고치거나 지울 수 없습니다. 목록은 이름·연락처 마스킹, 수정 창에서 원문을 열면 감사 로그(`VIEW_PII`)를 남깁니다.
 
 ---
 
@@ -1081,8 +1087,10 @@ DB 축적의 핵심("무엇을·어떤 기기를"). 재방문 시 자동 견적�
 #### 2.9.6 `technician_material_stock` — 기사 보유 자재
 `technician_id`(FK), `material_id`(FK), `quantity`, `updated_at`. PK(technician_id, material_id)
 
+> 단계 10 구현(F-TEC-MAT-01): 자재 요청을 [수령 확인]하면 수량을 더하고, 현장 자재 사용(T-WRK-050, `order_material`)을 저장하면 빼고, 사용을 지우면 되돌립니다. 0 아래로 내려가지 않습니다. 보유가 `material.safety_stock`보다 적으면 T-MAT-010에서 "부족"으로 표시합니다.
+
 #### 2.9.7 `material_request` — 자재 요청·불출(D-1 이동중 자재)
-`id`, `technician_id`(FK), `material_id`(FK), `quantity`, `needed_date`, `related_order_id`(FK), `status`(`REQUESTED`/`SHIPPED`(이동중)/`RECEIVED`/`CANCELED`), `handled_by`, 공통컬럼
+`id`, `technician_id`(FK), `material_id`(FK), `quantity`, `needed_date`, `related_order_id`(FK, 내게 확정 배정된 주문만), `status`(`REQUESTED`/`SHIPPED`(이동중)/`RECEIVED`/`CANCELED`, §3.19), `handled_by`, `received_at`(TIMESTAMPTZ, 수령 확인 시각 — 단계 10 추가), 공통컬럼
 
 #### 2.9.8 `activity_log` — 활동 내역(서비스 PORTAL '활동내역등록')
 기사·관리자가 주문에 남기는 타임라인(통화, 문자, 방문 시도, 메모).
@@ -1321,13 +1329,15 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 | is_shared | BOOLEAN | 기본 false | 공유 메모(타인 캘린더 노출) | |
 | popup_enabled | BOOLEAN | 기본 false | 지정일 팝업 | |
 | popup_time | TIME | | 팝업 시각 | 08:30 |
-| priority_source | VARCHAR(20) | | 표시 우선순위 근거(행정<사무장<거점장<본인) | |
+| priority_source | VARCHAR(20) | | 오늘의 메모 표시 우선순위 근거: `BRANCH_MANAGER`(거점장) > `ADMIN`(관리자) > `SELF`(본인) (02 F-TEC-HOM-02, 단계 10에서 정리) | `MEMO_PRIORITY_SOURCE` |
 | is_done | BOOLEAN | 기본 false | 완료 체크 | |
 | 공통컬럼 + deleted_at | | | | |
 
-`memo_recipient`: `memo_id`(FK), `receiver_type`, `receiver_id`, `read_at` — 지정 수신자(권한 보유자만 지정 가능)
+`memo_recipient`: `memo_id`(FK), `receiver_type`, `receiver_id`, `read_at` — 지정 수신자(권한 보유자만 지정 가능). PK(memo_id, receiver_type, receiver_id)
 
 > 단계 6-1 구현: 미수 처리에 필요한 범위만 먼저 만듭니다. 기사·관리자가 미수로 남기거나 A-PAY-040에서 메모를 남기면 `header_code`=`RECEIVABLE`, `related_order_id`=주문, `start_date`=`end_date`=당일로 1행 넣습니다. 캘린더·공유·팝업·`memo_recipient`는 단계 10에서 씁니다.
+
+> 단계 10 구현(F-TEC-MEMO-01, F-TEC-CAL-02, F-ADM-CNT-04): 기사 메모는 `owner_type`=`TECHNICIAN`, `priority_source`=`SELF`입니다. 반복이 있으면 `end_date`는 **반복 종료일**이고 그 사이 반복 규칙에 맞는 날에만 보입니다(매주 = 같은 요일, 매월 = 같은 날 · 그 날이 없는 달은 말일, 매년 = 같은 월일 · 2/29는 평년 2/28). 반복 없음은 기간이 최대 31일입니다. 관리자 지정 메모(A-CNT-040)는 `owner_type`=`ADMIN`, `priority_source`=역할(거점장 `ADM_BRANCH` → `BRANCH_MANAGER`, 그 외 → `ADMIN`)로 메모 1행 + `memo_recipient` N행을 넣고 수신 기사에게 앱 알림(`TECH_MEMO_ASSIGNED`, `notification_log.related_type`=`MEMO`)을 보냅니다. 기사는 받은 메모를 고칠 수 없고 [확인]하면 `read_at`이 찍힙니다. `popup_enabled`인 받은 메모는 확인 전까지 홈에서 오늘의 메모 창(T-MEMO-020)이 자동으로 열립니다. `popup_time`(08:30 정시 팝업)·`is_shared`(공유)·기사의 수신자 지정은 단계 11입니다. 미수 메모(`related_order_id` 있음, 단계 6-1)는 기사 캘린더에 섞지 않습니다.
 
 #### 2.13.3 `faq` — FAQ (상담 Q&A 축적 → RAG 상담 소스)
 `id`, `category`(`FAQ_CATEGORY`), `audience`(`CUSTOMER`/`TECHNICIAN`), `question`, `answer`, `source_consultation_id`(FK), `view_count`, `is_published`, `sort_order`, 공통컬럼 + `deleted_at`(단계 8)
@@ -1335,10 +1345,14 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 > 단계 8: 고객 고객센터(C-CS-010)의 FAQ는 이 테이블(`audience`=`CUSTOMER`, `is_published`)에서 분류별로 읽습니다. 마이그레이션이 기본 FAQ 몇 건을 넣고 A-CNT-020에서 고칩니다.
 
 #### 2.13.4 `tech_document` — 기술자료·SOP·서비스 핸드북·CS 응대 Tip
-`id`, `doc_type`(`SOP`/`TECH_GUIDE`/`CS_TIP`/`SAFETY`/`HANDBOOK`), `device_type`, `title`, `content`, `file_ids`, `version`, `is_required_read`, 공통컬럼
+`id`, `doc_type`(`SOP`/`TECH_GUIDE`/`CS_TIP`/`SAFETY`/`HANDBOOK`, `TECH_DOC_TYPE`), `device_type`(비우면 공통), `title`, `content`(TEXT), `file_ids`(VARCHAR(200), `attachment.id` 쉼표 구분, `ref_type`=`DOC`), `version`(INT, 기본 1), `is_required_read`, 공통컬럼 + `deleted_at`(단계 10 추가)
+
+> 단계 10 구현(F-ADM-CNT-03, F-TEC-EDU-01): 첨부는 PDF·JPG·PNG·WEBP 최대 3개이고, 한 번 저장할 때 새로 올리는 파일은 합계 3.5MB 이하입니다(서버 액션 본문 4MB 제한). 버전은 제목·내용·첨부가 바뀔 때만 1 올립니다(필독만 바꾸면 그대로). 첨부는 비공개 저장소라 `/api/files/{id}`로만 열고, 로그인한 기사 누구나와 A-CNT-030 조회 권한이 있는 관리자가 지워지지 않은 자료의 첨부만 열 수 있습니다. 기사 앱은 필독 먼저, 최근 수정 순입니다.
 
 #### 2.13.5 `quick_menu` — 기사 앱 퀵메뉴(즐겨찾기)
 `id`, `user_type`(`TECHNICIAN`/`ADMIN`), `user_id`, `menu_code`(화면 ID), `sort_order`, 공통컬럼. UK(user_type, user_id, menu_code)
+
+> 단계 10 구현(F-TEC-HOM-04): 기사 앱 화면 중 퀵메뉴에 넣을 수 있는 목록은 domain `TECH_QUICK_MENUS`(작업 목록·출동 지도·코스 편집·관할 내 미배정·주간 일정·캘린더·메모 등록·정산·보유 자재·자재 요청·기술자료·내 교육·등급·공지사항·알림·내 정보)입니다. 저장은 전체 교체(순서 = `sort_order`)이고 개수 제한은 없습니다(홈에서 가로 슬라이드).
 
 #### 2.13.6 `attachment` — 첨부파일 (공통)
 `id`, `storage_key`(S3 등 object key), `original_name`, `mime_type`, `size_bytes`, `ref_type`(`WORK_PHOTO`/`EXTRA_CHARGE`/`SAFETY`/`DEVICE`/`REVIEW`/`NOTICE`/`DOC`), `ref_id`, `uploaded_by_type`, `uploaded_by_id`, `created_at`, `deleted_at`
@@ -1347,7 +1361,7 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 `id`, `actor_type`, `actor_id`, `action`(`VIEW_PII`/`EXPORT`/`UPDATE`/`DELETE`/`LOGIN`/`PERMISSION_CHANGE`), `target_table`, `target_id`(VARCHAR(50): 문자열 PK 테이블 대응), `ip_address`, `user_agent`, `detail_json`, `created_at`. **INSERT ONLY**: DB 트리거로 UPDATE·DELETE를 막습니다.
 
 #### 2.13.8 `system_setting` — 시스템 설정(키-값)
-`setting_key`(PK, 예: `QUOTE_EXPIRE_DAYS`=7, `REVISIT_MONTHS`=11, `PURGE_YEARS`=…, `SETTLEMENT_WEEKDAY`=`WED`, `POPUP_DEFAULT_TIME`=08:30, `DUPLICATE_CHECK_DAYS`=30, `ROUTE_CONFIRM_DEADLINE`=전날 18:00, `ROUTE_TRAVEL_BUFFER_MIN`=10, `ARRIVAL_WINDOW_HOURS`=2, `LOCATION_INTERVAL_SEC`=60, `LOCATION_RETENTION_DAYS`=90, `SELF_ASSIGN_ENABLED`=거점별 Y/N, `SELF_ASSIGN_NEEDS_APPROVAL`=Y, `ADMIN_LOGIN_MAX_FAIL`=5, `ADMIN_PASSWORD_MIN_LENGTH`=8, `QUOTE_SITE_SURVEY_MIN_UNITS`=4(시스템·천장형 합계가 이 대수 이상이면 "현장 확인 견적" 안내, 단계 1), 단계 2: `SLOT_DAYS_AHEAD`=14(슬롯 자동 생성·고객 달력 일수), `SLOT_JOBS_PER_TECH_HOUR`=1(기사 1명 시간당 처리 건수), `WORK_DEFAULT_START`=09:00·`WORK_DEFAULT_END`=18:00(근무 시간을 비운 일정의 기본값, 반차는 가운데 시각으로 나눔), `CANCEL_FEE_HOURS`=24·`CANCEL_FEE_AMOUNT`=0(BR-030 방문 N시간 전부터 취소 수수료, 금액은 운영사가 정함), `TERMS_VERSION`=v1.0(동의 이력에 남는 약관 버전), `AREA_OPEN_REQUEST_KEEP_DAYS`=365(오픈 알림 신청 대기 보관일, 지나면 EXPIRED·연락처 삭제, BR-003), 단계 3: `PRIVACY_REASK_MONTHS`=12(BR-023 미동의 고객 재질의 주기, 개월), 단계 4-1: `ASSIGN_TRAVEL_BUFFER_MIN`=30(배정 시간 겹침 판단 때 앞뒤 이동 여유, 분), `TECH_ACCOMPANY_COUNT`=3(신규 기사 등록 시 `accompany_required_count` 기본값, BR-071), `UNASSIGNED_ALERT_HOURS`=4(약속 N시간 이내 미지정 경고, F-SYS-09), `TECH_LOGIN_MAX_FAIL`=5(기사 비밀번호 연속 실패 잠금), `TECH_PASSWORD_MIN_LENGTH`=8(기사 비밀번호 최소 길이), 단계 4-2: `SELF_ASSIGN_DAYS_AHEAD`=7(기사 관할 지도에 보이는 미배정 작업의 약속 범위, 오늘부터 N일), `ROUTE_BREAK_DEFAULT_MIN`=60(코스에 넣는 휴식 기본 분), `ZONE_DONG_RADIUS_M`=600(법정동 선택 구역의 동 중심 반경 근사, m), 단계 5-1: `WORK_NOTE_MIN_LENGTH`=10(처리 저장 때 처리 내용 최소 글자 수, 공백 제외), `WORK_PHOTO_CAMERA_ONLY`=N(Y면 작업 사진을 카메라 촬영으로만 받음), 단계 5-2: `PENDING_OVERDUE_HOURS`=48(미처리 후 이 시간이 지나면 장기 미처리 강조·운영자 알림, BR-032 F-SYS-08), 단계 8: `CAMPAIGN_CONVERSION_DAYS`=60(캠페인 발송 후 이 기간 안 첫 주문을 예약 전환으로 봄), `PURGE_APPROVAL_MODE`=Y(Y면 파기 배치가 대상만 남기고 A-CUS-030 승인 후 파기, N이면 바로 파기), `MARKETING_COST_MONTHLY`=0(월 마케팅비 원, 0이면 CAC 미계산), `KPI_TARGET_MONTHLY_JOBS`=150·`KPI_TARGET_MARGIN_RATE`=30·`KPI_TARGET_REVISIT_RATE`=30·`KPI_TARGET_RETENTION_RATE`=60·`KPI_TARGET_OFFPEAK_RATIO`=40·`KPI_TARGET_AS_RATE`=5·`KPI_TARGET_CAC_RATE`=15(§5 KPI 목표값), 단계 9: `DEVICE_RECOMMEND_MONTHS`=12(작업 결과에 권장 시기가 없을 때 다음 청소 권장 개월), `REVIEW_WRITABLE_DAYS`=7(후기 작성 기간), `REVIEW_REQUEST_DELAY_HOURS`=2(완료 후 후기 요청까지 시간), `REVIEW_VOC_MAX_RATING`=2(이 평점 이하 VOC 자동 생성, BR-090), `INSPECTION_REQUIRED`=N(Y면 검수 승인 건만 정산, 반려 건은 항상 제외), `RECOMMEND_WEIGHTS`=30,25,20,15,10(추천 가중치: 관할·숙련·부하·이동·평점), `RECOMMEND_DAY_JOB_CAP`=6(하루 적정 작업 수), `ETA_DELAY_ALERT_MIN`=30(다음 고객이 안내 시각보다 이 분 이상 늦으면 기사 알림), `DORMANT_ENABLED`=N·`DORMANT_MONTHS`=12·`DORMANT_NOTICE_DAYS`=30(휴면 전환, 법무 확인 후 켬)), `setting_value`, `description`, `updated_at`, `updated_by`
+`setting_key`(PK, 예: `QUOTE_EXPIRE_DAYS`=7, `REVISIT_MONTHS`=11, `PURGE_YEARS`=…, `SETTLEMENT_WEEKDAY`=`WED`, `POPUP_DEFAULT_TIME`=08:30, `DUPLICATE_CHECK_DAYS`=30, `ROUTE_CONFIRM_DEADLINE`=전날 18:00, `ROUTE_TRAVEL_BUFFER_MIN`=10, `ARRIVAL_WINDOW_HOURS`=2, `LOCATION_INTERVAL_SEC`=60, `LOCATION_RETENTION_DAYS`=90, `SELF_ASSIGN_ENABLED`=거점별 Y/N, `SELF_ASSIGN_NEEDS_APPROVAL`=Y, `ADMIN_LOGIN_MAX_FAIL`=5, `ADMIN_PASSWORD_MIN_LENGTH`=8, `QUOTE_SITE_SURVEY_MIN_UNITS`=4(시스템·천장형 합계가 이 대수 이상이면 "현장 확인 견적" 안내, 단계 1), 단계 2: `SLOT_DAYS_AHEAD`=14(슬롯 자동 생성·고객 달력 일수), `SLOT_JOBS_PER_TECH_HOUR`=1(기사 1명 시간당 처리 건수), `WORK_DEFAULT_START`=09:00·`WORK_DEFAULT_END`=18:00(근무 시간을 비운 일정의 기본값, 반차는 가운데 시각으로 나눔), `CANCEL_FEE_HOURS`=24·`CANCEL_FEE_AMOUNT`=0(BR-030 방문 N시간 전부터 취소 수수료, 금액은 운영사가 정함), `TERMS_VERSION`=v1.0(동의 이력에 남는 약관 버전), `AREA_OPEN_REQUEST_KEEP_DAYS`=365(오픈 알림 신청 대기 보관일, 지나면 EXPIRED·연락처 삭제, BR-003), 단계 3: `PRIVACY_REASK_MONTHS`=12(BR-023 미동의 고객 재질의 주기, 개월), 단계 4-1: `ASSIGN_TRAVEL_BUFFER_MIN`=30(배정 시간 겹침 판단 때 앞뒤 이동 여유, 분), `TECH_ACCOMPANY_COUNT`=3(신규 기사 등록 시 `accompany_required_count` 기본값, BR-071), `UNASSIGNED_ALERT_HOURS`=4(약속 N시간 이내 미지정 경고, F-SYS-09), `TECH_LOGIN_MAX_FAIL`=5(기사 비밀번호 연속 실패 잠금), `TECH_PASSWORD_MIN_LENGTH`=8(기사 비밀번호 최소 길이), 단계 4-2: `SELF_ASSIGN_DAYS_AHEAD`=7(기사 관할 지도에 보이는 미배정 작업의 약속 범위, 오늘부터 N일), `ROUTE_BREAK_DEFAULT_MIN`=60(코스에 넣는 휴식 기본 분), `ZONE_DONG_RADIUS_M`=600(법정동 선택 구역의 동 중심 반경 근사, m), 단계 5-1: `WORK_NOTE_MIN_LENGTH`=10(처리 저장 때 처리 내용 최소 글자 수, 공백 제외), `WORK_PHOTO_CAMERA_ONLY`=N(Y면 작업 사진을 카메라 촬영으로만 받음), 단계 5-2: `PENDING_OVERDUE_HOURS`=48(미처리 후 이 시간이 지나면 장기 미처리 강조·운영자 알림, BR-032 F-SYS-08), 단계 8: `CAMPAIGN_CONVERSION_DAYS`=60(캠페인 발송 후 이 기간 안 첫 주문을 예약 전환으로 봄), `PURGE_APPROVAL_MODE`=Y(Y면 파기 배치가 대상만 남기고 A-CUS-030 승인 후 파기, N이면 바로 파기), `MARKETING_COST_MONTHLY`=0(월 마케팅비 원, 0이면 CAC 미계산), `KPI_TARGET_MONTHLY_JOBS`=150·`KPI_TARGET_MARGIN_RATE`=30·`KPI_TARGET_REVISIT_RATE`=30·`KPI_TARGET_RETENTION_RATE`=60·`KPI_TARGET_OFFPEAK_RATIO`=40·`KPI_TARGET_AS_RATE`=5·`KPI_TARGET_CAC_RATE`=15(§5 KPI 목표값), 단계 9: `DEVICE_RECOMMEND_MONTHS`=12(작업 결과에 권장 시기가 없을 때 다음 청소 권장 개월), `REVIEW_WRITABLE_DAYS`=7(후기 작성 기간), `REVIEW_REQUEST_DELAY_HOURS`=2(완료 후 후기 요청까지 시간), `REVIEW_VOC_MAX_RATING`=2(이 평점 이하 VOC 자동 생성, BR-090), `INSPECTION_REQUIRED`=N(Y면 검수 승인 건만 정산, 반려 건은 항상 제외), `RECOMMEND_WEIGHTS`=30,25,20,15,10(추천 가중치: 관할·숙련·부하·이동·평점), `RECOMMEND_DAY_JOB_CAP`=6(하루 적정 작업 수), `ETA_DELAY_ALERT_MIN`=30(다음 고객이 안내 시각보다 이 분 이상 늦으면 기사 알림), `DORMANT_ENABLED`=N·`DORMANT_MONTHS`=12·`DORMANT_NOTICE_DAYS`=30(휴면 전환, 법무 확인 후 켬), 단계 10: `TRAINING_PASS_ATTENDANCE`=80·`TRAINING_PASS_SCORE`=80(수료 판정 출석률 %·실습 점수 이상), `WEEK_GRID_START_HOUR`=8·`WEEK_GRID_END_HOUR`=20(기사 주간 일정 T-RTE-030 시간 범위, 시)), `setting_value`, `description`, `updated_at`, `updated_by`
 
 ---
 
@@ -1402,6 +1416,8 @@ PG 연동(카드·간편결제), 현장 결제(카드단말·계좌이체), B2B 
 
 ### 3.4 기사 상태
 `APPLICANT → TRAINING → ACTIVE ⇄ PAUSED → LEFT` (등급은 별도: `TRAINEE → REGULAR → LEADER`)
+
+> 단계 10: 새 코드(지원서 합격·수료·이탈)는 domain `assertTechStatusTransition`을 거칩니다. 허용 전이: `APPLICANT` → `TRAINING` | `LEFT`, `TRAINING` → `ACTIVE` | `LEFT`, `ACTIVE` → `PAUSED` | `LEFT`, `PAUSED` → `ACTIVE` | `LEFT`. 지원서 합격은 기사를 `TRAINING`으로 바로 만들고, 기본과정 수료가 `TRAINING` → `ACTIVE`, 이탈 처리(A-TEC-050)가 `→ LEFT`(`left_at`·`leave_reason` 필수, 근무 중이면 근무 종료)입니다. A-TEC-010 기사 기본 등록·수정의 상태 선택은 아직 이 전이표로 막지 않습니다.
 
 ### 3.5 상담 상태
 `OPEN(미완료) → IN_PROGRESS → DONE` / `TRANSFERRED`. 동일 고객의 `OPEN` 상담·미완료 VOC가 있으면 상담 콘솔 진입 시 Alert.
@@ -1498,6 +1514,18 @@ NULL(검수 대기, 코드 `WAITING`) → `APPROVED`(승인) | `REJECTED`(반려
 
 ### 3.18 코스 변경 요청 `route_plan.change_request_status` (단계 9)
 NULL → `REQUESTED`(기사 요청, 확정 또는 마감 후) → `APPROVED` | `REJECTED`(사유 필수). 승인되면 `confirmed_at` < `change_handled_at`인 동안 기사가 확정 코스를 다시 고친 뒤 재확정할 수 있고(재확정하면 다시 잠김), 마감 자동 확정은 그동안 건너뜁니다. 처리 결과는 기사에게 앱 알림(`ROUTE_CHANGE_APPROVED`/`REJECTED`)으로 갑니다.
+
+### 3.19 자재 요청 `material_request.status` (단계 10)
+`REQUESTED`(요청) → `SHIPPED`(이동중) | `RECEIVED`(수령) | `CANCELED`(취소) · `SHIPPED` → `RECEIVED`. 기사는 `REQUESTED`만 취소할 수 있습니다. 불출 처리(A-TEC-060, `SHIPPED`)는 단계 11이고, 그 전에는 거점에서 직접 받은 뒤 기사가 `REQUESTED`에서 바로 [수령 확인]합니다. 수령하면 `received_at`을 찍고 보유 수량(§2.9.6)에 더합니다. domain `assertMaterialRequestTransition`.
+
+### 3.20 지원서 상태 `technician_application.status` (단계 10)
+`APPLIED`(지원) → `INTERVIEW`(면접) | `ACCEPTED`(합격) | `REJECTED`(불합격) · `INTERVIEW` → `ACCEPTED` | `REJECTED`. `ACCEPTED`·`REJECTED`는 끝입니다. 합격은 기사 계정 생성과 한 트랜잭션입니다(§2.7.8). domain `assertApplicationTransition`.
+
+### 3.21 교육 과정 상태 `training_course.status` (단계 10)
+`RECRUITING`(모집중) → `IN_PROGRESS`(진행중) → `FINISHED`(종료). 되돌릴 수 없고 `RECRUITING` → `FINISHED`로 건너뛸 수 있습니다. 새 과정은 `RECRUITING`으로 시작하고, 수강 등록은 `RECRUITING`·`IN_PROGRESS`에서만 받습니다. domain `assertCourseTransition`.
+
+### 3.22 수강 결과 `training_enrollment.result` (단계 10)
+`ENROLLED`(수강중) → `PASSED`(수료) | `FAILED`(미수료) | `DROPPED`(중도 포기). 결과가 정해지면 점수를 고칠 수 없습니다. 같은 과정에 같은 기사는 한 번만, 정원이 차면 등록할 수 없고, 이탈(`LEFT`) 기사는 등록할 수 없습니다. domain `assertEnrollmentTransition`·`canEnroll`·`judgeEnrollment`.
 
 ---
 
@@ -1678,6 +1706,24 @@ NULL → `REQUESTED`(기사 요청, 확정 또는 마감 후) → `APPROVED` | `
 
 `notification_log.related_type`에 `COUPON`(쿠폰 발급)·`CUSTOMER`(휴면 안내)·`WORK_ORDER`(검수 반려)·`PAYMENT`(PG 대사)를 추가했습니다.
 
+**단계 10에서 추가한 그룹** (마이그레이션 0014 에도 같은 값)
+
+| group_code | 코드 목록 | 사용 컬럼 |
+|---|---|---|
+| `MEMO_REPEAT` | NONE 반복 안 함 / DAILY 매일 / WEEKLY 매주 / MONTHLY 매월 / YEARLY 매년 | memo.repeat_type |
+| `MEMO_PRIORITY_SOURCE` | BRANCH_MANAGER 거점장 / ADMIN 관리자 / SELF 본인 | memo.priority_source |
+| `MATERIAL_REQUEST_STATUS` | REQUESTED 요청 / SHIPPED 이동중 / RECEIVED 수령 / CANCELED 취소 | material_request.status (§3.19) |
+| `TECH_DOC_TYPE` | SOP 분해·세척 SOP / TECH_GUIDE 기술 가이드 / CS_TIP CS 응대 Tip / SAFETY 안전 매뉴얼 / HANDBOOK 서비스 핸드북 | tech_document.doc_type |
+| `COURSE_TYPE` | BASIC 기본 / ADVANCED 심화 / SAFETY 안전 / LEADER 팀장 | training_course.course_type |
+| `COURSE_STATUS` | RECRUITING 모집중 / IN_PROGRESS 진행중 / FINISHED 종료 | training_course.status (§3.21) |
+| `ENROLLMENT_RESULT` | ENROLLED 수강중 / PASSED 수료 / FAILED 미수료 / DROPPED 중도 포기 | training_enrollment.result (§3.22) |
+| `APPLICATION_STATUS` | APPLIED 지원 / INTERVIEW 면접 / ACCEPTED 합격 / REJECTED 불합격 | technician_application.status (§3.20) |
+| `APPLICATION_SOURCE` | SNS / JOB_SITE 구인 사이트 / REFERRAL 지인 추천 / GOV_PROGRAM 지원사업 | technician_application.source |
+| `AGE_GROUP` | 20S 20대 / 30S 30대 / 40S 40대 / 50S 50대 / 60S 60대 이상 | technician_application.age_group |
+| `LEAVE_REASON` | INCOME 수입 부족 / WORKLOAD 업무 강도 / SEASONAL 계절 비수기 / HEALTH 건강 / CAREER_CHANGE 진로 변경 | technician.leave_reason |
+
+알림 템플릿 `TECH_MEMO_ASSIGNED`(기사 푸시, `#{기사명}`·`#{메모}`), `APPLICANT_ACCEPTED`(지원자 합격 안내 알림톡, `#{기사명}`·`#{거점전화}`), `TRAINING_PASSED`(기사 푸시, `#{과정명}`·`#{수료증번호}`)를 추가했고, `notification_log.related_type`에 `MEMO`(지정 메모)·`TRAINING`(수료)·`APPLICATION`(지원서 합격)을 추가했습니다.
+
 ---
 
 ## 5. KPI 산출 기준 (전략 문서 5.5 → 데이터 매핑)
@@ -1687,7 +1733,7 @@ NULL → `REQUESTED`(기사 요청, 확정 또는 마감 후) → `APPROVED` | `
 | 월 처리 건수(성수기) | 150건+ | COUNT(order) WHERE status=COMPLETED, 월별 | service_order |
 | 건당 객단가·마진 | 마진율 30%+ | AVG(total_amount) / (매출 − 정산지급 − 자재원가) ÷ 매출 | service_order, settlement_item, material_usage |
 | 재방문율(다음 시즌) | 30%+ | 전년 동기 완료 고객 중 금년 재주문 고객 비율 | service_order, customer |
-| 기사 6개월 정착률 | 60%+ | joined_at 기준 6개월 경과 기사 중 status≠LEFT 비율 | technician |
+| 기사 6개월 정착률 | 60%+ | joined_at 기준 6개월 경과 기사 중 status≠LEFT 비율 (단계 10: A-TEC-050이 입사 월 코호트별로 같은 식을 보여 줌) | technician |
 | 비수기/성수기 매출 비 | 40%+ | (9~4월 월평균 매출) ÷ (5~8월 월평균 매출) | payment |
 | AS·불만율 | 5% 이하 | (as_request + voc[COMPLAINT]) ÷ 완료 건수 | as_request, voc, service_order |
 | 고객 획득비(CAC) | 객단가 15% 이하 | 마케팅비(수기 입력) ÷ 신규 고객 수 | customer, (marketing_cost 수기) |
