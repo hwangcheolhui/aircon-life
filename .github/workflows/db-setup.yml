@@ -7,6 +7,10 @@
 #   SUPABASE_SERVICE_ROLE_KEY  같은 화면의 service_role 키 (절대 공개 금지)
 #   SEED_SUPER_ADMIN_EMAIL     최초 슈퍼관리자 로그인 이메일
 #   SEED_SUPER_ADMIN_PASSWORD  최초 슈퍼관리자 비밀번호 (직접 정함)
+# 테스트용 가상 데이터(demo)를 넣을 때만 추가로 필요 (docs/07_테스트데이터.md):
+#   PII_ENCRYPTION_KEY         Vercel 환경변수와 같은 값 (다르면 화면에서 이름·연락처가 깨지고 휴대폰 로그인이 안 됨)
+#   PII_HASH_PEPPER            Vercel 환경변수와 같은 값
+#   SEED_DEMO_PASSWORD         테스트 관리자·기사 공통 비밀번호 (없으면 SEED_SUPER_ADMIN_PASSWORD)
 # 여러 번 실행해도 안전합니다: 마이그레이션은 안 한 것만, 시드는 없는 데이터만 넣습니다.
 name: DB 준비 (마이그레이션·시드)
 
@@ -17,6 +21,10 @@ on:
         description: '기본 데이터(공통 코드·알림 문구·기준값·슈퍼관리자)도 넣을까요?'
         type: boolean
         default: true
+      demo:
+        description: '테스트용 가상 데이터(테스트 계정·주문·정산 등)도 넣을까요? 운영 오픈 전 테스트 DB에서만'
+        type: boolean
+        default: false
 
 jobs:
   db:
@@ -30,6 +38,11 @@ jobs:
       SEED_SUPER_ADMIN_LOGIN_ID: superadmin
       SEED_SUPER_ADMIN_EMAIL: ${{ secrets.SEED_SUPER_ADMIN_EMAIL }}
       SEED_SUPER_ADMIN_PASSWORD: ${{ secrets.SEED_SUPER_ADMIN_PASSWORD }}
+      PII_ENCRYPTION_KEY: ${{ secrets.PII_ENCRYPTION_KEY }}
+      PII_HASH_PEPPER: ${{ secrets.PII_HASH_PEPPER }}
+      SEED_DEMO_PASSWORD: ${{ secrets.SEED_DEMO_PASSWORD }}
+      STORAGE_DRIVER: supabase
+      SUPABASE_STORAGE_BUCKET: attachments
     steps:
       - name: 필수 값 확인
         run: |
@@ -47,3 +60,6 @@ jobs:
       - name: 기본 데이터 넣기
         if: ${{ inputs.seed }}
         run: pnpm db:seed
+      - name: 테스트용 가상 데이터 넣기
+        if: ${{ inputs.demo }}
+        run: pnpm db:seed:demo

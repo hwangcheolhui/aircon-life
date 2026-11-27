@@ -9,6 +9,7 @@
     ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
     "./server": { "types": "./dist/server.d.ts", "default": "./dist/server.js" }
   },
+  "typesVersions": { "*": { "server": ["dist/server.d.ts"] } },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
