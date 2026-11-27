@@ -7,6 +7,7 @@ import {
   techProfileInput,
   techSettlementResponseInput,
   transferRequestInput,
+  z,
 } from '@aircon/contracts';
 import { SETTING_KEYS, validatePasswordRule } from '@aircon/domain';
 import { revalidatePath } from 'next/cache';
@@ -15,8 +16,11 @@ import { UserError, handle, parse } from '@/server/action-result';
 import { requestTransfer } from '@/server/dispatch';
 import { getSettingNumber } from '@/server/settings';
 import { techRespond } from '@/server/settlements';
+import { createSafeNumberProvider } from '@aircon/integrations';
+import { refreshEtas } from '@/server/route-monitor';
+
 import { agreeLocation, endDuty, recordLocation, startDuty } from '@/server/tech-duty';
-import { revealTechJobContact, updateTechIntro } from '@/server/tech-jobs';
+import { myAssignment, revealTechJobContact, updateTechIntro } from '@/server/tech-jobs';
 import { endTechSession, requireTechAction, setTechPassword } from '@/server/tech-session';
 
 export async function logoutTech() {
@@ -89,7 +93,9 @@ export async function sendLocation(values: unknown) {
   return handle(async () => {
     const me = await requireTechAction();
     const v = parse(locationInput, values);
-    return recordLocation(me.id, v);
+    const r = await recordLocation(me.id, v);
+    if (r.saved) await refreshEtas(me.id); // 단계 9 F-SYS-17 위치 이벤트로 남은 정류장 ETA 갱신
+    return r;
   });
 }
 
@@ -100,5 +106,17 @@ export async function respondSettlement(values: Record<string, unknown>) {
     const v = parse(techSettlementResponseInput, values);
     await techRespond(me.id, v.settlementId, v.action, v.note ?? '');
     revalidatePath('/tech/settlements', 'layout');
+  });
+}
+
+/** 단계 9 안심번호로 고객에게 전화 (실제 번호 비공개, 02 §6). 내 진행 중 작업만 */
+export async function safeCallCustomer(orderNo: string) {
+  return handle(async () => {
+    const me = await requireTechAction();
+    const m = await myAssignment(me.id, parse(z.string().min(1).max(20), orderNo));
+    if (!m || !['ASSIGNED', 'ON_THE_WAY', 'IN_PROGRESS'].includes(m.o.status)) throw new UserError('진행 중인 내 작업에서만 연결할 수 있습니다.');
+    const r = await createSafeNumberProvider().issue({ orderNo: m.o.orderNo, caller: 'TECHNICIAN' });
+    if (!r.ok) throw new UserError(r.failReason ?? '안심번호를 받지 못했습니다.');
+    return { number: r.number! };
   });
 }

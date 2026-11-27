@@ -2,7 +2,9 @@
 // 기사 코스·자가 배정 서버 액션 (단계 4-2)
 // F-TEC-RTE-01 코스 편집(순서 변경 즉시 재계산·저장) · F-TEC-RTE-02 최적 코스 추천 · F-TEC-RTE-03 코스 확정(BR-112 시간창, BR-113 마감)
 // F-TEC-RTE-04 관할 내 미배정 작업 [내 일정에 넣기](BR-110·111, 동시 요청은 1명만 성공)
-import { routeDateInput, routeEditInput, selfAssignRequestInput } from '@aircon/contracts';
+// 단계 9: 마감 후 코스 변경 요청(F-ADM-DSP-09, BR-113) · 고객 지연 안내(F-TEC-RTE-06)
+import { routeChangeRequestInput, routeDateInput, routeEditInput, selfAssignRequestInput, z } from '@aircon/contracts';
+import { requestRouteChange, sendVisitDelay } from '@/server/route-monitor';
 import { revalidatePath } from 'next/cache';
 import { handle, parse } from '@/server/action-result';
 import {
@@ -76,5 +78,24 @@ export async function requestSelfAssignAction(values: unknown) {
     const r = await requestSelfAssign(me.id, v.orderNo);
     refresh();
     return r;
+  });
+}
+
+/** 단계 9 확정 마감 후 코스 변경 요청 → 거점 승인(A-DSP-070) */
+export async function requestRouteChangeAction(values: unknown) {
+  return handle(async () => {
+    const me = await requireTechAction();
+    const v = parse(routeChangeRequestInput, values);
+    await requestRouteChange(me.id, v.date, v.note);
+    refresh();
+  });
+}
+
+/** 단계 9 F-TEC-RTE-06 고객에게 지연 안내 (새 도착 예정 시각, 좌표 없음 BR-115) */
+export async function sendVisitDelayAction(orderNo: unknown) {
+  return handle(async () => {
+    const me = await requireTechAction();
+    await sendVisitDelay(me.id, parse(z.string().min(1).max(20), orderNo));
+    refresh();
   });
 }

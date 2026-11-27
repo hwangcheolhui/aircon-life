@@ -52,6 +52,8 @@ import { and, asc, desc, eq, inArray, isNull, ne } from 'drizzle-orm';
 import { formatClock } from '@/customer/format';
 import { UserError, ValidationFailed } from './action-result';
 import { saveAttachment } from './attachments';
+import { linkDevicesAfterWork } from './devices';
+import { refreshEtas } from './route-monitor';
 import { getDb } from './db';
 import { notifyOrder } from './notify';
 import { completeIfPaid } from './payments';
@@ -409,7 +411,8 @@ export async function completeWork(
   const results = s.results.map((r) => r.result);
   const db = getDb();
   const [o] = await db.select().from(serviceOrder).where(eq(serviceOrder.id, s.orderId));
-  // 작업비 = 주문 금액(상품·옵션·할증·할인 반영) + 고객이 동의한 추가요금만(BR-040). 자재·현장 할인은 단계 9
+  // 작업비 = 주문 금액(상품·옵션·할증·할인·쿠폰 반영) + 고객이 동의한 추가요금만(BR-040).
+  // 단계 9: 고객 청구 자재는 추가요금(MATERIAL)으로 동의받아 agreedExtra 에 들어가므로 material_amount 는 0 으로 둔다(이중 청구 방지)
   const agreedExtra = (await extrasOf(w.id)).agreed;
   const final = finalAmount({ laborAmount: o!.totalAmount, agreedExtra, materialAmount: w.materialAmount, discountAmount: w.discountAmount });
   await db.transaction(async (tx) => {
@@ -444,6 +447,8 @@ export async function completeWork(
     // 단계 6: 선결제로 이미 다 냈으면 바로 완료(01 §3.1 WORK_DONE → COMPLETED, BR-081 정산 대상)
     await completeIfPaid(tx, { id: o!.id, status: 'WORK_DONE', totalAmount: final, paidAmount: o!.paidAmount, paymentStatus: o!.paymentStatus });
   });
+  await linkDevicesAfterWork(o!.id, w.id, now);
+  await refreshEtas(techId, now); // 단계 9 F-SYS-17 작업 종료 이벤트로 남은 정류장 ETA 갱신
   await notifyOrder('WORK_DONE', o!.id, { 리포트링크: reportUrl(o!.orderNo) });
   return { done: true };
 }

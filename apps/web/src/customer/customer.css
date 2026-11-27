@@ -310,3 +310,16 @@
 .cus-inquiry { display: grid; gap: var(--space-2); padding: var(--space-3) 0; border-bottom: 1px solid var(--color-divider); }
 .cus-inquiry:last-child { border-bottom: 0; }
 .cus-reply { padding: var(--space-3); border-radius: var(--radius-md); background: var(--color-bg-subtle); white-space: pre-wrap; }
+
+/* 단계 9: 사진 인식·내 기기·후기·쿠폰 */
+.cus-plain-list { list-style: none; margin: 0; padding: 0; }
+.cus-photo-grid { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+.cus-photo-thumb { width: 72px; height: 72px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--color-border); }
+.cus-device { display: grid; gap: var(--space-2); }
+.cus-device__head { display: flex; align-items: center; gap: var(--space-2); }
+.cus-stars { display: flex; gap: var(--space-1); }
+.cus-stars .ac-btn { min-width: 48px; }
+.cus-nps { display: grid; grid-template-columns: repeat(11, 1fr); gap: var(--space-1); }
+.cus-nps .ac-chip { justify-content: center; padding-inline: 0; }
+.cus-coupon { display: grid; gap: var(--space-1); }
+.cus-coupon.is-dim { color: var(--color-text-secondary); }

@@ -17,3 +17,12 @@ export const encrypt = (v: string | null) => (v ? encryptPii(v, key()) : null);
 export const decrypt = (v: string | null) => (v ? decryptPii(v, key()) : null);
 /** 전화번호 검색용 해시 (customer.phone1_hash, ERD §6) */
 export const phoneHash = (phone: string) => hashPhone(phone, pepper());
+
+/** 여러 행을 한 번에 보여 주는 목록용: 복호화에 실패한 행(형식 오류·파기된 값)은 null 로 보고 화면 전체가 깨지지 않게 한다 */
+export const decryptOrNull = (v: string | null) => {
+  try {
+    return decrypt(v);
+  } catch {
+    return null;
+  }
+};

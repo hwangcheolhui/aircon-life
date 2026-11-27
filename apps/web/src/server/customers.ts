@@ -59,7 +59,7 @@ export async function findCustomerBySocial(provider: string, key: string) {
 export async function linkAppLogin(customerId: number, provider: string, key: string | null) {
   await getDb()
     .update(customer)
-    .set({ authProvider: provider, authProviderKey: key, status: 'ACTIVE', updatedAt: new Date(), updatedBy: customerId })
+    .set({ authProvider: provider, authProviderKey: key, status: 'ACTIVE', dormantAt: null, updatedAt: new Date(), updatedBy: customerId })
     .where(eq(customer.id, customerId));
 }
 

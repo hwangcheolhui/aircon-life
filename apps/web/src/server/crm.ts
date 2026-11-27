@@ -6,10 +6,11 @@ import 'server-only';
  * - 성과: 발송 후 CAMPAIGN_CONVERSION_DAYS 안 첫 주문을 converted_order_id 로 연결(F-SYS-11 집계에서 갱신).
  */
 import type { revisitCampaignInput, z } from '@aircon/contracts';
-import { branch, campaign, campaignTarget, customer, customerAddress, serviceOrder } from '@aircon/db';
+import { branch, campaign, campaignTarget, coupon, customer, customerAddress, serviceOrder } from '@aircon/db';
 import { ACTIVE_ORDER_STATUSES, SETTING_KEYS, type BranchFilter, addMonthsToDate, isRevisitTarget, matchConversion } from '@aircon/domain';
 import { and, desc, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
 import { UserError } from './action-result';
+import { issueToCustomers } from './coupons';
 import { getDb } from './db';
 import { notifyCustomer } from './notify';
 import type { Actor } from './orders';
@@ -132,7 +133,7 @@ export async function revisitOverview(filter: BranchFilter, now = new Date()) {
     .leftJoin(customerAddress, and(eq(customerAddress.customerId, campaignTarget.customerId), eq(customerAddress.isDefault, true), isNull(customerAddress.deletedAt)))
     .where(and(eq(campaignTarget.campaignId, c.id), gte(campaignTarget.sentAt, since), scope));
   return {
-    campaign: { id: c.id, name: c.name, running: c.status === 'RUNNING', branchIds: rule.branchIds, updatedAt: c.updatedAt },
+    campaign: { id: c.id, name: c.name, running: c.status === 'RUNNING', branchIds: rule.branchIds, couponId: c.couponId, updatedAt: c.updatedAt },
     months: preview.months,
     cutoff: preview.cutoff,
     preview: preview.targets.slice(0, 200).map((t) => ({ id: t.id, customerNo: t.customerNo, branchName: t.branchName, lastServiceDate: t.lastServiceDate, monthsAgo: t.monthsAgo })),
@@ -142,12 +143,12 @@ export async function revisitOverview(filter: BranchFilter, now = new Date()) {
   };
 }
 
-/** F-ADM-CRM-01 규칙 저장(실행·중지, 대상 거점). 쿠폰 첨부는 쿠폰이 생기는 단계 9에서 */
+/** F-ADM-CRM-01 규칙 저장(실행·중지, 대상 거점, 단계 9: 동봉 쿠폰) */
 export async function saveRevisitCampaign(input: z.output<typeof revisitCampaignInput>, actor: Actor, now = new Date()) {
   const c = await revisitCampaign();
   await getDb()
     .update(campaign)
-    .set({ status: input.running ? 'RUNNING' : 'STOPPED', targetRuleJson: { branchIds: input.branchIds }, updatedAt: now, updatedBy: actor.id })
+    .set({ status: input.running ? 'RUNNING' : 'STOPPED', targetRuleJson: { branchIds: input.branchIds }, couponId: input.couponId ?? null, updatedAt: now, updatedBy: actor.id })
     .where(eq(campaign.id, c.id));
 }
 
@@ -157,9 +158,12 @@ export async function runRevisitCampaign(origin: string, now = new Date()) {
   if (c.status !== 'RUNNING') return { skipped: true as const, sent: 0, failed: 0 };
   const { targets } = await revisitCandidates(ruleOf(c.targetRuleJson), { kind: 'ALL' }, now);
   const db = getDb();
+  // 단계 9: 동봉 쿠폰이 있으면 발송 대상에게 함께 발급(안내는 재방문 알림으로 갈음)
+  const [cp] = c.couponId ? await db.select().from(coupon).where(and(eq(coupon.id, c.couponId), isNull(coupon.deletedAt), eq(coupon.isActive, true))) : [];
   let sent = 0;
   let failed = 0;
   for (const t of targets) {
+    if (cp) await issueToCustomers(cp, [{ id: t.id, marketingAgree: true }], { type: 'SYSTEM', id: null }, { campaignId: c.id, notify: false }, now).catch(() => undefined);
     const result = await notifyCustomer('REVISIT_11M', t.id, { 경과개월: String(t.monthsAgo), 예약링크: `${origin}/quote` }, { type: 'CAMPAIGN', id: c.id });
     if (result === 'SKIPPED') continue;
     const ok = result !== 'FAILED';

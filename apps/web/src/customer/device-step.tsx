@@ -1,7 +1,8 @@
 'use client';
 // C-QUO-020 기기 형태 선택 · F-CUS-QUO-02 (복수 선택)
 import { Alert, Button, Empty } from '@aircon/ui';
-import { AirVent, Check } from 'lucide-react';
+import { AirVent, Camera, Check } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { QuoteBottomBar, StepHeader, useQuoteDraft } from './quote-flow';
@@ -44,6 +45,10 @@ export function DeviceStep({ deviceTypes }: { deviceTypes: { value: string; labe
             })}
           </div>
         )}
+        {/* 단계 9 C-QUO-021 사진으로 기기 인식 */}
+        <Link href={`/quote/photo?dong=${encodeURIComponent(dong)}`} className="ac-btn ac-btn--secondary ac-btn--block">
+          <Camera aria-hidden /> 잘 모르겠어요, 사진으로 알아보기
+        </Link>
         <Alert>시스템·천장형이 여러 대라면 현장 확인 후 견적을 드릴 수 있어요.</Alert>
       </main>
       <QuoteBottomBar label="예상 금액" amount={null}>

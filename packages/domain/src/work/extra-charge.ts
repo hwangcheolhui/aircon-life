@@ -65,6 +65,8 @@ export interface ExtraChargeInputCheck {
   hasEvidence: boolean;
   hasRule: boolean;
   quantity: number;
+  /** 단계 9 자재 사용(T-WRK-050)에서 만든 청구 자재: 자재 마스터 판매가(사전 공개 단가)라 증빙 사진을 받지 않는다 */
+  fromMaterialMaster?: boolean;
 }
 
 /** F-TEC-WRK-05 입력 검증 (필드명 → 메시지). 규칙은 규칙 선택, 자재·기타는 증빙 사진, 사유는 모두 필수 */
@@ -76,7 +78,7 @@ export function checkExtraChargeInput(i: ExtraChargeInputCheck): Record<string, 
   if (!i.title.trim()) e.title = MSG.required('항목명');
   if (!Number.isInteger(i.amount) || i.amount < 1) e.amount = '금액은 1원 이상이어야 합니다.';
   if (!i.reason.trim()) e.reason = MSG.required('사유');
-  if ((i.chargeType === 'ETC' || i.chargeType === 'MATERIAL') && !i.hasEvidence) e.evidence = MSG.required('증빙 사진');
+  if ((i.chargeType === 'ETC' || (i.chargeType === 'MATERIAL' && !i.fromMaterialMaster)) && !i.hasEvidence) e.evidence = MSG.required('증빙 사진');
   return e;
 }
 

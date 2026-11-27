@@ -112,7 +112,7 @@ export async function notifyStaff(
 export async function notifyStaffWith(
   code: NotificationTemplateCode,
   receiver: { type: 'TECHNICIAN'; id: number } | { type: 'ADMIN'; id: number | null },
-  related: { type: 'ORDER' | 'ROUTE_PLAN' | 'SETTLEMENT' | 'FOLLOWUP' | 'INCIDENT'; id: number },
+  related: { type: 'ORDER' | 'ROUTE_PLAN' | 'SETTLEMENT' | 'FOLLOWUP' | 'INCIDENT' | 'WORK_ORDER' | 'PAYMENT'; id: number },
   vars: Record<string, string>,
   link?: string,
 ): Promise<void> {
@@ -174,7 +174,7 @@ export async function notifyCustomer(
   code: NotificationTemplateCode,
   customerId: number,
   vars: Record<string, string>,
-  related: { type: 'ORDER' | 'CAMPAIGN' | 'CONSULT' | 'AS'; id: number },
+  related: { type: 'ORDER' | 'CAMPAIGN' | 'CONSULT' | 'AS' | 'COUPON' | 'CUSTOMER'; id: number },
 ): Promise<'SENT' | 'FALLBACK_SMS' | 'FAILED' | 'SKIPPED'> {
   if (!isDbConfigured()) return 'SKIPPED';
   const db = getDb();

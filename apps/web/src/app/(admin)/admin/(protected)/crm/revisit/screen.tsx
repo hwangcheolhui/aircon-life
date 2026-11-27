@@ -1,6 +1,6 @@
 'use client';
-// A-CRM-010 재방문 자동 캠페인 (F-ADM-CRM-01): 규칙 저장 전 확인, 대상 미리보기(고객번호만, BR-100), 최근 90일 성과
-import { Alert, Button, Card, Check, ConfirmModal, Empty, MSG, Tag, useToast } from '@aircon/ui';
+// A-CRM-010 재방문 자동 캠페인 (F-ADM-CRM-01): 규칙·동봉 쿠폰 저장 전 확인, 대상 미리보기(고객번호만, BR-100), 최근 90일 성과
+import { Alert, Button, Card, Check, ConfirmModal, Empty, Field, MSG, Select, Tag, useToast } from '@aircon/ui';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { type Option, labelOf } from '@/admin/crud-screen';
@@ -10,16 +10,17 @@ import { saveRevisitAction } from './actions';
 
 type D = Awaited<ReturnType<typeof revisitOverview>>;
 
-export function RevisitScreen({ d, codes, branches, canUpdate }: { d: D; codes: Record<string, Option[]>; branches: { id: number; name: string }[]; canUpdate: boolean }) {
+export function RevisitScreen({ d, codes, branches, coupons, canUpdate }: { d: D; codes: Record<string, Option[]>; branches: { id: number; name: string }[]; coupons: Option[]; canUpdate: boolean }) {
   const router = useRouter();
   const toast = useToast();
   const [running, setRunning] = useState(d.campaign.running);
   const [ids, setIds] = useState<number[]>(d.campaign.branchIds);
+  const [couponId, setCouponId] = useState(d.campaign.couponId ? String(d.campaign.couponId) : '');
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const save = async () => {
     setConfirm(false);
-    const r = await saveRevisitAction({ running, branchIds: ids });
+    const r = await saveRevisitAction({ running, branchIds: ids, couponId });
     if (!r.ok) return setError(r.message ?? '저장하지 못했습니다.');
     toast(MSG.saved);
     router.refresh();
@@ -46,9 +47,21 @@ export function RevisitScreen({ d, codes, branches, canUpdate }: { d: D; codes: 
               <Check key={b.id} label={b.name} checked={ids.includes(b.id)} onChange={(e) => setIds(e.target.checked ? [...ids, b.id] : ids.filter((x) => x !== b.id))} />
             ))}
           </div>
+          <Field label="동봉 쿠폰" help="고르면 안내와 함께 쿠폰을 발급합니다. 쿠폰은 쿠폰 관리에서 만듭니다.">
+            {(id, d) => (
+              <Select id={id} aria-describedby={d} value={couponId} onChange={(e) => setCouponId(e.target.value)}>
+                <option value="">없음</option>
+                {coupons.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
         </fieldset>
         <div className="adm-toolbar">
-          <span className="ac-caption">쿠폰 첨부는 쿠폰 기능(단계 9)이 생기면 추가됩니다.</span>
+          <span />
           <Button variant="primary" disabled={!canUpdate} onClick={() => setConfirm(true)}>
             저장
           </Button>

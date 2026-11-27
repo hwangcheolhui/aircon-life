@@ -1,6 +1,7 @@
-// C-PAY-010 결제 (S8) · F-CUS-PAY-01: 최종 금액, 결제수단(카드·간편결제는 PG 결제창), PG 호출 → 서버 재확인. 쿠폰(F-CUS-PAY-04)은 단계 9.
+// C-PAY-010 결제 (S8) · F-CUS-PAY-01: 최종 금액, 결제수단(카드·간편결제는 PG 결제창), PG 호출 → 서버 재확인. 단계 9: 쿠폰 적용(F-CUS-PAY-04, 결제 전 보유 쿠폰 선택 → 할인 행·합계 재계산).
 import { createPaymentGateway } from '@aircon/integrations';
 import { notFound, redirect } from 'next/navigation';
+import { couponChoicesForOrder } from '@/server/coupons';
 import { requireCustomer } from '@/server/customer-session';
 import { DEMO_ORDER_NO, getCustomerOrder } from '@/server/orders';
 import { PayStep } from './pay-step';
@@ -21,6 +22,7 @@ export default async function PayPage({
   const gateway = createPaymentGateway();
   let amount: number;
   let items: { name: string; amount: number }[] = [];
+  let coupons: Awaited<ReturnType<typeof couponChoicesForOrder>> = null;
   if (me.demo || orderNo === DEMO_ORDER_NO) {
     if (orderNo !== DEMO_ORDER_NO) notFound();
     amount = Number(sp.a ?? 0);
@@ -31,6 +33,7 @@ export default async function PayPage({
       redirect(`/orders/${orderNo}`);
     amount = o.totalAmount;
     items = o.items.map((i) => ({ name: i.name, amount: i.amount }));
+    coupons = await couponChoicesForOrder(me.id, orderNo);
   }
   return (
     <PayStep
@@ -45,6 +48,7 @@ export default async function PayPage({
       }
       returnedPaymentId={sp.paymentId ?? null}
       demoQuery={me.demo ? `?a=${amount}` : ''}
+      coupons={coupons}
     />
   );
 }

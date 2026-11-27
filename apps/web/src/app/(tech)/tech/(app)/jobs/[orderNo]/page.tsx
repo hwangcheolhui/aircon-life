@@ -1,4 +1,4 @@
-// T-JOB-020 작업 상세 · F-TEC-JOB-02(고객·주소·기기·요청·전달사항·과거 이력·길찾기·전화) · F-TEC-JOB-05(이관 요청)
+// T-JOB-020 작업 상세 · F-TEC-JOB-02(고객·주소·기기·요청·전달사항·과거 이력·길찾기·전화) · F-TEC-JOB-05(이관 요청) · 단계 9 안심번호 전화
 // 단계 5-1: [작업 시작/이어서] → 현장작업 스텝(T-WRK-010~060), 활동내역(T-WRK-070, F-TEC-WRK-09).
 // 단계 6: 작업완료면 [결제 받기](T-PAY-010), 완료면 결제 내역·현금영수증.
 // 단계 5-2: [미처리 저장](T-WRK-061, 출발 전에도) · 미처리 사유·장기 미처리 표시(BR-031·032). 안심번호는 단계 9. 연락처·상세주소는 [보기]를 눌러야 보이고 감사 로그를 남긴다(BR-100).
@@ -15,6 +15,8 @@ import { ActivitySheetButton } from '@/tech/work/activity';
 import { listActivities, workSummary } from '@/server/work';
 import { kstDate } from '@aircon/domain';
 import { ContactReveal, TransferRequest } from './job-actions';
+import { SafeCallButton } from '@/shared/safe-call-button';
+import { safeCallCustomer } from '../../actions';
 
 export const metadata = { title: '작업 상세' };
 
@@ -198,6 +200,7 @@ export default async function TechJobPage({ params }: { params: Promise<{ orderN
         </Link>
       ) : null}
       {j.status === 'ASSIGNED' && !j.transferRequested ? <TransferRequest orderNo={j.orderNo} /> : null}
+      {['ASSIGNED', 'ON_THE_WAY', 'IN_PROGRESS'].includes(j.status) ? <SafeCallButton orderNo={j.orderNo} label="고객에게 전화 (안심번호)" action={safeCallCustomer} /> : null}
       {j.branchPhone ? (
         <a href={`tel:${j.branchPhone}`} className="ac-btn ac-btn--ghost ac-btn--block">
           {j.branchName} 거점 전화 <span className="ac-num">{j.branchPhone}</span>

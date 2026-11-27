@@ -62,6 +62,18 @@ export const SYSTEM_SETTING_SEEDS: readonly SystemSettingSeed[] = [
   { key: 'KPI_TARGET_OFFPEAK_RATIO', value: '40', description: 'KPI 목표: 비수기/성수기 매출 비(%) ERD §5' },
   { key: 'KPI_TARGET_AS_RATE', value: '5', description: 'KPI 목표: AS·불만율(% 이하) ERD §5' },
   { key: 'KPI_TARGET_CAC_RATE', value: '15', description: 'KPI 목표: 고객 획득비 ÷ 객단가(% 이하) ERD §5' },
+  // ── 단계 9 품질·편의 확장 ──
+  { key: 'DEVICE_RECOMMEND_MONTHS', value: '12', description: '작업 결과에 권장 시기가 없을 때 다음 청소 권장 개월 F-CUS-DEV-01' },
+  { key: 'REVIEW_WRITABLE_DAYS', value: '7', description: '작업 완료 후 후기를 쓸 수 있는 기간(일) F-CUS-REV-01' },
+  { key: 'REVIEW_REQUEST_DELAY_HOURS', value: '2', description: '작업 완료 후 몇 시간 뒤 후기 요청을 보낼지 F-SYS-05' },
+  { key: 'REVIEW_VOC_MAX_RATING', value: '2', description: '이 평점 이하 후기는 VOC 자동 생성 BR-090' },
+  { key: 'INSPECTION_REQUIRED', value: 'N', description: 'Y면 작업 결과 검수 승인 건만 정산 대상(반려 건은 항상 제외) F-ADM-PRC-03' },
+  { key: 'RECOMMEND_WEIGHTS', value: '30,25,20,15,10', description: '자동 배정 추천 가중치(관할,숙련,부하,이동,평점) F-ADM-DSP-02' },
+  { key: 'RECOMMEND_DAY_JOB_CAP', value: '6', description: '자동 배정 추천에서 기사 하루 적정 작업 수(이만큼 차면 부하 점수 0) F-ADM-DSP-02' },
+  { key: 'ETA_DELAY_ALERT_MIN', value: '30', description: '다음 고객 도착이 안내 시각보다 이 분 이상 늦으면 기사에게 지연 알림 F-TEC-RTE-06' },
+  { key: 'DORMANT_ENABLED', value: 'N', description: 'Y면 휴면 전환 배치 실행(법무 확인 후 켜기) F-SYS-13' },
+  { key: 'DORMANT_MONTHS', value: '12', description: '마지막 이용 후 몇 개월이 지나면 휴면 전환 F-SYS-13' },
+  { key: 'DORMANT_NOTICE_DAYS', value: '30', description: '휴면 전환 며칠 전에 사전 안내 F-SYS-13' },
 ];
 
 export const SETTING_KEYS = {
@@ -110,4 +122,15 @@ export const SETTING_KEYS = {
   WORK_PHOTO_CAMERA_ONLY: 'WORK_PHOTO_CAMERA_ONLY',
   PENDING_OVERDUE_HOURS: 'PENDING_OVERDUE_HOURS',
   SETTLEMENT_WEEKDAY: 'SETTLEMENT_WEEKDAY',
+  DEVICE_RECOMMEND_MONTHS: 'DEVICE_RECOMMEND_MONTHS',
+  REVIEW_WRITABLE_DAYS: 'REVIEW_WRITABLE_DAYS',
+  REVIEW_REQUEST_DELAY_HOURS: 'REVIEW_REQUEST_DELAY_HOURS',
+  REVIEW_VOC_MAX_RATING: 'REVIEW_VOC_MAX_RATING',
+  INSPECTION_REQUIRED: 'INSPECTION_REQUIRED',
+  RECOMMEND_WEIGHTS: 'RECOMMEND_WEIGHTS',
+  RECOMMEND_DAY_JOB_CAP: 'RECOMMEND_DAY_JOB_CAP',
+  ETA_DELAY_ALERT_MIN: 'ETA_DELAY_ALERT_MIN',
+  DORMANT_ENABLED: 'DORMANT_ENABLED',
+  DORMANT_MONTHS: 'DORMANT_MONTHS',
+  DORMANT_NOTICE_DAYS: 'DORMANT_NOTICE_DAYS',
 } as const;

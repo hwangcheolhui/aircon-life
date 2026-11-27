@@ -14,14 +14,14 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import { adminUser, branch } from './d1-org';
-import { customer, customerAddress } from './d2-customer';
-import { serviceOption, serviceProduct, surchargeRule } from './d3-product';
+import { customer, customerAddress, customerDevice } from './d2-customer';
+import { coupon, serviceOption, serviceProduct, surchargeRule } from './d3-product';
 import { quote } from './d4-quote';
 import { auditColumns, idColumn, softDelete } from './common';
 import { consultation } from './d6-consult';
 
 /**
- * 2.5.1 서비스 주문. coupon_id(단계 9)의 FK는 해당 테이블이 생기는 단계에서 건다. consultation_id = 전화 접수 상담(단계 3).
+ * 2.5.1 서비스 주문. coupon_id = 결제 화면에서 고른 쿠폰(단계 9, F-CUS-PAY-04). consultation_id = 전화 접수 상담(단계 3).
  * status 변경은 packages/domain 주문 상태 전이(assertOrderTransition)를 거치고 order_status_history 에 1행 INSERT 한다.
  */
 export const serviceOrder = pgTable(
@@ -63,7 +63,7 @@ export const serviceOrder = pgTable(
     totalAmount: integer('total_amount').notNull(),
     paidAmount: integer('paid_amount').notNull().default(0),
     paymentStatus: varchar('payment_status', { length: 20 }).notNull(), // PAYMENT_STATUS
-    couponId: bigint('coupon_id', { mode: 'number' }),
+    couponId: bigint('coupon_id', { mode: 'number' }).references(() => coupon.id),
     isDuplicateChecked: boolean('is_duplicate_checked').notNull().default(false),
     completedAt: timestamp('completed_at', { withTimezone: true }),
     canceledAt: timestamp('canceled_at', { withTimezone: true }),
@@ -77,7 +77,7 @@ export const serviceOrder = pgTable(
   ],
 );
 
-/** 2.5.2 주문 상세. customer_device_id 의 FK는 customer_device 테이블이 생기는 단계(9)에서 건다. */
+/** 2.5.2 주문 상세. customer_device_id = 원클릭 재예약 대상 기기(단계 9). 쿠폰 할인은 item_type=DISCOUNT 1행 */
 export const orderItem = pgTable(
   'order_item',
   {
@@ -89,7 +89,7 @@ export const orderItem = pgTable(
     productId: bigint('product_id', { mode: 'number' }).references(() => serviceProduct.id),
     optionId: bigint('option_id', { mode: 'number' }).references(() => serviceOption.id),
     surchargeRuleId: bigint('surcharge_rule_id', { mode: 'number' }).references(() => surchargeRule.id),
-    customerDeviceId: bigint('customer_device_id', { mode: 'number' }),
+    customerDeviceId: bigint('customer_device_id', { mode: 'number' }).references(() => customerDevice.id),
     quantity: integer('quantity').notNull(),
     unitPrice: integer('unit_price').notNull(),
     amount: integer('amount').notNull(),

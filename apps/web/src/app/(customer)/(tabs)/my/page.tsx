@@ -1,4 +1,4 @@
-// C-MY-010 내 정보 / 주소록 · F-CUS-MY-01 (본인 화면이라 원문 표시). 쿠폰함(C-MY-020)은 단계 9.
+// C-MY-010 내 정보 / 주소록 · F-CUS-MY-01 (본인 화면이라 원문 표시). 단계 9: 내 기기(C-DEV-010)·쿠폰함(C-MY-020) 메뉴
 import { Alert, Card } from '@aircon/ui';
 import { ChevronRight } from 'lucide-react';
 import Link from 'next/link';
@@ -55,6 +55,8 @@ export default async function MyPage() {
       ) : null}
       <ul className="ac-list ac-card">
         {[
+          { href: '/my/devices', label: '내 기기' },
+          { href: '/my/coupons', label: '쿠폰함' },
           { href: '/notifications', label: '알림함' },
           { href: '/cs', label: '고객센터' },
           { href: '/my/consents', label: '동의·알림 설정' },

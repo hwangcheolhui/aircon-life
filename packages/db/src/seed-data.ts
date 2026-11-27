@@ -217,6 +217,7 @@ export const COMMON_CODE_SEED = [
     ['DOC', '문서'],
     ['SIGNATURE', '고객 서명'], // 단계 5-1
     ['AS_REQUEST', 'AS 사진'], // 단계 8
+    ['DEVICE_IMAGE', '사진 인식'], // 단계 9
   ]),
   ...g('AUDIT_ACTION', [
     ['VIEW_PII', '개인정보 열람'],
@@ -597,6 +598,48 @@ export const COMMON_CODE_SEED = [
     ['DEDUCTION', '공제'],
     ['ADJUST', '조정'],
   ]),
+  // 단계 9 품질·편의 확장 (01 §4 "단계 9에서 추가한 그룹", 마이그레이션 0013 에도 같은 값)
+  ...g('DEVICE_CATEGORY', [
+    ['AIRCON', '에어컨'],
+    ['WASHER', '세탁기'],
+    ['DRYER', '건조기'],
+    ['HOOD', '주방 후드'],
+    ['MATTRESS', '매트리스'],
+  ]),
+  ...g('IMAGE_PURPOSE', [
+    ['DEVICE_TYPE', '기기 형태'],
+    ['BRAND_LABEL', '제조사 라벨'],
+    ['DIRT_LEVEL', '오염도'],
+  ]),
+  ...g('REVIEW_TAG', [
+    ['KIND', '친절해요'],
+    ['CAREFUL', '꼼꼼해요'],
+    ['ON_TIME', '시간을 잘 지켜요'],
+    ['EXPLAIN', '설명이 자세해요'],
+    ['TIDY', '뒷정리가 깔끔해요'],
+    ['LATE', '늦었어요'],
+    ['ROUGH', '작업이 아쉬워요'],
+    ['PRICE', '가격이 아쉬워요'],
+  ]),
+  ...g('COUPON_DISCOUNT_TYPE', [
+    ['FIXED', '정액'],
+    ['RATE', '정률(%)'],
+  ]),
+  ...g('CUSTOMER_COUPON_STATUS', [
+    ['ISSUED', '사용 가능'],
+    ['USED', '사용함'],
+    ['EXPIRED', '만료'],
+  ]),
+  ...g('INSPECTION_STATUS', [
+    ['WAITING', '검수 대기'],
+    ['APPROVED', '승인'],
+    ['REJECTED', '반려(재작업)'],
+  ]),
+  ...g('ROUTE_CHANGE_STATUS', [
+    ['REQUESTED', '변경 요청'],
+    ['APPROVED', '승인'],
+    ['REJECTED', '반려'],
+  ]),
   // 단계 8 사후관리·운영 마감 (01 §4 "단계 8에서 추가한 그룹", 마이그레이션 0012 에도 같은 값)
   ...g('FOLLOWUP_TARGET', [
     ['CONSULT', '상담 독촉'],
@@ -905,6 +948,21 @@ export const AFTERCARE_TEMPLATE_SEED = [
   { templateCode: 'REVISIT_11M', channel: 'ALIMTALK', target: 'CUSTOMER', title: '재방문 안내', body: "#{고객명}님, 에어컨 청소를 받으신 지 #{경과개월}개월이 지났어요.\n더워지기 전에 미리 예약해 보세요.\n예약하기: #{예약링크}\n수신을 원하지 않으시면 마이 > 동의 관리에서 해제할 수 있어요." },
 ];
 
+/** 단계 9 알림 템플릿: 후기 요청·쿠폰 발급·캠페인·검수 반려·진행 중 지연·코스 변경 요청·휴면 안내·PG 대사 불일치 */
+export const QUALITY_TEMPLATE_SEED = [
+  { templateCode: 'REVIEW_REQUEST', channel: 'ALIMTALK', target: 'CUSTOMER', title: '후기 요청', body: "#{고객명}님, 에어컨 청소는 만족스러우셨나요?\n#{접수번호} 작업 후기를 #{마감일}까지 남겨 주세요.\n후기 쓰기: #{후기링크}" },
+  { templateCode: 'COUPON_ISSUED', channel: 'ALIMTALK', target: 'CUSTOMER', title: '쿠폰 발급 안내', body: "#{고객명}님, #{쿠폰명} 쿠폰이 발급되었습니다.\n사용 기한: #{사용기한}까지\n마이 > 쿠폰함에서 확인해 주세요." },
+  { templateCode: 'CAMPAIGN_MESSAGE', channel: 'ALIMTALK', target: 'CUSTOMER', title: '이벤트 안내', body: "#{고객명}님, #{캠페인명} 소식을 알려 드려요.\n#{쿠폰안내}\n예약하기: #{예약링크}\n수신을 원하지 않으시면 마이 > 동의 관리에서 해제할 수 있어요." },
+  { templateCode: 'INSPECTION_REJECTED', channel: 'PUSH', target: 'TECHNICIAN', title: '작업 결과 반려(재작업 요청)', body: "#{접수번호} 작업 결과가 반려되었습니다.\n사유: #{사유}\n거점에 연락해 재작업 일정을 맞춰 주세요." },
+  { templateCode: 'ETA_DELAY_TECH', channel: 'PUSH', target: 'TECHNICIAN', title: '다음 고객 지연 예상', body: "#{접수번호} 고객 도착이 약 #{지연분}분 늦을 것 같아요(예상 #{도착예정}).\n코스 화면에서 고객에게 지연 안내를 보낼 수 있어요." },
+  { templateCode: 'VISIT_DELAY', channel: 'ALIMTALK', target: 'CUSTOMER', title: '방문 지연 안내', body: "#{고객명}님, 앞 작업이 길어져 기사님 도착이 늦어질 것 같아요.\n도착 예정: #{도착예정}\n접수번호: #{접수번호}\n불편을 드려 죄송합니다. 문의: #{거점전화}" },
+  { templateCode: 'ROUTE_CHANGE_REQUESTED', channel: 'PUSH', target: 'ADMIN', title: '코스 변경 요청', body: "#{기사명} 기사가 #{코스일자} 코스 변경을 요청했습니다.\n사유: #{사유}" },
+  { templateCode: 'ROUTE_CHANGE_APPROVED', channel: 'PUSH', target: 'TECHNICIAN', title: '코스 변경 승인', body: "#{코스일자} 코스 변경이 승인되었습니다. 순서를 고친 뒤 다시 확정해 주세요." },
+  { templateCode: 'ROUTE_CHANGE_REJECTED', channel: 'PUSH', target: 'TECHNICIAN', title: '코스 변경 반려', body: "#{코스일자} 코스 변경 요청이 반려되었습니다.\n#{사유}" },
+  { templateCode: 'DORMANT_NOTICE', channel: 'ALIMTALK', target: 'CUSTOMER', title: '휴면 전환 예정 안내', body: "#{고객명}님, 오래 이용하지 않아 #{전환일}에 휴면 계정으로 바뀔 예정입니다.\n계속 이용하시려면 그 전에 로그인해 주세요." },
+  { templateCode: 'PG_MISMATCH', channel: 'PUSH', target: 'ADMIN', title: 'PG 대사 불일치', body: "#{대사일} PG 대사에서 불일치 #{건수}건이 나왔습니다. 결제 내역(A-PAY-010)에서 확인해 주세요." },
+];
+
 /** 단계 8 고객 FAQ 기본값(faq 가 비어 있을 때만). 운영 중에는 A-CNT-020에서 고친다 */
 export const FAQ_SEED = [
   { category: 'PRICE', audience: 'CUSTOMER', question: "추가요금이 생길 수 있나요?", answer: "오염이 심하거나 높은 곳 작업 등은 현장에서 기사님이 먼저 설명하고, 고객님이 동의한 경우에만 추가돼요.", isPublished: true, sortOrder: 10 },
@@ -960,6 +1018,8 @@ export const NOTIFICATION_TEMPLATE_SEED = [
   ...WORK_TEMPLATE_SEED,
   // ── 단계 8 (마이그레이션 0012 에도 같은 값) ──
   ...AFTERCARE_TEMPLATE_SEED,
+  // ── 단계 9 (마이그레이션 0013 에도 같은 값) ──
+  ...QUALITY_TEMPLATE_SEED,
 ];
 
 /** ERD §0.2 역할. 거점장만 BRANCH 범위이고, 나머지는 소속 거점이 지정되면 BR-102에 따라 그 거점으로 제한된다. */

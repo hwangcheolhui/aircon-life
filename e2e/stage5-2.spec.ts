@@ -379,6 +379,7 @@ test('F-TEC-WRK-04 현장 기기 추가를 현장 서명으로 동의받고, 완
   for (let i = 0; i < 2; i++) await groups.nth(i).getByRole('button', { name: '완료' }).click();
   await p.getByRole('button', { name: '저장하고 다음' }).click();
   await expect(p.getByRole('heading', { name: '추가요금' })).toBeVisible({ timeout: 30_000 });
+  await p.getByRole('link', { name: '다음: 자재 사용' }).click(); // 단계 9 T-WRK-050
   await p.getByRole('link', { name: '다음: 처리 저장' }).click();
   await expect(p.getByRole('heading', { name: '처리 저장' })).toBeVisible({ timeout: 30_000 });
   await p.getByRole('textbox', { name: '처리 내용' }).fill('벽걸이 2대 완전분해 세척, 오염이 심해 추가 세척했습니다.');

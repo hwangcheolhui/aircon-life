@@ -54,6 +54,15 @@ export const ADMIN_ROUTES: Record<string, string> = {
   'A-CNT-020': '/admin/cnt/faqs',
   'A-STA-010': '/admin/sta/sales',
   'A-SYS-060': '/admin/sys/audit-logs',
+  // 단계 9
+  'A-PRC-030': '/admin/prc/inspections',
+  'A-VOC-040': '/admin/voc/reviews',
+  'A-CRM-020': '/admin/crm/campaigns',
+  'A-CRM-030': '/admin/crm/coupons',
+  'A-STA-020': '/admin/sta/operations',
+  'A-STA-030': '/admin/sta/technicians',
+  'A-STA-040': '/admin/sta/customers',
+  'A-DSP-070': '/admin/dsp/monitor',
 };
 
 export function routeOf(screenId: string): string {
