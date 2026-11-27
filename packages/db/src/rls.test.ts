@@ -506,4 +506,55 @@ d('RLS (BR-102, F-ADM-SYS-02)', () => {
       expect([c?.campaign_type, c?.status]).toEqual(['REVISIT_AUTO', 'STOPPED']);
     });
   });
+  describe('단계 9 품질·편의 확장', () => {
+    beforeAll(async () => {
+      const orders = (await sql`SELECT id, customer_id FROM service_order WHERE order_no IN ('2703201000A1', '2703201000A2') ORDER BY order_no`) as unknown as { id: number; customer_id: number }[];
+      const [t] = await sql`SELECT id FROM technician WHERE tech_code = 'T51'`;
+      for (const [i, o] of orders.entries()) {
+        await sql`INSERT INTO review (order_id, customer_id, technician_id, branch_id, rating) VALUES (${o.id}, ${o.customer_id}, ${t!.id}, ${i === 0 ? b1 : b2}, ${i === 0 ? 5 : 1})`;
+        await sql`INSERT INTO customer_device (customer_id, device_type) VALUES (${o.customer_id}, 'WALL')`;
+      }
+      await sql`INSERT INTO coupon (code, name, discount_type, discount_value, valid_to) VALUES ('RLS9TEST', '테스트 쿠폰', 'FIXED', 5000, '2099-12-31')`;
+    });
+
+    it('BR-100 비로그인(anon)은 기기·사진 인식·쿠폰·후기·자재 사용을 읽을 수 없다', async () => {
+      for (const t of ['customer_device', 'device_image', 'coupon', 'customer_coupon', 'review', 'material_usage']) {
+        expect(await as(null, (tx) => tx.unsafe(`SELECT * FROM ${t}`))).toHaveLength(0);
+      }
+    });
+
+    it('BR-102 거점장은 자기 거점 후기만 조회한다', async () => {
+      expect(await as(ids.branchMgr, (tx) => tx`SELECT id FROM review`)).toHaveLength(1);
+      expect(await as(ids.super, (tx) => tx`SELECT id FROM review`)).toHaveLength(2);
+    });
+
+    it('마케팅 권한 없는 상담원은 쿠폰을 읽을 수 없고, 사진 인식 원본은 관리자도 브라우저 키로 못 읽는다', async () => {
+      expect(await as(ids.cs, (tx) => tx`SELECT id FROM coupon`)).toHaveLength(0);
+      expect(await as(ids.super, (tx) => tx`SELECT id FROM coupon`)).toHaveLength(1);
+      expect(await as(ids.super, (tx) => tx`SELECT id FROM device_image`)).toHaveLength(0);
+    });
+
+    it('쓰기는 서버 전용: 브라우저 키(관리자)로는 후기를 숨기거나 쿠폰을 만들 수 없다', async () => {
+      const r = await as(ids.super, (tx) => tx`UPDATE review SET is_hidden = true RETURNING id`);
+      expect(r).toHaveLength(0);
+      await expect(as(ids.super, (tx) => tx`INSERT INTO coupon (code, name, discount_type, discount_value, valid_to) VALUES ('RLS9X', 'x', 'FIXED', 1, '2099-12-31')`)).rejects.toThrow(/row-level security/);
+    });
+
+    it('BR-090 한 주문에 후기는 1건, 쿠폰은 고객당 1장', async () => {
+      const [o] = await sql`SELECT order_id, customer_id, technician_id FROM review LIMIT 1`;
+      await expect(sql`INSERT INTO review (order_id, customer_id, technician_id, rating) VALUES (${o!.order_id}, ${o!.customer_id}, ${o!.technician_id}, 3)`).rejects.toThrow(/review_order_uk/);
+      const [c] = await sql`SELECT id FROM coupon WHERE code = 'RLS9TEST'`;
+      await sql`INSERT INTO customer_coupon (coupon_id, customer_id, status) VALUES (${c!.id}, ${o!.customer_id}, 'ISSUED')`;
+      await expect(sql`INSERT INTO customer_coupon (coupon_id, customer_id, status) VALUES (${c!.id}, ${o!.customer_id}, 'ISSUED')`).rejects.toThrow(/customer_coupon_uk/);
+    });
+
+    it('단계 9 코드·기준값·알림 템플릿이 있다', async () => {
+      const codes = await sql`SELECT code FROM common_code WHERE group_code = 'INSPECTION_STATUS' ORDER BY sort_order`;
+      expect(codes.map((c) => c.code)).toEqual(['WAITING', 'APPROVED', 'REJECTED']);
+      const [s] = await sql`SELECT setting_value FROM system_setting WHERE setting_key = 'DORMANT_ENABLED'`;
+      expect(s?.setting_value).toBe('N');
+      const t = await sql`SELECT template_code FROM notification_template WHERE template_code IN ('REVIEW_REQUEST', 'COUPON_ISSUED', 'DORMANT_NOTICE', 'PG_MISMATCH', 'INSPECTION_REJECTED')`;
+      expect(t).toHaveLength(5);
+    });
+  });
 });

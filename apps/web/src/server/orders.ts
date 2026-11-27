@@ -55,6 +55,8 @@ import { UserError } from './action-result';
 import type { CurrentCustomer } from './customer-session';
 import { upsertVisitAddress } from './customers';
 import { getDb } from './db';
+import { restoreCouponOnCancel } from './coupons';
+import { copyQuoteDevices } from './devices';
 import { notifyOrder } from './notify';
 import { decrypt, phoneHash } from './pii';
 import { computeQuote, findServiceArea, getQuoteByNo, loadQuoteCatalog } from './quote';
@@ -360,6 +362,7 @@ export async function createReservation(
             amount: i.amount,
           })),
         );
+        await copyQuoteDevices(tx, q.id!, o!.id); // 단계 9 원클릭 재예약 기기 연결
         await tx.insert(orderStatusHistory).values(
           orderStatusHistoryRow({ orderId: o!.id, from: null, to: 'RECEIVED', actorType: 'CUSTOMER', actorId: c.id }),
         );
@@ -459,6 +462,8 @@ export async function itemNames(quoteId: number | null) {
     (i.surchargeRuleId ? catalog.surchargeRules.find((r) => r.id === i.surchargeRuleId)?.name : undefined) ??
     (i.productId ? catalog.products.find((p) => p.id === i.productId)?.name : undefined) ??
     (i.optionId ? catalog.options.find((p) => p.id === i.optionId)?.name : undefined) ??
+    // 단계 9 쿠폰 할인 행(상품·옵션·할증 없는 DISCOUNT)
+    (i.itemType === 'DISCOUNT' && !i.productId && !i.optionId && !i.surchargeRuleId ? '쿠폰 할인' : undefined) ??
     i.itemType;
 }
 
@@ -609,6 +614,7 @@ export async function cancelOrder(
       },
     });
     if (refunds.length) await tx.insert(refund).values(refunds);
+    await restoreCouponOnCancel(tx, o.id); // 단계 9 F-CUS-PAY-04 쓴 쿠폰 돌려주기
     const target = orderSlotTarget(o);
     if (target) await releaseSlots(tx, target);
     if (input.changeRequest) {

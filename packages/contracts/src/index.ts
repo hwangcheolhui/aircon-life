@@ -338,6 +338,8 @@ export const customerQuoteInput = z.object({
   legalDongCode: legalDongCodeInput,
   lines: z.array(quoteLineInput).min(1, MSG.required('기기')).max(20),
   options: z.array(quoteOptionInput).max(20).default([]),
+  /** 단계 9 C-QUO-021 사진 인식 이미지(device_image.id) — 견적 발행 때 연결 */
+  imageIds: z.array(z.coerce.number().int().positive()).max(10).default([]),
 });
 /** 관리자 견적 시뮬레이터 (A-PRD-050): 고객 견적과 같은 입력 + 고객유형·희망 방문 일시 */
 export const quoteSimulationInput = customerQuoteInput
@@ -1242,6 +1244,8 @@ export const inquiryRefInput = z.object({ id: reqId('문의') });
 export const revisitCampaignInput = z.object({
   running: bool(false),
   branchIds: z.array(z.coerce.number().int().positive()).default([]),
+  /** 단계 9: 재방문 안내에 동봉할 쿠폰(F-ADM-CRM-01 보강) */
+  couponId: optId(),
 });
 
 /** A-CNT-010 공지 (BR-102 작성 범위는 domain canWriteNotice) */
@@ -1273,3 +1277,91 @@ export const faqInput = z.object({
 
 /** A-CUS-030 일괄 파기 승인 */
 export const purgeApproveInput = z.object({ customerIds: z.array(z.coerce.number().int().positive()).min(1, '파기할 고객을 선택하세요.').max(500) });
+
+/* ---------- 단계 9 품질·편의 확장 ---------- */
+const idList = (label: string, max = 50) => z.array(z.coerce.number().int().positive()).min(1, MSG.required(label)).max(max);
+const strList = (max = 20) => z.array(z.string().min(1).max(30)).max(max).default([]);
+/** C-DEV-020 기기 등록·수정 (F-CUS-DEV-01). 형태·제조사 코드 검증은 domain checkDeviceInput */
+export const customerDeviceInput = z.object({
+  id: optId(),
+  addressId: reqId('설치 주소'),
+  deviceType: code('기기 형태', 20),
+  brand: optStr(30),
+  modelName: optStr(50),
+  installYear: optInt(0),
+  locationInHouse: optStr(30),
+  isInverter: bool(false),
+  hasHeating: bool(false),
+});
+/** C-DEV-010 원클릭 재예약 (F-CUS-DEV-02) */
+export const rebookInput = z.object({ deviceIds: idList('기기', 20) });
+/** C-QUO-021 사진 인식 결과 확인·수정 (F-CUS-QUO-05) */
+export const recognitionConfirmInput = z.object({
+  items: z.array(z.object({ imageId: z.coerce.number().int().positive(), deviceType: z.string().min(1).max(20) })).min(1, MSG.required('기기 사진')).max(10),
+});
+/** C-REV-010 후기 (F-CUS-REV-01). 범위·태그 검증은 domain checkReviewInput */
+export const reviewInput = z.object({
+  orderNo: reqStr('접수번호', 20),
+  rating: optInt(0),
+  npsScore: optInt(0),
+  tags: strList(8),
+  content: optStr(1000),
+});
+/** C-MY-020 쿠폰 코드 등록 (F-CUS-CPN-01) */
+export const couponCodeInput = z.object({ code: reqStr('쿠폰 코드', 30) });
+/** C-PAY-010 쿠폰 적용·해제 (F-CUS-PAY-04). customerCouponId=null 이면 해제 */
+export const applyCouponInput = z.object({ orderNo: reqStr('접수번호', 20), customerCouponId: optId() });
+
+/** A-CRM-030 쿠폰 (F-ADM-CRM-03). 형식·기간 검증은 domain checkCouponInput */
+export const couponInput = z.object({
+  id: optId(),
+  code: reqStr('쿠폰 코드', 20),
+  name: reqStr('쿠폰명', 100),
+  discountType: enumOf('할인 방식', ['FIXED', 'RATE'] as const),
+  discountValue: reqInt('할인 값', 1),
+  maxDiscount: optInt(1),
+  minOrderAmount: optInt(0),
+  validFrom: optDate(),
+  validTo: dateStr('사용 종료일'),
+  issueLimit: optInt(1),
+  targetCategoryId: optId(),
+  isActive: bool(true),
+});
+/** A-CRM-030 발급: 고객번호 목록(개별) 또는 조건 일괄(마케팅 동의 활동 고객 + 거점) */
+export const couponIssueInput = z.object({
+  couponId: reqId('쿠폰'),
+  mode: enumOf('발급 방식', ['CUSTOMERS', 'BULK'] as const),
+  customerNos: optStr(5000),
+  branchId: optId(),
+});
+/** A-CRM-020 시즌·타겟 캠페인 (F-ADM-CRM-02). 조건 검증은 domain checkCampaignInput */
+export const campaignInput = z.object({
+  id: optId(),
+  name: reqStr('캠페인명', 100),
+  campaignType: enumOf('캠페인 유형', ['SEASON', 'WINBACK', 'CROSS_SELL'] as const),
+  templateId: reqId('발송 템플릿'),
+  couponId: optId(),
+  sendAt: optDateTime(),
+  branchIds: z.array(z.coerce.number().int().positive()).max(50).default([]),
+  deviceTypes: strList(10),
+  housingTypes: strList(10),
+  lastServiceMonthsMin: optInt(0),
+  lastServiceMonthsMax: optInt(0),
+});
+/** A-CRM-020 [예약]·[지금 발송]·[중지]·[작성으로] */
+export const campaignActionInput = z.object({ id: reqId('캠페인'), action: enumOf('처리', ['SCHEDULE', 'SEND_NOW', 'STOP', 'DRAFT'] as const) });
+/** A-VOC-040 후기 답글·숨김 (F-ADM-VOC-04) */
+export const reviewAdminInput = z.object({ id: reqId('후기'), adminReply: optStr(1000), isHidden: bool(false) });
+/** A-PRC-030 작업 결과 검수 (F-ADM-PRC-03) */
+export const inspectionInput = z.object({ workOrderId: reqId('작업'), status: enumOf('검수 결과', ['APPROVED', 'REJECTED'] as const), note: optStr(500) });
+/** T-WRK-050 자재 사용 (F-TEC-WRK-06) */
+export const materialUsageInput = z.object({
+  orderNo: reqStr('접수번호', 20),
+  materialId: reqId('자재'),
+  quantity: reqInt('수량', 1),
+  chargeToCustomer: bool(false),
+});
+/** T-RTE-010 코스 변경 요청 (마감 후·시간창 위반 일정 조정, F-ADM-DSP-09) */
+export const routeChangeRequestInput = z.object({ date: dateStr('코스 일자'), note: reqStr('요청 사유', 300) });
+/** A-DSP-070 코스 변경 요청 승인·반려 */
+export const routeChangeDecisionInput = z.object({ planId: reqId('코스'), approve: bool(false), note: optStr(300) });

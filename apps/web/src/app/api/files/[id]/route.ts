@@ -4,6 +4,8 @@
  * 단계 5-2: 추가요금 증빙·서명 — 고객은 동의 요청된 건만, 관리자는 추가요금 승인(A-PRC-040) 조회 권한 + 거점 범위(BR-102).
  * 단계 6-2: 작업 사진·서명·안전관리·서비스 파일 — 관리자는 처리 콘솔(A-PRC-010) 조회 권한 + 거점 범위(BR-102).
  * 단계 8: AS 요청 사진(AS_REQUEST) — 고객 본인, 관리자는 AS 요청(A-VOC-030) 조회 권한 + 거점 범위(BR-102).
+ * 단계 9: 후기 사진(REVIEW) — 고객 본인, 관리자는 후기 관리(A-VOC-040) 조회 권한 + 거점 범위. 작업 사진은 검수(A-PRC-030) 조회 권한으로도 본다.
+ *        사진 인식 원본(DEVICE_IMAGE)은 화면에 다시 보여 주지 않으므로 내려주지 않는다.
  */
 import { hasPermission } from '@aircon/domain';
 import { getCurrentAdmin } from '@/server/auth';
@@ -13,6 +15,7 @@ import { getCurrentCustomer } from '@/server/customer-session';
 import { isDbConfigured } from '@/server/db';
 import { adminCanViewWorkFile } from '@/server/process-console';
 import { getCurrentTech } from '@/server/tech-session';
+import { reviewOwnerOf } from '@/server/reviews';
 import { asFileOwner } from '@/server/voc';
 import { adminCanViewExtraFile, canViewAttachment, photoTypeOfFile } from '@/server/work';
 
@@ -25,9 +28,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!tech && !customer && (!admin || admin.preview)) return new Response('Unauthorized', { status: 401 });
   const f = await readAttachment(id);
   if (!f) return new Response('Not found', { status: 404 });
-  if (f.row.refType === 'AS_REQUEST') {
-    const owner = await asFileOwner(f.row.refId);
-    const filter = admin && !admin.preview && hasPermission(admin, 'A-VOC-030', 'READ') ? await currentBranchFilter(admin) : null;
+  if (f.row.refType === 'DEVICE_IMAGE') return new Response('Not found', { status: 404 });
+  if (f.row.refType === 'AS_REQUEST' || f.row.refType === 'REVIEW') {
+    const isReview = f.row.refType === 'REVIEW';
+    const owner = f.row.refId === null ? null : isReview ? await reviewOwnerOf(f.row.refId) : await asFileOwner(f.row.refId);
+    const filter = admin && !admin.preview && hasPermission(admin, isReview ? 'A-VOC-040' : 'A-VOC-030', 'READ') ? await currentBranchFilter(admin) : null;
     const ok =
       owner &&
       ((customer && !customer.demo && customer.id === owner.customerId) ||
@@ -42,7 +47,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     (tech && (await canViewAttachment(f.row, { type: 'TECHNICIAN', id: tech.id }, photoType))) ||
     (customer && !customer.demo && (await canViewAttachment(f.row, { type: 'CUSTOMER', id: customer.id }, photoType))) ||
     (admin && !admin.preview && hasPermission(admin, 'A-PRC-040', 'READ') && (await adminCanViewExtraFile(f.row, await currentBranchFilter(admin)))) ||
-    (admin && !admin.preview && hasPermission(admin, 'A-PRC-010', 'READ') && (await adminCanViewWorkFile(f.row, await currentBranchFilter(admin))));
+    (admin &&
+      !admin.preview &&
+      (hasPermission(admin, 'A-PRC-010', 'READ') || hasPermission(admin, 'A-PRC-030', 'READ')) &&
+      (await adminCanViewWorkFile(f.row, await currentBranchFilter(admin))));
   if (!allowed) return new Response('Not found', { status: 404 });
   return new Response(Buffer.from(f.body), {
     headers: {

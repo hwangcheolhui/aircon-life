@@ -51,6 +51,18 @@ export const NOTIFICATION_TEMPLATE_CODES = [
   'AS_SCHEDULED',
   'AS_REJECTED',
   'INQUIRY_ANSWERED',
+  // 단계 9: 후기 요청(REVIEW_REQUEST, F-SYS-05)·쿠폰 발급(F-ADM-CRM-03)·시즌·타겟 캠페인(F-ADM-CRM-02)·검수 반려(F-ADM-PRC-03)
+  //        ·진행 중 지연(F-TEC-RTE-06)·코스 변경 요청(F-ADM-DSP-09)·휴면 안내(F-SYS-13)·PG 대사 불일치(F-SYS-14)
+  'COUPON_ISSUED',
+  'CAMPAIGN_MESSAGE',
+  'INSPECTION_REJECTED',
+  'ETA_DELAY_TECH',
+  'VISIT_DELAY',
+  'ROUTE_CHANGE_REQUESTED',
+  'ROUTE_CHANGE_APPROVED',
+  'ROUTE_CHANGE_REJECTED',
+  'DORMANT_NOTICE',
+  'PG_MISMATCH',
 ] as const;
 export type NotificationTemplateCode = (typeof NOTIFICATION_TEMPLATE_CODES)[number];
 

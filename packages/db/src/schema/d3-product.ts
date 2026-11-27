@@ -91,3 +91,25 @@ export const material = pgTable('material', {
   ...auditColumns,
 });
 
+
+/**
+ * 2.12.5 쿠폰 (단계 9, F-ADM-CRM-03). 주문(service_order.coupon_id)·캠페인(campaign.coupon_id)이 참조해 순환 import 를 피하려고
+ * 상품·카테고리와 같은 파일에 둔다. 할인 = 정액 또는 정률(최대 할인), BR-010 "− 쿠폰".
+ */
+export const coupon = pgTable('coupon', {
+  id: idColumn(),
+  code: varchar('code', { length: 20 }).notNull().unique(),
+  name: varchar('name', { length: 100 }).notNull(),
+  discountType: varchar('discount_type', { length: 10 }).notNull(), // COUPON_DISCOUNT_TYPE
+  discountValue: integer('discount_value').notNull(),
+  maxDiscount: integer('max_discount'),
+  minOrderAmount: integer('min_order_amount').notNull().default(0),
+  validFrom: date('valid_from', { mode: 'string' }),
+  validTo: date('valid_to', { mode: 'string' }).notNull(),
+  issueLimit: integer('issue_limit'),
+  issuedCount: integer('issued_count').notNull().default(0),
+  targetCategoryId: bigint('target_category_id', { mode: 'number' }).references(() => serviceCategory.id),
+  isActive: boolean('is_active').notNull().default(true),
+  ...auditColumns,
+  ...softDelete,
+});

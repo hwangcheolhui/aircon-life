@@ -10,6 +10,7 @@ import {
   numeric,
   pgTable,
   primaryKey,
+  smallint,
   text,
   timestamp,
   varchar,
@@ -17,6 +18,7 @@ import {
 import { adminUser, branch } from './d1-org';
 import { auditColumns, idColumn, softDelete } from './common';
 import { callLog } from './d6-consult';
+import { attachment } from './d13-system';
 
 /** 2.2.1 고객. corporate_account_id 의 FK는 corporate_account 테이블이 생기는 단계(11)에서 건다. */
 export const customer = pgTable(
@@ -47,6 +49,7 @@ export const customer = pgTable(
     status: varchar('status', { length: 20 }).notNull(), // CUSTOMER_STATUS
     withdrawnAt: timestamp('withdrawn_at', { withTimezone: true }),
     purgeDueDate: date('purge_due_date', { mode: 'string' }),
+    dormantAt: timestamp('dormant_at', { withTimezone: true }), // 휴면 전환 시각(F-SYS-13, 단계 9)
     ...auditColumns,
     ...softDelete,
   },
@@ -115,4 +118,35 @@ export const customerTag = pgTable(
     ...auditColumns,
   },
   (t) => [primaryKey({ columns: [t.customerId, t.tagCode] })],
+);
+
+/**
+ * 2.2.3 고객 보유 기기 (단계 9, F-CUS-DEV-01). 작업 완료 때 주문 기기(주문 항목 × 대수)를 자동 연결·등록하고,
+ * 고객이 C-DEV-020에서 직접 등록·수정한다. 재방문 시 원클릭 재예약(F-CUS-DEV-02)의 견적 입력이 된다.
+ */
+export const customerDevice = pgTable(
+  'customer_device',
+  {
+    id: idColumn(),
+    customerId: bigint('customer_id', { mode: 'number' })
+      .notNull()
+      .references(() => customer.id),
+    addressId: bigint('address_id', { mode: 'number' }).references(() => customerAddress.id),
+    deviceCategory: varchar('device_category', { length: 20 }).notNull().default('AIRCON'), // DEVICE_CATEGORY
+    deviceType: varchar('device_type', { length: 20 }).notNull(), // DEVICE_TYPE
+    brand: varchar('brand', { length: 30 }), // BRAND
+    modelName: varchar('model_name', { length: 50 }),
+    installYear: smallint('install_year'),
+    locationInHouse: varchar('location_in_house', { length: 30 }),
+    isInverter: boolean('is_inverter'),
+    hasHeating: boolean('has_heating'),
+    lastCleanedAt: date('last_cleaned_at', { mode: 'string' }),
+    lastCleanLevel: varchar('last_clean_level', { length: 20 }), // CLEAN_LEVEL (단계 9: 재예약 견적 범위)
+    recommendMonths: smallint('recommend_months'), // 최근 작업 결과의 차기 권장 개월(work_result.recommend_next)
+    recognizedByAi: boolean('recognized_by_ai').notNull().default(false),
+    photoFileId: bigint('photo_file_id', { mode: 'number' }).references(() => attachment.id),
+    ...auditColumns,
+    ...softDelete,
+  },
+  (t) => [index('customer_device_customer_idx').on(t.customerId, t.addressId)],
 );

@@ -1,7 +1,7 @@
 /**
  * D9 현장작업 (01_ERD §2.9) — 단계 5-1: 작업 건(work_order)·기기별 결과(work_result)·작업 사진(work_photo)·활동 내역(activity_log).
- * 단계 5-2: 현장 추가요금(extra_charge). 자재(material_usage 등)는 단계 9.
- * 기기 단위: 주문 항목(order_item) 수량만큼 기기가 있고, 결과·사진은 (order_item_id, unit_no)로 기기를 가리킨다(고객 보유 기기 customer_device 는 단계 9).
+ * 단계 5-2: 현장 추가요금(extra_charge). 단계 9: 자재 사용(material_usage), 작업 결과 검수(work_order.inspection_*).
+ * 기기 단위: 주문 항목(order_item) 수량만큼 기기가 있고, 결과·사진은 (order_item_id, unit_no)로 기기를 가리킨다. 작업 완료 때 고객 보유 기기(customer_device)에 연결한다(단계 9).
  */
 import {
   bigint,
@@ -15,7 +15,8 @@ import {
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core';
-import { surchargeRule } from './d3-product';
+import { material, surchargeRule } from './d3-product';
+import { customerDevice } from './d2-customer';
 import { orderItem, serviceOrder } from './d5-order';
 import { adminUser } from './d1-org';
 import { attachment } from './d13-system';
@@ -56,6 +57,11 @@ export const workOrder = pgTable(
     finalAmount: integer('final_amount'),
     receivedAmount: integer('received_amount').notNull().default(0),
     isSettlementTarget: boolean('is_settlement_target').notNull().default(false),
+    // 단계 9 작업 결과 검수(F-ADM-PRC-03): NULL = 검수 대기, APPROVED 승인, REJECTED 반려(재작업 요청·정산 제외)
+    inspectionStatus: varchar('inspection_status', { length: 20 }), // INSPECTION_STATUS
+    inspectionNote: varchar('inspection_note', { length: 500 }),
+    inspectedBy: bigint('inspected_by', { mode: 'number' }).references(() => adminUser.id),
+    inspectedAt: timestamp('inspected_at', { withTimezone: true }),
     ...auditColumns,
   },
   (t) => [
@@ -76,7 +82,7 @@ export const workResult = pgTable(
       .notNull()
       .references(() => orderItem.id),
     unitNo: smallint('unit_no').notNull().default(1),
-    customerDeviceId: bigint('customer_device_id', { mode: 'number' }), // customer_device 는 단계 9 (FK 는 그때)
+    customerDeviceId: bigint('customer_device_id', { mode: 'number' }).references(() => customerDevice.id),
     result: varchar('result', { length: 20 }).notNull(), // WORK_RESULT
     conditionNote: varchar('condition_note', { length: 300 }),
     recommendNext: smallint('recommend_next'),
@@ -95,7 +101,7 @@ export const workPhoto = pgTable(
       .references(() => workOrder.id),
     orderItemId: bigint('order_item_id', { mode: 'number' }).references(() => orderItem.id),
     unitNo: smallint('unit_no'),
-    customerDeviceId: bigint('customer_device_id', { mode: 'number' }),
+    customerDeviceId: bigint('customer_device_id', { mode: 'number' }).references(() => customerDevice.id),
     photoType: varchar('photo_type', { length: 20 }).notNull(), // PHOTO_TYPE
     fileId: bigint('file_id', { mode: 'number' })
       .notNull()
@@ -157,4 +163,28 @@ export const extraCharge = pgTable(
     ...softDelete,
   },
   (t) => [index('extra_charge_work_idx').on(t.workOrderId), index('extra_charge_approval_idx').on(t.approvalStatus)],
+);
+
+/**
+ * 2.9.5 자재 사용 (단계 9, F-TEC-WRK-06). 원가·판매가는 사용 시점 값. 고객 청구 자재는 추가요금(MATERIAL)을 함께 만들어
+ * 고객 동의를 받은 금액만 청구한다(BR-040, extra_charge_id).
+ */
+export const materialUsage = pgTable(
+  'material_usage',
+  {
+    id: idColumn(),
+    workOrderId: bigint('work_order_id', { mode: 'number' })
+      .notNull()
+      .references(() => workOrder.id),
+    materialId: bigint('material_id', { mode: 'number' })
+      .notNull()
+      .references(() => material.id),
+    quantity: integer('quantity').notNull(),
+    unitCost: integer('unit_cost').notNull(),
+    chargeToCustomer: boolean('charge_to_customer').notNull().default(false),
+    saleAmount: integer('sale_amount').notNull().default(0),
+    extraChargeId: bigint('extra_charge_id', { mode: 'number' }).references(() => extraCharge.id),
+    ...auditColumns,
+  },
+  (t) => [index('material_usage_work_idx').on(t.workOrderId)],
 );

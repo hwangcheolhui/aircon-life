@@ -51,3 +51,8 @@ export function formatVisitTime(at: Date) {
 
 /** 24시간 표기 10:40 (기사 앱 코스) */
 export const formatHm = (at: Date) => at.toLocaleTimeString('en-GB', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false });
+
+/** 날짜(한국 시간) → 3월 10일(수) (후기 마감일·쿠폰 사용기한, 단계 9) */
+export function formatDate(at: Date) {
+  return formatDateLabel(at.toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' }));
+}

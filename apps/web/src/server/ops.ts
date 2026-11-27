@@ -25,7 +25,9 @@ import {
 import { and, asc, eq, gte, inArray, isNotNull, isNull, lt, sql } from 'drizzle-orm';
 import { branchCond } from './admin-orders';
 import { getDb } from './db';
+import { materialCostBetween } from './materials';
 import { longPendingIds } from './pending';
+import { npsScoresBetween } from './reviews';
 import { getSettingNumber } from './settings';
 
 const kstStart = (d: string) => new Date(`${d}T00:00:00+09:00`);
@@ -146,7 +148,10 @@ export async function kpiDashboard(filter: BranchFilter, month: string, now = ne
         sql`select coalesce(sum(pay_amount), 0)::int as n from settlement_item where item_type in ('JOB','EXTRA') and order_id in ${sql.raw(`(${ids.join(',')})`)}`,
       )) as unknown as { n: number }[])
     : [{ n: 0 }];
-  const margin = kpiMargin({ revenue, jobs: done.length, techPay: Number(pay?.n ?? 0), materialCost: 0 });
+  // 단계 9: 자재원가 = 그달 완료 주문의 Σ 원가 × 수량(material_usage)
+  const branchId = filter.kind === 'BRANCH' ? filter.branchId : null;
+  const materialCost = filter.kind === 'NONE' ? 0 : await materialCostBetween(kstStart(from), kstStart(to), branchId);
+  const margin = kpiMargin({ revenue, jobs: done.length, techPay: Number(pay?.n ?? 0), materialCost });
 
   // 재방문율: 전년 같은 달 완료 고객 중 올해(1월~이번 달) 다시 주문한 고객
   const lyMonth = addMonthsToDate(from, -12).slice(0, 7);
@@ -205,7 +210,7 @@ export async function kpiDashboard(filter: BranchFilter, month: string, now = ne
   ]);
   const asRate = kpiAsComplaintRate({ asCount, complaintCount, completed: done.length });
   const cac = kpiCac({ marketingCost: marketingCost > 0 ? marketingCost : null, newCustomers, avgTicket: margin.avgTicket });
-  const nps = kpiNps([]); // 후기(review)는 단계 9
+  const nps = kpiNps(filter.kind === 'NONE' ? [] : await npsScoresBetween(kstStart(from), kstStart(to), branchId)); // 단계 9 후기 추천의향
 
   const t = async (k: string) => getSettingNumber(k);
   const [tJobs, tMargin, tRevisit, tRetention, tOff, tAs, tCac] = await Promise.all([
@@ -221,7 +226,7 @@ export async function kpiDashboard(filter: BranchFilter, month: string, now = ne
   const cards: KpiCard[] = [
     card({ key: 'jobs', label: '월 처리 건수', value: done.length, unit: '건', target: isPeakMonth(Number(month.slice(5, 7))) ? tJobs : null, better: 'HIGHER', note: '목표는 성수기(5~8월) 기준' }),
     card({ key: 'avgTicket', label: '건당 객단가', value: margin.avgTicket, unit: '원', target: null, better: 'HIGHER' }),
-    card({ key: 'margin', label: '마진율', value: margin.marginRate, unit: '%', target: tMargin, better: 'HIGHER', note: '매출 − 정산 지급(자재원가는 단계 9 자재 사용부터)' }),
+    card({ key: 'margin', label: '마진율', value: margin.marginRate, unit: '%', target: tMargin, better: 'HIGHER', note: '매출 − 정산 지급 − 자재원가' }),
     card({ key: 'revisit', label: '재방문율', value: revisit, unit: '%', target: tRevisit, better: 'HIGHER', note: '전년 같은 달 완료 고객 중 올해 다시 주문한 비율' }),
     card({ key: 'retention', label: '기사 6개월 정착률', value: retention, unit: '%', target: tRetention, better: 'HIGHER' }),
     card({ key: 'offPeak', label: '비수기/성수기 매출 비', value: offPeak, unit: '%', target: tOff, better: 'HIGHER', note: '최근 12개월' }),
@@ -235,7 +240,7 @@ export async function kpiDashboard(filter: BranchFilter, month: string, now = ne
       better: 'LOWER',
       note: cac.cac === null ? '시스템 설정 MARKETING_COST_MONTHLY(월 마케팅비)를 입력하면 계산됩니다' : `객단가 대비 ${cac.cacRate ?? '-'}% (목표 ${tCac}% 이하)`,
     }),
-    card({ key: 'nps', label: 'NPS', value: nps, unit: '%', target: null, better: 'HIGHER', note: '후기·평점(단계 9)부터 집계' }),
+    card({ key: 'nps', label: 'NPS', value: nps, unit: '%', target: null, better: 'HIGHER', note: '그달 후기의 추천의향(0~10) 기준' }),
   ];
   return { month, cards, trend: months.slice(-6) };
 }

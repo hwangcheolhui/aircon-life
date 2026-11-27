@@ -12,7 +12,7 @@ export async function loadStep(orderNo: string, step: WorkStepKey) {
   const want = stepForStatus(s.work?.status ?? null);
   if (want === 'done') redirect(`/tech/jobs/${orderNo}`);
   // 작업중이면 사진·결과·완료 사이는 자유롭게, 그 전 단계로는 돌아가지 않는다
-  const free = want === 'photos' && (step === 'photos' || step === 'result' || step === 'extra' || step === 'complete');
+  const free = want === 'photos' && (step === 'photos' || step === 'result' || step === 'extra' || step === 'materials' || step === 'complete');
   if (!free && want !== step) redirect(`/tech/jobs/${orderNo}/work${WORK_STEPS.find((x) => x.key === want)!.path}`);
   return { me, s };
 }

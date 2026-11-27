@@ -97,6 +97,13 @@ export const routePlan = pgTable(
     confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
     confirmDeadline: timestamp('confirm_deadline', { withTimezone: true }),
     version: integer('version').notNull().default(1),
+    // 단계 9 코스 변경 요청(F-ADM-DSP-09, BR-113): 마감 후 확정 코스를 바꾸려면 기사 요청 → 운영자 승인
+    changeRequestStatus: varchar('change_request_status', { length: 20 }), // ROUTE_CHANGE_STATUS: REQUESTED/APPROVED/REJECTED
+    changeRequestNote: varchar('change_request_note', { length: 300 }),
+    changeRequestedAt: timestamp('change_requested_at', { withTimezone: true }),
+    changeHandledBy: bigint('change_handled_by', { mode: 'number' }).references(() => adminUser.id),
+    changeHandledAt: timestamp('change_handled_at', { withTimezone: true }),
+    changeHandleNote: varchar('change_handle_note', { length: 300 }),
     ...auditColumns,
   },
   (t) => [

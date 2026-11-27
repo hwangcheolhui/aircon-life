@@ -7,3 +7,5 @@ export * from './notify';
 export * from './push';
 export * from './geo';
 export * from './receipt';
+export * from './vision';
+export * from './safe-number';

@@ -316,8 +316,8 @@ export function ExtraBoard({ s, types }: { s: Screen; types: Code[] }) {
         <Empty>등록한 추가요금이 없습니다.</Empty>
       )}
       {waiting ? <Alert tone="warning">응답을 기다리는 추가요금이 {waiting}건 있습니다. 동의·거절 또는 철회 후에 완료할 수 있습니다.</Alert> : null}
-      <Link href={`/tech/jobs/${s.orderNo}/work/complete`} className="ac-btn ac-btn--primary ac-btn--lg ac-btn--block">
-        다음: 처리 저장
+      <Link href={`/tech/jobs/${s.orderNo}/work/materials`} className="ac-btn ac-btn--primary ac-btn--lg ac-btn--block">
+        다음: 자재 사용
       </Link>
       {adding ? <AddSheet s={s} types={types} onClose={() => setAdding(false)} /> : null}
       {signing ? <SignSheet orderNo={s.orderNo} charge={signing} onClose={() => setSigning(null)} /> : null}

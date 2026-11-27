@@ -110,6 +110,8 @@ export async function addExtraCharge(
   },
   evidence: File | null,
   agreeUrl: (orderNo: string) => string,
+  /** 단계 9 T-WRK-050 청구 자재: 마스터 판매가라 증빙 없이 등록(BR-040 동의는 그대로) */
+  opts: { fromMaterialMaster?: boolean } = {},
 ) {
   const m = await mainOnly(techId, v.orderNo);
   const db = getDb();
@@ -153,6 +155,7 @@ export async function addExtraCharge(
     hasEvidence: Boolean(evidence && evidence.size > 0),
     hasRule: ruleId !== null,
     quantity,
+    fromMaterialMaster: opts.fromMaterialMaster,
   });
   if (Object.keys(errors).length) throw new ValidationFailed(errors);
   const approvalStatus = approvalStatusFor(v.chargeType);

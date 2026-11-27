@@ -1,4 +1,4 @@
-// C-QUO-040 견적 결과 (S4) · F-CUS-QUO-04 · 단계 2: [예약하기] → C-RSV-010 — 항목별 금액·할인·할증·총액·소요시간·포함/불포함·현장 추가요금 조건·유효기한
+// C-QUO-040 견적 결과 (S4) · F-CUS-QUO-04 · 단계 2: [예약하기] → C-RSV-010 — 항목별 금액·할인·할증·총액·소요시간·포함/불포함·현장 추가요금 조건·유효기한 · 단계 9: [견적 공유하기](F-CUS-QUO-07)
 import { customerQuoteInput } from '@aircon/contracts';
 import { SETTING_KEYS, isQuoteExpired, quoteExpiresAt } from '@aircon/domain';
 import { Alert, Button, Card } from '@aircon/ui';
@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { formatDuration, formatWon } from '@/customer/format';
 import { QuoteBottomBar, StepHeader } from '@/customer/quote-flow';
+import { QuoteShare } from '@/customer/quote-share';
 import { computeQuote, getQuoteByNo } from '@/server/quote';
 import { DEMO_QUOTE_NO, decodeDemoRequest, isQuoteDemoMode } from '@/server/quote-demo';
 import { getSettingNumber } from '@/server/settings';
@@ -169,6 +170,7 @@ export default async function QuoteResultPage({
           </Card>
         ) : null}
 
+        {!demo && !expired ? <QuoteShare quoteNo={q.quoteNo} expiresLabel={q.expiresAt ? kst(q.expiresAt) : ''} /> : null}
         <Link href="/quote" className="ac-btn ac-btn--ghost">
           처음부터 다시 견적 받기
         </Link>

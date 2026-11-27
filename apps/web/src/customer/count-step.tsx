@@ -130,7 +130,7 @@ export function CountStep({ products, options, deviceLabels, cleanLevels }: Coun
   const submit = async () => {
     if (!request) return;
     setSubmitting(true);
-    const r = await submitQuote(request);
+    const r = await submitQuote({ ...request, imageIds: draft.imageIds ?? [] });
     if (r.ok && r.data?.ok) {
       router.push(r.data.path);
       return;
