@@ -139,6 +139,7 @@ import {
   type CustKey,
   DEMO_ADMINS,
   DEMO_AREAS,
+  DEMO_EXTRA_AREAS,
   DEMO_BRANCHES,
   DEMO_BRANCH_PRICES,
   DEMO_BUSINESS_PRICES,
@@ -470,6 +471,20 @@ async function seedBranches(c: Ctx) {
       })),
     )
     .onConflictDoNothing();
+  await db
+    .insert(serviceArea)
+    .values(
+      DEMO_EXTRA_AREAS.map((a) => ({
+        branchId: c.branchId[a.branch]!,
+        sido: a.sido,
+        sigungu: a.sigungu,
+        eupmyeondong: a.dong,
+        legalDongCode: a.code,
+        isServiceable: true,
+        travelFee: 0,
+      })),
+    )
+    .onConflictDoNothing();
   const areas = await db.select().from(serviceArea).where(inArray(serviceArea.legalDongCode, DEMO_AREAS.map((a) => a.code)));
   for (const a of DEMO_AREAS) {
     const row = areas.find((r) => r.legalDongCode === a.code);
@@ -765,10 +780,11 @@ async function seedCustomers(c: Ctx): Promise<number> {
     const hash = c.ph(k.phone);
     const [exists] = await db.select({ id: customer.id }).from(customer).where(and(eq(customer.phone1Hash, hash), isNull(customer.deletedAt)));
     let id: number;
+    const joinedAt = c.clock.at(-k.joinedDaysAgo, 10, 30);
     if (exists) {
+      // 이미 같은 번호로 로그인·가입한 고객이면 그 고객에 이력을 붙인다
       id = exists.id;
     } else {
-      const joinedAt = c.clock.at(-k.joinedDaysAgo, 10, 30);
       const row = await one(
         db
           .insert(customer)
@@ -805,6 +821,14 @@ async function seedCustomers(c: Ctx): Promise<number> {
       if (k.tags.length) {
         await db.insert(customerTag).values(k.tags.map((tagCode) => ({ customerId: id, tagCode, note: tagCode === 'CAUTION' ? '방문 전 통화 필수' : tagCode === 'MOVING' ? '다음 달 이사 예정' : '연 2회 이상 이용', createdBy: adm(c, 'demo-cs') })));
       }
+    }
+    // 주소가 하나도 없으면(먼저 직접 로그인해 생긴 고객 포함) 예시 주소를 넣는다
+    const [hasAddr] = await db
+      .select({ id: customerAddress.id })
+      .from(customerAddress)
+      .where(and(eq(customerAddress.customerId, id), isNull(customerAddress.deletedAt)))
+      .limit(1);
+    if (!hasAddr) {
       for (const [i, a] of k.addresses.entries()) {
         const area = c.areaByCode.get(a.dong)!;
         const jitter = (DEMO_CUSTOMERS.indexOf(k) * 7 + i * 3) % 10;
