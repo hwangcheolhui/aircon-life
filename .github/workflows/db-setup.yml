@@ -26,6 +26,11 @@ on:
         type: boolean
         default: false
 
+# 동시에 두 번 실행되면 가상 데이터 번호가 겹쳐 실패하므로 한 번에 하나만 실행한다
+concurrency:
+  group: db-setup
+  cancel-in-progress: false
+
 jobs:
   db:
     runs-on: ubuntu-latest

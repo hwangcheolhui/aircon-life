@@ -14,7 +14,26 @@ function pepper() {
   return p;
 }
 export const encrypt = (v: string | null) => (v ? encryptPii(v, key()) : null);
-export const decrypt = (v: string | null) => (v ? decryptPii(v, key()) : null);
+/**
+ * 복호화. 키가 데이터를 암호화한 키와 다르거나 값이 깨졌으면 화면 전체가 깨지지 않도록 null 을 돌려주고 서버 로그에 남긴다.
+ * (키 설정 누락은 ConfigError 로 그대로 알린다)
+ */
+export const decrypt = (v: string | null) => {
+  if (!v) return null;
+  const k = key();
+  try {
+    return decryptPii(v, k);
+  } catch {
+    warnDecryptFailure();
+    return null;
+  }
+};
+let warned = 0;
+function warnDecryptFailure() {
+  if (warned++ % 100 === 0) {
+    console.error('[PII] 복호화 실패: PII_ENCRYPTION_KEY 가 이 데이터를 암호화한 키와 다릅니다. Vercel 과 GitHub Secret(DB 준비)의 값을 같게 맞추세요. (docs/07_테스트데이터.md)');
+  }
+}
 /** 전화번호 검색용 해시 (customer.phone1_hash, ERD §6) */
 export const phoneHash = (phone: string) => hashPhone(phone, pepper());
 
