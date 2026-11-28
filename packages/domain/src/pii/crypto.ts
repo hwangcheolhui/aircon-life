@@ -7,6 +7,21 @@ import { normalizePhone } from './mask';
 
 const VERSION = 'v1';
 
+/**
+ * 환경변수에 붙여 넣은 키 값을 정리한다: 앞뒤 공백·줄바꿈, 감싼 따옴표, `PII_ENCRYPTION_KEY=` 접두어.
+ * (Vercel·GitHub 에 값을 옮겨 적을 때 흔히 섞여 들어가는 것들. 앱과 시드가 같은 규칙을 쓴다)
+ */
+export function normalizePiiKey(raw: string): string {
+  let k = raw.trim().replace(/^PII_ENCRYPTION_KEY\s*=\s*/, '').trim();
+  if (k.length >= 2 && (k[0] === '"' || k[0] === "'") && k[k.length - 1] === k[0]) k = k.slice(1, -1).trim();
+  return k;
+}
+
+/** 32바이트 base64 키인지 */
+export function isValidPiiKey(keyB64: string): boolean {
+  return keyB64.length > 0 && Buffer.from(keyB64, 'base64').length === 32;
+}
+
 function keyFromBase64(keyB64: string): Buffer {
   const key = Buffer.from(keyB64, 'base64');
   if (key.length !== 32) throw new Error('PII_ENCRYPTION_KEY는 32바이트(base64)여야 합니다.');

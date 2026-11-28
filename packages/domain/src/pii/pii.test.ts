@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { decryptPii, encryptPii, hashPhone } from './crypto';
+import { decryptPii, encryptPii, hashPhone, isValidPiiKey, normalizePiiKey } from './crypto';
 import { maskEmail, maskName, maskPhone } from './mask';
 
 describe('BR-100 개인정보 마스킹', () => {
@@ -41,5 +41,25 @@ describe('개인정보 암호화·해시 (ERD §6)', () => {
   it('전화번호 해시는 형식(하이픈)에 관계없이 같다', () => {
     expect(hashPhone('010-0000-1111', 'p')).toBe(hashPhone('01000001111', 'p'));
     expect(hashPhone('010-0000-1111', 'p')).not.toBe(hashPhone('010-0000-1111', 'q'));
+  });
+});
+
+describe('PII_ENCRYPTION_KEY 값 정리', () => {
+  const key = randomBytes(32).toString('base64');
+  it('붙여 넣을 때 생기는 공백·따옴표·"이름=" 접두어를 걷어 낸다', () => {
+    expect(normalizePiiKey(` ${key}\n`)).toBe(key);
+    expect(normalizePiiKey(`"${key}"`)).toBe(key);
+    expect(normalizePiiKey(`'${key}'`)).toBe(key);
+    expect(normalizePiiKey(`PII_ENCRYPTION_KEY=${key}`)).toBe(key);
+    expect(normalizePiiKey(`PII_ENCRYPTION_KEY="${key}"`)).toBe(key);
+  });
+  it('정리한 키로 암호화·복호화가 된다', () => {
+    expect(decryptPii(encryptPii('홍길동', key), normalizePiiKey(`"${key}"`))).toBe('홍길동');
+  });
+  it('32바이트 base64 가 아니면 올바른 키가 아니다', () => {
+    expect(isValidPiiKey(key)).toBe(true);
+    expect(isValidPiiKey('not-a-valid-key')).toBe(false);
+    expect(isValidPiiKey('')).toBe(false);
+    expect(isValidPiiKey(randomBytes(16).toString('base64'))).toBe(false);
   });
 });

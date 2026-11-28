@@ -6,6 +6,7 @@
  * - 테스트 관리자·기사 비밀번호 = SEED_DEMO_PASSWORD (없으면 SEED_SUPER_ADMIN_PASSWORD). 코드에 비밀번호를 두지 않는다.
  * - 관리자 인증 계정은 AUTH_DRIVER(mock|supabase)에 맞는 어댑터로, 예시 이미지는 STORAGE_DRIVER 저장소로 올린다.
  */
+import { isValidPiiKey, normalizePiiKey } from '@aircon/domain/server';
 import { createAuthAdapter, createStorageAdapter } from '@aircon/integrations';
 import { createDb } from '../src/client';
 import { seedDemoData } from '../src/seed-demo';
@@ -17,8 +18,8 @@ function required(name: string, value: string | undefined): string {
 
 async function main() {
   const url = required('DATABASE_URL', process.env.DATABASE_URL);
-  const piiKey = required('PII_ENCRYPTION_KEY', process.env.PII_ENCRYPTION_KEY);
-  if (Buffer.from(piiKey, 'base64').length !== 32) throw new Error('PII_ENCRYPTION_KEY는 32바이트 base64 값이어야 합니다.');
+  const piiKey = normalizePiiKey(required('PII_ENCRYPTION_KEY', process.env.PII_ENCRYPTION_KEY));
+  if (!isValidPiiKey(piiKey)) throw new Error('PII_ENCRYPTION_KEY는 32바이트 base64 값이어야 합니다.');
   const pepper = required('PII_HASH_PEPPER', process.env.PII_HASH_PEPPER);
   const password = required('SEED_DEMO_PASSWORD(또는 SEED_SUPER_ADMIN_PASSWORD)', process.env.SEED_DEMO_PASSWORD || process.env.SEED_SUPER_ADMIN_PASSWORD);
   if (password.length < 8) throw new Error('테스트 계정 비밀번호는 8자 이상이어야 합니다.');
