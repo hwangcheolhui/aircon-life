@@ -16,6 +16,8 @@ pnpm turbo run build --filter="./packages/*"
 export DATABASE_URL=postgres://aircon:aircon@localhost:5432/aircon
 pnpm db:migrate
 SESSION_SECRET=... MOCK_AUTH_FILE=../../apps/web/storage/mock-auth.json SEED_SUPER_ADMIN_PASSWORD=... pnpm db:seed
+# (선택) 테스트용 가상 데이터·테스트 계정 — docs/07_테스트데이터.md
+SESSION_SECRET=... MOCK_AUTH_FILE=../../apps/web/storage/mock-auth.json PII_ENCRYPTION_KEY=... PII_HASH_PEPPER=... SEED_DEMO_PASSWORD=... pnpm db:seed:demo
 pnpm --filter @aircon/web dev                # http://localhost:3000/admin
 ```
 

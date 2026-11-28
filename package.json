@@ -14,6 +14,7 @@
     "db:generate": "pnpm --filter @aircon/db generate",
     "db:migrate": "pnpm --filter @aircon/db migrate",
     "db:seed": "pnpm --filter @aircon/db seed",
+    "db:seed:demo": "pnpm --filter @aircon/db seed:demo",
     "e2e": "playwright test --trace off",
     "format": "prettier --write ."
   },

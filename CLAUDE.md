@@ -18,6 +18,7 @@
 | [docs/05_디자인시스템.md](docs/05_디자인시스템.md) | 색·타이포·간격·컴포넌트·접근성 규칙 |
 | [docs/design-system/](docs/design-system/) | `tokens.css`(값의 단일 출처), `components.css`(`ac-` 컴포넌트), `tokens.json`(상태 코드 → 표시명·클래스 맵) |
 | [docs/06_기술스택_제안.md](docs/06_기술스택_제안.md) | 기술 스택·프로젝트 구조·외부 연동 선택 (v0.2: Next.js 단일 앱 + Vercel + Supabase 확정) |
+| [docs/07_테스트데이터.md](docs/07_테스트데이터.md) | 테스트용 가상 데이터 시드(`pnpm db:seed:demo`)·테스트 계정·로그인 방법 |
 
 규칙
 - 문서에 없는 테이블·컬럼·상태·코드값·화면을 임의로 만들지 않습니다. 필요하면 **먼저 해당 문서를 수정**하고 코드에 반영합니다.
@@ -115,6 +116,7 @@ docker compose up -d db            # 또는 로컬 PostgreSQL 16
 cp .env.example apps/web/.env.local  # 값 채우기 (AUTH_DRIVER=mock 이면 Supabase 없이 동작)
 pnpm build --filter "./packages/*" # 공용 패키지 빌드
 pnpm db:migrate && pnpm db:seed     # DATABASE_URL, SEED_SUPER_ADMIN_PASSWORD 필요
+pnpm db:seed:demo                   # (선택) 테스트용 가상 데이터. PII_ENCRYPTION_KEY, PII_HASH_PEPPER, SEED_DEMO_PASSWORD 필요 (docs/07)
 pnpm --filter @aircon/web dev       # http://localhost:3000/admin
 pnpm typecheck && pnpm lint && pnpm test   # TEST_DATABASE_URL 이 있으면 RLS 통합 테스트 포함
 pnpm e2e                            # 단계 완료 기준 E2E (E2E_DATABASE_URL)
