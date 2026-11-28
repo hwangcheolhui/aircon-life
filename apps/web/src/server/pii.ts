@@ -1,11 +1,11 @@
 import 'server-only';
-import { decryptPii, encryptPii, hashPhone } from '@aircon/domain/server';
+import { decryptPii, encryptPii, hashPhone, isValidPiiKey, normalizePiiKey } from '@aircon/domain/server';
 import { ConfigError } from './action-result';
 
 function key() {
-  const k = process.env.PII_ENCRYPTION_KEY?.trim();
+  const k = normalizePiiKey(process.env.PII_ENCRYPTION_KEY ?? '');
   if (!k) throw new ConfigError('PII_ENCRYPTION_KEY가 설정되지 않았습니다.');
-  if (Buffer.from(k, 'base64').length !== 32) throw new ConfigError('PII_ENCRYPTION_KEY는 32바이트 base64 값이어야 합니다(openssl rand -base64 32).');
+  if (!isValidPiiKey(k)) throw new ConfigError('PII_ENCRYPTION_KEY는 32바이트 base64 값이어야 합니다(openssl rand -base64 32).');
   return k;
 }
 function pepper() {
@@ -15,12 +15,19 @@ function pepper() {
 }
 export const encrypt = (v: string | null) => (v ? encryptPii(v, key()) : null);
 /**
- * 복호화. 키가 데이터를 암호화한 키와 다르거나 값이 깨졌으면 화면 전체가 깨지지 않도록 null 을 돌려주고 서버 로그에 남긴다.
- * (키 설정 누락은 ConfigError 로 그대로 알린다)
+ * 복호화(화면 표시용). 키 설정이 비었거나 형식이 틀렸거나, 데이터를 암호화한 키와 다르면
+ * 화면 전체가 깨지지 않도록 null 을 돌려주고 서버 로그에 원인을 남긴다.
+ * 저장(encrypt)·검색(phoneHash)은 설정 오류를 ConfigError 로 그대로 알려 화면에 메시지가 뜬다.
  */
 export const decrypt = (v: string | null) => {
   if (!v) return null;
-  const k = key();
+  let k: string;
+  try {
+    k = key();
+  } catch (e) {
+    warnConfig(e);
+    return null;
+  }
   try {
     return decryptPii(v, k);
   } catch {
@@ -29,6 +36,12 @@ export const decrypt = (v: string | null) => {
   }
 };
 let warned = 0;
+let configWarned = 0;
+function warnConfig(e: unknown) {
+  if (configWarned++ % 100 === 0) {
+    console.error(`[PII] 복호화 건너뜀: ${e instanceof Error ? e.message : String(e)} Vercel 환경변수 PII_ENCRYPTION_KEY 를 확인하세요. (docs/07_테스트데이터.md)`);
+  }
+}
 function warnDecryptFailure() {
   if (warned++ % 100 === 0) {
     console.error('[PII] 복호화 실패: PII_ENCRYPTION_KEY 가 이 데이터를 암호화한 키와 다릅니다. Vercel 과 GitHub Secret(DB 준비)의 값을 같게 맞추세요. (docs/07_테스트데이터.md)');
