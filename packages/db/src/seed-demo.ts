@@ -549,16 +549,16 @@ async function seedCatalog(c: Ctx) {
   const policies: (typeof pricePolicy.$inferInsert)[] = [];
   for (const p of DEMO_PRODUCTS) {
     const pid = c.productId[p.code]!;
-    if (!has(pid, null, null)) policies.push({ productId: pid, unitPrice: p.price, multiUnitDiscountJson: p.tiers ?? null, validFrom: '2026-01-01' });
+    if (!has(pid, null, null)) policies.push({ productId: pid, unitPrice: p.price, multiUnitDiscountJson: p.tiers ?? null, validFrom: '2025-01-01' });
   }
   for (const bp of DEMO_BRANCH_PRICES) {
     const pid = c.productId[bp.product]!;
     const bid = c.branchId[bp.branch]!;
-    if (!has(pid, bid, null)) policies.push({ productId: pid, branchId: bid, unitPrice: bp.price, multiUnitDiscountJson: DEMO_PRODUCTS.find((p) => p.code === bp.product)?.tiers ?? null, validFrom: '2026-01-01', priority: 10 });
+    if (!has(pid, bid, null)) policies.push({ productId: pid, branchId: bid, unitPrice: bp.price, multiUnitDiscountJson: DEMO_PRODUCTS.find((p) => p.code === bp.product)?.tiers ?? null, validFrom: '2025-01-01', priority: 10 });
   }
   for (const bp of DEMO_BUSINESS_PRICES) {
     const pid = c.productId[bp.product]!;
-    if (!has(pid, null, 'BUSINESS')) policies.push({ productId: pid, customerType: 'BUSINESS', unitPrice: bp.price, multiUnitDiscountJson: DEMO_PRODUCTS.find((p) => p.code === bp.product)?.tiers ?? null, validFrom: '2026-01-01', priority: 5 });
+    if (!has(pid, null, 'BUSINESS')) policies.push({ productId: pid, customerType: 'BUSINESS', unitPrice: bp.price, multiUnitDiscountJson: DEMO_PRODUCTS.find((p) => p.code === bp.product)?.tiers ?? null, validFrom: '2025-01-01', priority: 5 });
   }
   if (policies.length) await db.insert(pricePolicy).values(policies);
 
@@ -804,6 +804,9 @@ async function seedCustomers(c: Ctx): Promise<number> {
             memo: k.memo,
             status: k.status,
             dormantAt: k.status === 'DORMANT' ? c.clock.at(-30, 2) : null,
+            // 탈퇴 후 보관 기간(5년)이 어제 끝난 고객 → 개인정보 파기 대상
+            withdrawnAt: k.status === 'WITHDRAWN' ? c.clock.at(-1827, 9) : null,
+            purgeDueDate: k.status === 'WITHDRAWN' ? c.clock.day(-1) : null,
             createdAt: joinedAt,
             updatedAt: joinedAt,
           })
@@ -1601,6 +1604,11 @@ async function seedHistory(c: Ctx) {
     done.push(m);
     return m;
   };
+  // 1년 전·여름 성수기 완료 주문 (재방문 캠페인 대상, KPI 재방문율·비수기/성수기 매출비 확인용)
+  await makeOrder(c, { cust: 'hong', day: W(-373), hour: 10, lines: [wall(2)], status: 'COMPLETED', tech: 'kang', pay: 'CARD', note: note('작년 11월 완료 · 올해 재주문 → 재방문율') });
+  await makeOrder(c, { cust: 'woo', day: W(-345), hour: 14, lines: [wall(1)], status: 'COMPLETED', tech: 'kang', pay: 'CARD', review: { rating: 5, tags: 'KIND', content: '깨끗하게 해 주셨어요.' }, note: note('작년 12월 완료 후 11개월 경과 → 재방문 캠페인 대상') });
+  await makeOrder(c, { cust: 'hong', addr: 1, day: W(-131), hour: 9, lines: [stand(1)], status: 'COMPLETED', tech: 'kang', pay: 'CARD', note: note('여름 성수기 완료') });
+  await makeOrder(c, { cust: 'park', day: W(-125), hour: 10, lines: [{ deviceType: 'CEILING_4WAY', cleanLevel: 'FULL', quantity: 2 }], status: 'COMPLETED', tech: 'kang', pay: 'TRANSFER', channel: 'PHONE', note: note('여름 성수기 완료 · 사업자') });
   const hongOld = await P({ cust: 'hong', day: W(-33), hour: 10, lines: [wall(2), stand(1)], status: 'COMPLETED', tech: 'kang', pay: 'PREPAY', review: { rating: 5, tags: 'KIND,CAREFUL,EXPLAIN', content: '세 대 모두 꼼꼼하게 분해 세척해 주셨어요. 냄새가 싹 사라졌습니다.', reply: '소중한 후기 감사합니다. 다음에도 꼼꼼히 관리해 드릴게요!' }, note: note('완료 · 선결제 · 5점 후기(답글)') });
   await P({ cust: 'kim', day: W(-31), hour: 13, lines: [wall(1)], status: 'COMPLETED', tech: 'seo', pay: 'CARD', review: { rating: 4, tags: 'ON_TIME,TIDY', content: '시간 맞춰 와 주셨고 깔끔했어요.' }, note: note('완료 · 현장 카드') });
   await P({ cust: 'park', day: W(-29), hour: 10, lines: [{ deviceType: 'CEILING_4WAY', cleanLevel: 'FULL', quantity: 3 }], status: 'COMPLETED', tech: 'kang', pay: 'TRANSFER', extras: [{ rule: 'HIGH_PLACE', qty: 3, reason: '천장고 3m, 사다리 작업' }], channel: 'PHONE', note: note('완료 · 사업자 천장형 3대 · 계좌이체(기사 수금) · 고소작업 추가요금 · 세금계산서 요청') });
@@ -1936,7 +1944,9 @@ async function seedSettlements(c: Ctx, done: MadeOrder[]) {
         { cashCollected: cashByTech.get(techId) ?? 0, contractType: meta.contract, withholdingRate: pol?.withholdingRate ?? null },
       );
       // 기사별 상태: 지급 회차는 PAID, 계산 회차는 기사마다 다르게(확인·이의·미응답)
-      const tPath: string[] = paid ? ['CALCULATED', 'TECH_CONFIRMED', 'CONFIRMED', 'PAID'] : key === 'seo' ? ['CALCULATED', 'DISPUTED'] : key === 'kang' ? ['CALCULATED', 'TECH_CONFIRMED'] : ['CALCULATED'];
+      // 이의 제기는 회차마다 1명(서기사 우선, 그 주에 서기사 작업이 없으면 팀장 아닌 다른 기사) — 날짜에 따라 주 구성이 바뀌어도 항상 1건 보이게
+      const disputeKey = itemsByTech.has(c.techId.seo!) ? 'seo' : (Object.entries(c.techId).find(([k, id]) => k !== 'kang' && itemsByTech.has(id))?.[0] ?? null);
+      const tPath: string[] = paid ? ['CALCULATED', 'TECH_CONFIRMED', 'CONFIRMED', 'PAID'] : key === disputeKey ? ['CALCULATED', 'DISPUTED'] : key === 'kang' ? ['CALCULATED', 'TECH_CONFIRMED'] : ['CALCULATED'];
       for (let i = 1; i < tPath.length; i++) assertSettlementTransition(tPath[i - 1]!, tPath[i] as never);
       const st = await one(
         db
@@ -2158,7 +2168,7 @@ async function seedToday(c: Ctx, tag: string) {
   const u1 = await makeOrder(c, { cust: 'hong', addr: 1, day: nx, hour: 10, lines: [wall(1)], status: 'ASSIGNED', tech: 'kang', pay: 'PREPAY', createdDaysBefore: 3, note: note('다가오는 예약 · 배정 완료') });
   const u2 = await makeOrder(c, { cust: 'park', day: nx, hour: 13, lines: [{ deviceType: 'CEILING_4WAY', cleanLevel: 'FULL', quantity: 3 }], status: 'ASSIGNED', tech: 'kang', channel: 'PHONE', createdDaysBefore: 2, note: note('다가오는 예약 · 사업자 천장형 3대(사업자 단가)') });
   await makeOrder(c, { cust: 'kim', day: nx2, hour: 11, lines: [stand(2)], status: 'RECEIVED', createdDaysBefore: 1, request: '아이가 있어 친환경 세정제 부탁드려요.', note: note('미배정 접수(배정 보드)') });
-  await makeOrder(c, { cust: 'jung', day: W(d0 + 2), hour: 15, lines: [wall(1)], status: 'ASSIGN_WAIT', orderType: 'URGENT', createdDaysBefore: 0, note: note('긴급 · 기사 미지정 대기') });
+  await makeOrder(c, { cust: 'jung', day: d0, hour: 17, lines: [wall(1)], status: 'ASSIGN_WAIT', orderType: 'URGENT', createdDaysBefore: 0, note: note('긴급 · 오늘 기사 미지정 대기(배정 보드·기사 관할 내 미배정)') });
   await makeOrder(c, { cust: 'seo', day: W(d0 + 4), hour: 14, lines: [stand(1)], status: 'RECEIVED', tech: 'seo', assign: 'SELF_REQUESTED', assignMethod: 'SELF', createdDaysBefore: 1, note: note('기사 자가 배정 요청(승인 대기)') });
   const chg = await makeOrder(c, { cust: 'han', day: W(d0 + 3), hour: 10, lines: [wall(1)], status: 'ASSIGNED', tech: 'seo', createdDaysBefore: 2, note: note('고객 일정 변경 요청') });
   const cxl = await makeOrder(c, { cust: 'oh', day: W(d0 + 5), hour: 16, lines: [wall(1, 'BASIC')], status: 'RECEIVED', createdDaysBefore: 1, note: note('고객 취소 요청') });
