@@ -42,16 +42,53 @@ export interface DemoArea {
   road: string;
 }
 
-/** 은평 5개 동 + 분당 2개 동은 서비스 가능, 해운대 우동은 오픈 준비(서비스 불가 → 오픈 알림 신청 시험) */
+/**
+ * 은평 5개 동 + 분당 2개 동은 서비스 가능(가상 고객 주소·기사 담당 동), 해운대 우동은 오픈 준비(서비스 불가 → 오픈 알림 신청 시험).
+ * 코드는 실제 법정동 코드(카카오 우편번호 bcode)와 같다. 나머지 은평구·분당구 동은 DEMO_EXTRA_AREAS 로 서비스 가능 처리한다.
+ */
 export const DEMO_AREAS: DemoArea[] = [
-  { branch: 'EP01', sido: '서울특별시', sigungu: '은평구', dong: '불광동', code: '1138010400', serviceable: true, travelFee: 0, lat: 37.6177, lng: 126.9288, zipcode: '03300', road: '서울 은평구 불광로' },
-  { branch: 'EP01', sido: '서울특별시', sigungu: '은평구', dong: '대조동', code: '1138010500', serviceable: true, travelFee: 0, lat: 37.6142, lng: 126.9201, zipcode: '03390', road: '서울 은평구 대조로' },
-  { branch: 'EP01', sido: '서울특별시', sigungu: '은평구', dong: '역촌동', code: '1138010300', serviceable: true, travelFee: 0, lat: 37.6106, lng: 126.9161, zipcode: '03431', road: '서울 은평구 역촌로' },
-  { branch: 'EP01', sido: '서울특별시', sigungu: '은평구', dong: '갈현동', code: '1138010600', serviceable: true, travelFee: 0, lat: 37.6251, lng: 126.9223, zipcode: '03319', road: '서울 은평구 갈현로' },
-  { branch: 'EP01', sido: '서울특별시', sigungu: '은평구', dong: '응암동', code: '1138010200', serviceable: true, travelFee: 10000, lat: 37.6029, lng: 126.9124, zipcode: '03470', road: '서울 은평구 응암로' },
+  { branch: 'EP01', sido: '서울특별시', sigungu: '은평구', dong: '갈현동', code: '1138010400', serviceable: true, travelFee: 0, lat: 37.6177, lng: 126.9288, zipcode: '03300', road: '서울 은평구 갈현로' },
+  { branch: 'EP01', sido: '서울특별시', sigungu: '은평구', dong: '구산동', code: '1138010500', serviceable: true, travelFee: 0, lat: 37.6142, lng: 126.9201, zipcode: '03390', road: '서울 은평구 연서로' },
+  { branch: 'EP01', sido: '서울특별시', sigungu: '은평구', dong: '불광동', code: '1138010300', serviceable: true, travelFee: 0, lat: 37.6106, lng: 126.9161, zipcode: '03431', road: '서울 은평구 불광로' },
+  { branch: 'EP01', sido: '서울특별시', sigungu: '은평구', dong: '대조동', code: '1138010600', serviceable: true, travelFee: 0, lat: 37.6251, lng: 126.9223, zipcode: '03319', road: '서울 은평구 대조로' },
+  { branch: 'EP01', sido: '서울특별시', sigungu: '은평구', dong: '녹번동', code: '1138010200', serviceable: true, travelFee: 10000, lat: 37.6029, lng: 126.9124, zipcode: '03470', road: '서울 은평구 통일로' },
   { branch: 'BD01', sido: '경기도', sigungu: '성남시 분당구', dong: '백현동', code: '4113511000', serviceable: true, travelFee: 0, lat: 37.3925, lng: 127.1112, zipcode: '13529', road: '경기 성남시 분당구 백현로' },
   { branch: 'BD01', sido: '경기도', sigungu: '성남시 분당구', dong: '삼평동', code: '4113510900', serviceable: true, travelFee: 0, lat: 37.4005, lng: 127.1086, zipcode: '13487', road: '경기 성남시 분당구 삼평로' },
   { branch: 'BS01', sido: '부산광역시', sigungu: '해운대구', dong: '우동', code: '2635010500', serviceable: false, travelFee: 0, lat: 35.1631, lng: 129.1636, zipcode: '48094', road: '부산 해운대구 해운대로' },
+];
+
+/** 실제 주소로 견적을 시험할 수 있도록 은평구·분당구의 나머지 법정동도 서비스 가능으로 등록 */
+export const DEMO_EXTRA_AREAS: { branch: string; sido: string; sigungu: string; dong: string; code: string }[] = [
+  ...(
+    [
+      ['1138010100', '수색동'],
+      ['1138010700', '응암동'],
+      ['1138010800', '역촌동'],
+      ['1138010900', '신사동'],
+      ['1138011000', '증산동'],
+      ['1138011400', '진관동'],
+    ] as const
+  ).map(([code, dong]) => ({ branch: 'EP01', sido: '서울특별시', sigungu: '은평구', dong, code })),
+  ...(
+    [
+      ['4113510100', '분당동'],
+      ['4113510200', '수내동'],
+      ['4113510300', '정자동'],
+      ['4113510400', '율동'],
+      ['4113510500', '서현동'],
+      ['4113510600', '이매동'],
+      ['4113510700', '야탑동'],
+      ['4113510800', '판교동'],
+      ['4113511100', '금곡동'],
+      ['4113511200', '궁내동'],
+      ['4113511300', '동원동'],
+      ['4113511400', '구미동'],
+      ['4113511500', '운중동'],
+      ['4113511600', '대장동'],
+      ['4113511700', '석운동'],
+      ['4113511800', '하산운동'],
+    ] as const
+  ).map(([code, dong]) => ({ branch: 'BD01', sido: '경기도', sigungu: '성남시 분당구', dong, code })),
 ];
 
 /* ---------- 관리자 계정 ---------- */

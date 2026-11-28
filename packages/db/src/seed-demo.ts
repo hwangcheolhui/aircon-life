@@ -139,6 +139,7 @@ import {
   type CustKey,
   DEMO_ADMINS,
   DEMO_AREAS,
+  DEMO_EXTRA_AREAS,
   DEMO_BRANCHES,
   DEMO_BRANCH_PRICES,
   DEMO_BUSINESS_PRICES,
@@ -467,6 +468,20 @@ async function seedBranches(c: Ctx) {
         legalDongCode: a.code,
         isServiceable: a.serviceable,
         travelFee: a.travelFee,
+      })),
+    )
+    .onConflictDoNothing();
+  await db
+    .insert(serviceArea)
+    .values(
+      DEMO_EXTRA_AREAS.map((a) => ({
+        branchId: c.branchId[a.branch]!,
+        sido: a.sido,
+        sigungu: a.sigungu,
+        eupmyeondong: a.dong,
+        legalDongCode: a.code,
+        isServiceable: true,
+        travelFee: 0,
       })),
     )
     .onConflictDoNothing();
