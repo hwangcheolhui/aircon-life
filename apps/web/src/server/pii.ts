@@ -58,3 +58,22 @@ export const decryptOrNull = (v: string | null) => {
     return null;
   }
 };
+
+/**
+ * 설정 점검용(/api/health): 키 형식과, 저장된 암호문 몇 개를 지금 키로 풀 수 있는지 건수만 알려 준다. 값은 돌려주지 않는다.
+ */
+export function piiKeyStatus(samples: string[]): { key: 'ok' | 'missing' | 'invalid'; decryptOk: number; decryptFail: number } {
+  const k = normalizePiiKey(process.env.PII_ENCRYPTION_KEY ?? '');
+  if (!k) return { key: 'missing', decryptOk: 0, decryptFail: 0 };
+  if (!isValidPiiKey(k)) return { key: 'invalid', decryptOk: 0, decryptFail: 0 };
+  let ok = 0;
+  for (const v of samples) {
+    try {
+      decryptPii(v, k);
+      ok++;
+    } catch {
+      /* 다른 키로 암호화된 값 */
+    }
+  }
+  return { key: 'ok', decryptOk: ok, decryptFail: samples.length - ok };
+}
