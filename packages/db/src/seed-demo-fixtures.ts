@@ -91,6 +91,8 @@ export const DEMO_EXTRA_AREAS: { branch: string; sido: string; sigungu: string; 
   ).map(([code, dong]) => ({ branch: 'BD01', sido: '경기도', sigungu: '성남시 분당구', dong, code })),
 ];
 
+const extraDongs = (branch: string) => DEMO_EXTRA_AREAS.filter((a) => a.branch === branch).map((a) => a.code);
+
 /* ---------- 관리자 계정 ---------- */
 
 export interface DemoAdmin {
@@ -137,19 +139,19 @@ export interface DemoTech {
 }
 
 export const DEMO_TECHS: DemoTech[] = [
-  { key: 'kang', code: 'EPT01', name: '강팀장', phone: '01000001001', branch: 'EP01', grade: 'LEADER', contract: 'EMPLOYEE', status: 'ACTIVE', joinedDaysAgo: 260, dongs: ['1138010400', '1138010500'], intro: '꼼꼼한 완전분해 세척 전문입니다.', desc: '은평 팀장 · 오늘 작업 4건(완료·작업중·대기) · 코스 진행중' },
+  { key: 'kang', code: 'EPT01', name: '강팀장', phone: '01000001001', branch: 'EP01', grade: 'LEADER', contract: 'EMPLOYEE', status: 'ACTIVE', joinedDaysAgo: 420, dongs: ['1138010400', '1138010500', ...extraDongs('EP01')], intro: '꼼꼼한 완전분해 세척 전문입니다.', desc: '은평 팀장 · 오늘 작업 4건(완료·작업중·대기) · 코스 진행중' },
   { key: 'seo', code: 'EPT02', name: '서기사', phone: '01000001002', branch: 'EP01', grade: 'REGULAR', contract: 'FREELANCER', status: 'ACTIVE', joinedDaysAgo: 200, dongs: ['1138010300', '1138010600'], intro: '시간 약속을 지키는 기사입니다.', desc: '은평 정규 · 결제 대기·미처리·이동중 작업 · 자가 배정 요청 · 정산 이의' },
   { key: 'moon', code: 'EPT03', name: '문기사', phone: '01000001003', branch: 'EP01', grade: 'REGULAR', contract: 'PARTNER', status: 'ACTIVE', joinedDaysAgo: 150, dongs: ['1138010200'], intro: null, desc: '은평 정규(파트너) · 이관 요청 중인 작업 · 코스 확정' },
   { key: 'shin', code: 'EPT04', name: '신견습', phone: '01000001004', branch: 'EP01', grade: 'TRAINEE', contract: 'EMPLOYEE', status: 'TRAINING', joinedDaysAgo: 20, dongs: [], intro: null, desc: '교육 중 견습 · 기본과정 수강 중(동행 1/3)' },
   { key: 'noh', code: 'EPT05', name: '노휴직', phone: '01000001005', branch: 'EP01', grade: 'REGULAR', contract: 'FREELANCER', status: 'PAUSED', joinedDaysAgo: 300, dongs: [], intro: null, desc: '휴직 중 (로그인 불가 시험용)' },
   { key: 'ryu', code: 'EPT06', name: '류퇴사', phone: '01000001006', branch: 'EP01', grade: 'REGULAR', contract: 'FREELANCER', status: 'LEFT', joinedDaysAgo: 330, dongs: [], intro: null, desc: '이탈 처리된 기사 (로그인 불가, 이탈 분석용)' },
-  { key: 'jang', code: 'BDT01', name: '장분당', phone: '01000002001', branch: 'BD01', grade: 'LEADER', contract: 'EMPLOYEE', status: 'ACTIVE', joinedDaysAgo: 170, dongs: ['4113511000', '4113510900'], intro: '천장형·시스템 에어컨 전문입니다.', desc: '분당 팀장 · 분당 고객 작업' },
+  { key: 'jang', code: 'BDT01', name: '장분당', phone: '01000002001', branch: 'BD01', grade: 'LEADER', contract: 'EMPLOYEE', status: 'ACTIVE', joinedDaysAgo: 170, dongs: ['4113511000', '4113510900', ...extraDongs('BD01')], intro: '천장형·시스템 에어컨 전문입니다.', desc: '분당 팀장 · 분당 고객 작업' },
   { key: 'lim', code: 'BDT02', name: '임분당', phone: '01000002002', branch: 'BD01', grade: 'REGULAR', contract: 'FREELANCER', status: 'ACTIVE', joinedDaysAgo: 120, dongs: ['4113510900'], intro: null, desc: '분당 정규 · 2인 작업 지원' },
 ];
 
 /* ---------- 고객 ---------- */
 
-export type CustKey = 'hong' | 'kim' | 'lee' | 'park' | 'jung' | 'han' | 'oh' | 'seo' | 'song' | 'yim' | 'jo' | 'bae';
+export type CustKey = 'hong' | 'kim' | 'lee' | 'park' | 'jung' | 'han' | 'oh' | 'seo' | 'song' | 'yim' | 'jo' | 'bae' | 'woo' | 'gu';
 
 export interface DemoCustomer {
   key: CustKey;
@@ -172,10 +174,10 @@ export interface DemoCustomer {
 }
 
 export const DEMO_CUSTOMERS: DemoCustomer[] = [
-  { key: 'hong', name: '홍길동', phone: '01000000001', type: 'PERSONAL', join: 'APP', auth: 'PHONE', grade: 'VIP', status: 'ACTIVE', marketing: true, email: 'hong@example.com', tags: ['FREQUENT'], joinedDaysAgo: 240, memo: '재방문 고객, 오전 방문 선호', addresses: [ { dong: '1138010400', no: 12, alias: '우리집', detail: '101동 1001호', housing: 'APT', elevator: true, parking: '지하 주차장 방문 등록' }, { dong: '1138010500', no: 45, alias: '부모님댁', detail: '2층', housing: 'VILLA', elevator: false } ], desc: 'VIP · 완료 이력 다수 · 오늘 완료 1건 · 다가오는 예약 · 보유 기기 · 쿠폰 사용 · 후기' },
+  { key: 'hong', name: '홍길동', phone: '01000000001', type: 'PERSONAL', join: 'APP', auth: 'PHONE', grade: 'VIP', status: 'ACTIVE', marketing: true, email: 'hong@example.com', tags: ['FREQUENT'], joinedDaysAgo: 400, memo: '재방문 고객, 오전 방문 선호', addresses: [ { dong: '1138010400', no: 12, alias: '우리집', detail: '101동 1001호', housing: 'APT', elevator: true, parking: '지하 주차장 방문 등록' }, { dong: '1138010500', no: 45, alias: '부모님댁', detail: '2층', housing: 'VILLA', elevator: false } ], desc: 'VIP · 완료 이력 다수 · 오늘 완료 1건 · 다가오는 예약 · 보유 기기 · 쿠폰 사용 · 후기' },
   { key: 'kim', name: '김철수', phone: '01000000002', type: 'PERSONAL', join: 'APP', auth: 'PHONE', grade: 'NORMAL', status: 'ACTIVE', marketing: true, email: null, tags: [], joinedDaysAgo: 90, memo: null, addresses: [ { dong: '1138010400', no: 88, alias: '집', detail: '305동 702호', housing: 'APT', elevator: true } ], desc: '오늘 작업중(추가요금 동의 대기) · 미배정 예약 · 쿠폰 보유' },
   { key: 'lee', name: '이영희', phone: '01000000003', type: 'PERSONAL', join: 'PHONE', auth: null, grade: 'NORMAL', status: 'ACTIVE', marketing: false, email: null, tags: [], joinedDaysAgo: 60, memo: '전화 접수 고객 (앱 미가입)', addresses: [ { dong: '1138010500', no: 7, alias: '집', detail: '3층 301호', housing: 'VILLA', elevator: false } ], desc: '전화 접수만 한 고객 · 상담 이력 · 오늘 방문 예정 · 앱 첫 로그인 시 이력 연결' },
-  { key: 'park', name: '박영수', phone: '01000000004', type: 'BUSINESS', join: 'PHONE', auth: 'PHONE', grade: 'FREQUENT', status: 'ACTIVE', marketing: false, email: 'office@example.com', tags: ['FREQUENT'], joinedDaysAgo: 120, memo: '사업자 고객(가상 상호: 테스트상사), 세금계산서 발행', addresses: [ { dong: '1138010300', no: 150, alias: '사무실', detail: '테스트빌딩 4층', housing: 'OFFICE', elevator: true, parking: '건물 뒤편 주차' } ], desc: '사업자 · 천장형 다수 · 세금계산서 · 다가오는 예약' },
+  { key: 'park', name: '박영수', phone: '01000000004', type: 'BUSINESS', join: 'PHONE', auth: 'PHONE', grade: 'FREQUENT', status: 'ACTIVE', marketing: false, email: 'office@example.com', tags: ['FREQUENT'], joinedDaysAgo: 200, memo: '사업자 고객(가상 상호: 테스트상사), 세금계산서 발행', addresses: [ { dong: '1138010300', no: 150, alias: '사무실', detail: '테스트빌딩 4층', housing: 'OFFICE', elevator: true, parking: '건물 뒤편 주차' } ], desc: '사업자 · 천장형 다수 · 세금계산서 · 다가오는 예약' },
   { key: 'jung', name: '정다운', phone: '01000000005', type: 'PERSONAL', join: 'APP', auth: 'PHONE', grade: 'NORMAL', status: 'ACTIVE', marketing: true, email: null, tags: [], joinedDaysAgo: 45, memo: null, addresses: [ { dong: '1138010600', no: 33, alias: '집', detail: '1203호', housing: 'OFFICETEL', elevator: true } ], desc: '오늘 방문 예정 · 긴급 미지정 접수 · 저평점 후기(VOC)' },
   { key: 'han', name: '한가람', phone: '01000000006', type: 'PERSONAL', join: 'APP', auth: 'PHONE', grade: 'NORMAL', status: 'ACTIVE', marketing: false, email: null, tags: [], joinedDaysAgo: 75, memo: null, addresses: [ { dong: '1138010300', no: 21, alias: '집', detail: '102동 504호', housing: 'APT', elevator: true } ], desc: '작업 완료 · 결제 대기(작업 후 결제) · 일정 변경 요청' },
   { key: 'oh', name: '오나래', phone: '01000000007', type: 'PERSONAL', join: 'REFERRAL', auth: 'PHONE', grade: 'CAUTION', status: 'ACTIVE', marketing: false, email: null, tags: ['CAUTION'], joinedDaysAgo: 30, memo: '부재 잦음, 방문 전 통화 필수', addresses: [ { dong: '1138010200', no: 9, alias: '집', detail: '단독주택', housing: 'HOUSE', elevator: false, parking: '골목 주차 불가' } ], desc: '주의 고객 · 고객부재 미처리 · 취소 요청 · 안전사고' },
@@ -184,6 +186,8 @@ export const DEMO_CUSTOMERS: DemoCustomer[] = [
   { key: 'yim', name: '임바다', phone: '01000000010', type: 'PERSONAL', join: 'APP', auth: 'PHONE', grade: 'NORMAL', status: 'ACTIVE', marketing: true, email: null, tags: [], joinedDaysAgo: 100, memo: null, addresses: [ { dong: '4113511000', no: 18, alias: '집', detail: '501동 1101호', housing: 'APT', elevator: true } ], desc: '분당 고객 · 완료 이력 · 다가오는 예약' },
   { key: 'jo', name: '조새봄', phone: '01000000011', type: 'PERSONAL', join: 'APP', auth: 'PHONE', grade: 'NORMAL', status: 'ACTIVE', marketing: false, email: null, tags: [], joinedDaysAgo: 80, memo: null, addresses: [ { dong: '4113510900', no: 3, alias: '집', detail: '7층 703호', housing: 'OFFICETEL', elevator: true } ], desc: '분당 고객 · 시스템 에어컨 2인 작업 완료' },
   { key: 'bae', name: '배이슬', phone: '01000000012', type: 'PERSONAL', join: 'APP', auth: 'PHONE', grade: 'NORMAL', status: 'DORMANT', marketing: false, email: null, tags: [], joinedDaysAgo: 420, memo: '1년 이상 미이용 → 휴면', addresses: [ { dong: '1138010400', no: 99, alias: '집', detail: '5층', housing: 'VILLA', elevator: false } ], desc: '휴면 고객 (로그인하면 휴면 해제)' },
+  { key: 'woo', name: '우하나', phone: '01000000013', type: 'PERSONAL', join: 'APP', auth: 'PHONE', grade: 'NORMAL', status: 'ACTIVE', marketing: true, email: null, tags: [], joinedDaysAgo: 420, memo: null, addresses: [ { dong: '1138010300', no: 64, alias: '집', detail: '3층 302호', housing: 'VILLA', elevator: false } ], desc: '작년 12월 청소 후 11개월 경과 → 재방문 캠페인 대상' },
+  { key: 'gu', name: '구지움', phone: '01000000014', type: 'PERSONAL', join: 'APP', auth: 'PHONE', grade: 'NORMAL', status: 'WITHDRAWN', marketing: false, email: null, tags: [], joinedDaysAgo: 2300, memo: '탈퇴 후 보관 기간 만료', addresses: [ { dong: '1138010600', no: 5, alias: '집', detail: '1층', housing: 'HOUSE', elevator: false } ], desc: '탈퇴 고객 · 보관 기간 만료 → 개인정보 파기 대상 (로그인 불가)' },
 ];
 
 /* ---------- 상품·가격·할증·옵션·자재·쿠폰 ---------- */
