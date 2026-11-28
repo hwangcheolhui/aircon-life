@@ -4,6 +4,12 @@ import type { ReactNode } from 'react';
 import { QuoteFlowProvider } from '@/customer/quote-flow';
 import { isQuoteDemoMode } from '@/server/quote-demo';
 
+/**
+ * 체험 모드 안내는 실행 중인 서버의 DATABASE_URL 로 판단해야 한다.
+ * 정적 생성하면 빌드 시점 값(Vercel 빌드에서는 비어 있을 수 있음)으로 굳어 DB가 연결돼 있어도 체험 모드로 보인다.
+ */
+export const dynamic = 'force-dynamic';
+
 export default function QuoteLayout({ children }: { children: ReactNode }) {
   return (
     <QuoteFlowProvider>
