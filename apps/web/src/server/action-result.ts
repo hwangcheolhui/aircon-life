@@ -44,14 +44,14 @@ export function errorCode(e: unknown): string | undefined {
 const NET_CODES = new Set(['ECONNREFUSED', 'ENOTFOUND', 'ETIMEDOUT', 'ECONNRESET', 'EAI_AGAIN', 'CONNECT_TIMEOUT', 'CONNECTION_CLOSED', 'CONNECTION_ENDED', 'CONNECTION_DESTROYED']);
 /**
  * DB 연결 자체가 안 되는 오류인지: 네트워크 오류, 08xxx(연결), 28xxx(인증), 3D000(DB 없음), 53300(연결 수 초과),
- * Supabase Pooler 의 "Tenant or user not found"(XX000).
+ * Supabase Pooler 의 "Tenant or user not found"·"max clients reached"(XX000).
  */
 export function isDbConnectionError(e: unknown, code = errorCode(e)): boolean {
   if (!code) return false;
   if (NET_CODES.has(code) || /^(08|28)/.test(code) || code === '3D000' || code === '53300') return true;
   let cur: unknown = e;
   for (let i = 0; i < 4 && cur && typeof cur === 'object'; i++) {
-    if (/Tenant or user not found/i.test(String((cur as { message?: unknown }).message ?? ''))) return true;
+    if (/Tenant or user not found|max clients reached|EMAXCONN/i.test(String((cur as { message?: unknown }).message ?? ''))) return true;
     cur = (cur as { cause?: unknown }).cause;
   }
   return false;
