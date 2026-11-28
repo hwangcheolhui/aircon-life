@@ -48,7 +48,7 @@ import {
   summarizeSettlement,
   weekOf,
 } from '@aircon/domain';
-import { encryptPii, hashPassword, hashPhone } from '@aircon/domain/server';
+import { decryptPii, encryptPii, hashPassword, hashPhone } from '@aircon/domain/server';
 import { randomBytes } from 'node:crypto';
 import { and, eq, inArray, isNull, like, sql } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
@@ -400,6 +400,7 @@ export async function seedDemoData(db: Db, o: DemoSeedOptions): Promise<DemoSeed
   const admins = await seedAdmins(c);
   const techs = await seedTechnicians(c);
   const customers = await seedCustomers(c);
+  await repairDemoPii(c);
   await uploadSampleFiles(c);
   await seedSchedulesAndSlots(c);
 
@@ -860,6 +861,106 @@ async function seedCustomers(c: Ctx): Promise<number> {
   }
   c.log(`고객: 새로 ${created}명 (전체 ${Object.keys(c.cust).length}명)`);
   return created;
+}
+
+/**
+ * 가상 데이터의 암호화 값 복구.
+ * 이전에 다른 PII_ENCRYPTION_KEY 로 넣은 가상 데이터는 앱이 풀지 못해 화면이 깨진다.
+ * 지금 키로 풀리지 않는 값 중 가상 데이터(테스트 번호·고정값)는 원래 값을 알고 있으므로 지금 키로 다시 암호화한다.
+ * 지금 키로 잘 풀리는 값과 가상 데이터가 아닌 값은 건드리지 않는다.
+ */
+async function repairDemoPii(c: Ctx) {
+  const { db } = c;
+  const ok = (v: string | null) => {
+    if (!v) return true;
+    try {
+      decryptPii(v, c.o.piiKey);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  // 해시 → 가상 데이터 전화번호
+  const phones = [
+    ...DEMO_CUSTOMERS.map((k) => k.phone),
+    ...DEMO_TECHS.map((t) => t.phone),
+    ...DEMO_ADMINS.map((a) => a.phone),
+    '01000000095', '01000000096', '01000000097', '01000003001', '01000003002', '01000003003', '01000008001',
+  ];
+  const byHash = new Map(phones.map((p) => [c.ph(p), p]));
+  let fixed = 0;
+
+  for (const r of await db.select({ id: customer.id, name: customer.name, phone1: customer.phone1, h: customer.phone1Hash }).from(customer)) {
+    const k = DEMO_CUSTOMERS.find((x) => c.ph(x.phone) === r.h);
+    if (!k) continue;
+    const set: Partial<typeof customer.$inferInsert> = {};
+    if (!ok(r.name)) set.name = c.enc(k.name);
+    if (!ok(r.phone1)) set.phone1 = c.enc(k.phone);
+    if (Object.keys(set).length) {
+      await db.update(customer).set(set).where(eq(customer.id, r.id));
+      fixed++;
+    }
+    for (const a of await db.select({ id: customerAddress.id, alias: customerAddress.alias, detail: customerAddress.detailAddress }).from(customerAddress).where(eq(customerAddress.customerId, r.id))) {
+      if (ok(a.detail)) continue;
+      const fx = k.addresses.find((x) => x.alias === a.alias) ?? k.addresses[0]!;
+      await db.update(customerAddress).set({ detailAddress: c.enc(fx.detail) }).where(eq(customerAddress.id, a.id));
+      fixed++;
+    }
+  }
+  for (const r of await db.select({ id: technician.id, loginId: technician.loginId, phone: technician.phone, bank: technician.bankAccount }).from(technician)) {
+    const t = DEMO_TECHS.find((x) => c.ph(x.phone) === r.loginId);
+    if (!t) continue;
+    const set: Partial<typeof technician.$inferInsert> = {};
+    if (!ok(r.phone)) set.phone = c.enc(t.phone);
+    if (!ok(r.bank)) set.bankAccount = c.enc('000000-00-000000');
+    if (Object.keys(set).length) {
+      await db.update(technician).set(set).where(eq(technician.id, r.id));
+      fixed++;
+    }
+  }
+  for (const r of await db.select({ id: adminUser.id, loginId: adminUser.loginId, phone: adminUser.phone }).from(adminUser)) {
+    const a = DEMO_ADMINS.find((x) => x.loginId === r.loginId);
+    if (!a || ok(r.phone)) continue;
+    await db.update(adminUser).set({ phone: c.enc(a.phone) }).where(eq(adminUser.id, r.id));
+    fixed++;
+  }
+  for (const r of await db.select({ id: callLog.id, v: callLog.callerPhone, h: callLog.callerPhoneHash }).from(callLog)) {
+    const p = r.h ? byHash.get(r.h) : undefined;
+    if (!p || ok(r.v)) continue;
+    await db.update(callLog).set({ callerPhone: c.enc(p) }).where(eq(callLog.id, r.id));
+    fixed++;
+  }
+  for (const r of await db.select({ id: areaOpenRequest.id, v: areaOpenRequest.phone, h: areaOpenRequest.phoneHash }).from(areaOpenRequest)) {
+    const p = r.h ? byHash.get(r.h) : undefined;
+    if (!p || ok(r.v)) continue;
+    await db.update(areaOpenRequest).set({ phone: c.enc(p) }).where(eq(areaOpenRequest.id, r.id));
+    fixed++;
+  }
+  for (const r of await db.select({ id: technicianApplication.id, v: technicianApplication.phone, h: technicianApplication.phoneHash }).from(technicianApplication)) {
+    const p = r.h ? byHash.get(r.h) : undefined;
+    if (!p || ok(r.v)) continue;
+    await db.update(technicianApplication).set({ phone: c.enc(p) }).where(eq(technicianApplication.id, r.id));
+    fixed++;
+  }
+  for (const r of await db.select({ id: incidentRecipient.id, v: incidentRecipient.phone, org: incidentRecipient.org }).from(incidentRecipient)) {
+    if (r.org !== '테스트손해보험' || ok(r.v)) continue;
+    await db.update(incidentRecipient).set({ phone: c.enc('01000008001') }).where(eq(incidentRecipient.id, r.id));
+    fixed++;
+  }
+  const docs = await db
+    .select({ id: taxDocument.id, v: taxDocument.identityNo, type: taxDocument.docType, h: customer.phone1Hash })
+    .from(taxDocument)
+    .innerJoin(payment, eq(payment.id, taxDocument.paymentId))
+    .innerJoin(serviceOrder, eq(serviceOrder.id, payment.orderId))
+    .innerJoin(customer, eq(customer.id, serviceOrder.customerId));
+  for (const r of docs) {
+    if (ok(r.v)) continue;
+    const p = r.type === 'TAX_INVOICE' ? '0000000000' : r.h ? byHash.get(r.h) : undefined;
+    if (!p) continue;
+    await db.update(taxDocument).set({ identityNo: c.enc(p) }).where(eq(taxDocument.id, r.id));
+    fixed++;
+  }
+  if (fixed) c.log(`암호화 복구: 지금 PII_ENCRYPTION_KEY 로 풀리지 않던 가상 데이터 ${fixed}건을 다시 암호화했습니다.`);
 }
 
 async function uploadSampleFiles(c: Ctx) {
